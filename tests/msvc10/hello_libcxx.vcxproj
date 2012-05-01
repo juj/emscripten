@@ -36,7 +36,7 @@
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|vs-tool'">
     <PlatformToolset>emcc</PlatformToolset>
-    <ConfigurationType>HTMLPage</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|vs-tool'">
     <PlatformToolset>emcc</PlatformToolset>
@@ -80,8 +80,21 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|vs-tool'">
+    <ClCompile>
+      <EchoCommandLines>true</EchoCommandLines>
+      <VerboseOutput>VerboseOutputMode</VerboseOutput>
+      <CatchUndefinedBehavior>false</CatchUndefinedBehavior>
+      <GenerateLLVMByteCode>false</GenerateLLVMByteCode>
+    </ClCompile>
+    <Link>
+      <EchoCommandLines>true</EchoCommandLines>
+    </Link>
+  </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\hello_libcxx.cpp" />
+    <ClCompile Include="..\hello_libcxx.cpp">
+      <OptimizationLevel Condition="'$(Configuration)|$(Platform)'=='Debug|vs-tool'">OptimizationNotSet</OptimizationLevel>
+    </ClCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
