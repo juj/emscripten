@@ -95,6 +95,41 @@ float emscripten_get_now();
 float emscripten_random();
 
 /*
+ * Registers a callback function for receiving browser-generated keyboard input events.
+ * See https://developer.mozilla.org/en/DOM/Event/UIEvent/KeyEvent
+ * and http://www.javascriptkit.com/jsref/eventkeyboardmouse.shtml
+ *
+ * The contents of the event objects are passed to a C callback function of form
+ *    void OnKeyboardEvent(int eventType, int charCode, int keyCode, int which, bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, bool repeat);
+ *  where eventType identifies the type of the JavaScript event generated:
+ *    0: KeyPress
+ *    1: KeyDown
+ *    2: KeyUp
+ *  and the other parameters come from the event object as-is.
+ */
+extern void emscripten_set_keypress_callback(void (*func)(int eventType, int charCode, int keyCode, int which, bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, bool repeat));
+extern void emscripten_set_keydown_callback(void (*func)(int eventType, int charCode, int keyCode, int which, bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, bool repeat));
+extern void emscripten_set_keyup_callback(void (*func)(int eventType, int charCode, int keyCode, int which, bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, bool repeat));
+
+/*
+ * Registers a callback function for receiving browser-generated mouse input events.
+ * See https://developer.mozilla.org/en/DOM/MouseEvent
+ *
+ * The contents of the event objects are passed to a C callback function of form
+ *    void OnMouseEvent(int eventType, long screenX, long screenY, long clientX, long clientY, bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, unsigned short button, unsigned short buttons);
+ *  where eventType identifies the type of the JavaScript event generated:
+ *    3: Click
+ *    4: MouseDown
+ *    5: MouseUp
+ *    6: DblClick
+ *  and the other parameters come from the event object as-is.
+ */
+extern void emscripten_set_click_callback(void (*func)(int eventType, long screenX, long screenY, long clientX, long clientY, bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, unsigned short button, unsigned short buttons));
+extern void emscripten_set_mousedown_callback(void (*func)(int eventType, long screenX, long screenY, long clientX, long clientY, bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, unsigned short button, unsigned short buttons));
+extern void emscripten_set_mouseup_callback(void (*func)(int eventType, long screenX, long screenY, long clientX, long clientY, bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, unsigned short button, unsigned short buttons));
+extern void emscripten_set_dblclick_callback(void (*func)(int eventType, long screenX, long screenY, long clientX, long clientY, bool ctrlKey, bool shiftKey, bool altKey, bool metaKey, unsigned short button, unsigned short buttons));
+
+/*
  * This macro-looking function will cause Emscripten to
  * generate a comment in the generated code.
  * XXX This is deprecated for now, because it requires us to
