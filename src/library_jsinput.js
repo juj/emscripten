@@ -52,17 +52,17 @@ var LibraryJsInput = {
 
     emscripten_mousedown_handler: function(event) {
         var e = event || window.event;
-        FUNCTION_TABLE[JsInput.onClickFunc](4 /* MouseDown */, e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.shiftKey, e.altKey, e.metaKey, e.button, e.buttons);
+        FUNCTION_TABLE[JsInput.onMouseDownFunc](4 /* MouseDown */, e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.shiftKey, e.altKey, e.metaKey, e.button, e.buttons);
     },
 
     emscripten_mouseup_handler: function(event) {
         var e = event || window.event;
-        FUNCTION_TABLE[JsInput.onClickFunc](5 /* MouseUp */, e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.shiftKey, e.altKey, e.metaKey, e.button, e.buttons);
+        FUNCTION_TABLE[JsInput.onMouseUpFunc](5 /* MouseUp */, e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.shiftKey, e.altKey, e.metaKey, e.button, e.buttons);
     },
 
     emscripten_dblclick_handler: function(event) {
         var e = event || window.event;
-        FUNCTION_TABLE[JsInput.onClickFunc](6 /* DblClick */, e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.shiftKey, e.altKey, e.metaKey, e.button, e.buttons);
+        FUNCTION_TABLE[JsInput.onDblClickFunc](6 /* DblClick */, e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.shiftKey, e.altKey, e.metaKey, e.button, e.buttons);
     }
   },
 
