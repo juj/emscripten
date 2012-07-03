@@ -1524,8 +1524,13 @@ codecvt<wchar_t, char, mbstate_t>::do_length(state_type& st,
             ++nbytes;
             ++frm;
             break;
+<<<<<<< HEAD
         case static_cast<size_t>(-1): // XXX EMSCRIPTEN
         case static_cast<size_t>(-2): // XXX EMSCRIPTEN
+=======
+        case static_cast<size_t>(-1):
+        case static_cast<size_t>(-2):
+>>>>>>> Fix C++11 support in libcxx
             return nbytes;
         default:
             nbytes += n;
