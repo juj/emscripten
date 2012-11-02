@@ -134,6 +134,7 @@ namespace emscripten {
                 TYPEID returnType,
                 unsigned argCount,
                 TYPEID argTypes[],
+                GenericFunction invoker,
                 GenericFunction method);
 
             void _embind_register_enum(
@@ -578,6 +579,7 @@ namespace emscripten {
                 TypeID<ReturnType>::get(),
                 args.count,
                 args.types,
+                reinterpret_cast<internal::GenericFunction>(&internal::Invoker<ReturnType, Args...>::invoke),
                 reinterpret_cast<GenericFunction>(classMethod));
             return *this;
         }
