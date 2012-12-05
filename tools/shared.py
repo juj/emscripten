@@ -298,7 +298,9 @@ if DEBUG:
 
 if not EMSCRIPTEN_TEMP_DIR:
   EMSCRIPTEN_TEMP_DIR = tempfile.mkdtemp(prefix='emscripten_temp_', dir=TEMP_DIR)
+  print >> sys.stderr, "shared.py created temp directory " + EMSCRIPTEN_TEMP_DIR
   def clean_temp():
+    print >> sys.stderr, "at clean_temp(): EMSCRIPTEN_TEMP_DIR=" + EMSCRIPTEN_TEMP_DIR
     try_delete(EMSCRIPTEN_TEMP_DIR)
   atexit.register(clean_temp)
 
@@ -386,12 +388,14 @@ if not WINDOWS:
 # Temp file utilities
 
 def try_delete(filename):
+  print >> sys.stderr, "In try_delete(" + filename + ")"
   try:
     os.unlink(filename)
   except:
     try:
       shutil.rmtree(filename)
     except:
+      print >> sys.stderr, "Failed to delete " + filename
       pass
 
 class TempFiles:
