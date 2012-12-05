@@ -5163,7 +5163,7 @@ public:
     }
 };
 
-class __int128
+class __int128x
     : public __node
 {
     static const size_t n = sizeof("__int128") - 1;
@@ -5521,7 +5521,7 @@ public:
             if (__right_ != 0)
                 r += __right_->size();
             else if (__size_ != 0)
-                r += snprintf(0, 0, "%ld", __size_);
+                r += snprintf(0, 0, "%zd", __size_);
             const_cast<long&>(__cached_size_) = r;
         }
         return __cached_size_;
@@ -5536,7 +5536,7 @@ public:
             buf = __right_->get_demangled_name(buf);
         else if (__size_ != 0)
         {
-            size_t rs = sprintf(buf, "%ld", __size_);
+            size_t rs = sprintf(buf, "%zd", __size_);
             buf += rs;
         }
         *buf++ = ']';
@@ -5561,7 +5561,7 @@ public:
         if (__right_ != 0)
             r += __right_->size();
         else if (__size_ != 0)
-            r += snprintf(0, 0, "%ld", __size_);
+            r += snprintf(0, 0, "%zd", __size_);
         return r;
     }
 
@@ -5573,7 +5573,7 @@ public:
             buf = __right_->get_demangled_name(buf);
         else if (__size_ != 0)
         {
-            size_t off = sprintf(buf, "%ld", __size_);
+            size_t off = sprintf(buf, "%zd", __size_);
             buf += off;
         }
         char* t = buf;
@@ -6364,7 +6364,7 @@ __demangle_tree::__parse_builtin_type(const char* first, const char* last)
                 ++first;
             break;
         case 'n':
-            if (__make<__int128>())
+            if (__make<__int128x>())
                 ++first;
             break;
         case 'o':
