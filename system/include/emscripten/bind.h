@@ -722,44 +722,6 @@ namespace emscripten {
                 reinterpret_cast<internal::GenericFunction>(&internal::ArrayAccessSetInvoker<ClassType, ElementType, IndexType>::invoke));
             return *this;
         }
-
-        template<typename ElementType, typename IndexType>
-        class_& arrayoperatorget() {
-            using namespace internal;
-
-            _embind_register_class_operator_array_get(
-                TypeID<ClassType>::get(),
-                TypeID<ElementType>::get(),
-                TypeID<IndexType>::get(),
-                reinterpret_cast<internal::GenericFunction>(&internal::ArrayAccessGetInvoker<ClassType, ElementType, IndexType>::invoke));
-        }
-
-        template<typename ElementType, typename IndexType>
-        class_& arrayoperatorset() {
-            using namespace internal;
-
-            _embind_register_class_operator_array_set(
-                TypeID<ClassType>::get(),
-                TypeID<ElementType>::get(),
-                TypeID<IndexType>::get(),
-                reinterpret_cast<internal::GenericFunction>(&internal::ArrayAccessSetInvoker<ClassType, ElementType, IndexType>::invoke));
-            return *this;
-        }
-    };
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // VECTORS
-    ////////////////////////////////////////////////////////////////////////////////
-    template<typename T>
-    std::vector<T> vecFromJSArray(val v) {
-        auto l = v["length"].as<unsigned>();
-
-        std::vector<T> rv;
-        for(unsigned i = 0; i < l; ++i) {
-            rv.push_back(v[i].as<T>());
-        }
-
-        return rv;
     };
 
     ////////////////////////////////////////////////////////////////////////////////
