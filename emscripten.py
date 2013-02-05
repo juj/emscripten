@@ -19,7 +19,7 @@ def path_from_root(*pathelems):
   """Returns the absolute path for which the given path elements are
   relative to the emscripten root.
   """
-  return os.path.join(__rootpath__, *pathelems)
+  return os.path.relpath(os.path.join(__rootpath__, *pathelems), os.getcwd())
 
 def get_configuration():
   if hasattr(get_configuration, 'configuration'):
@@ -44,7 +44,7 @@ MIN_CHUNK_SIZE = 1024*1024
 MAX_CHUNK_SIZE = float(os.environ.get('EMSCRIPT_MAX_CHUNK_SIZE') or 'inf') # configuring this is just for debugging purposes
 
 def process_funcs((i, funcs, meta, settings_file, compiler, forwarded_file, libraries, compiler_engine, temp_files, DEBUG)):
-  funcs_file = temp_files.get('.func_%d.ll' % i).name
+  funcs_file = os.path.relpath(temp_files.get('.func_%d.ll' % i).name)
   f = open(funcs_file, 'w')
   f.write(funcs)
   funcs = None
@@ -136,7 +136,7 @@ def emscript(infile, settings, outfile, libraries=[], compiler_engine=None,
   #  print >> sys.stderr, '=========================\n'
 
   # Save settings to a file to work around v8 issue 1579
-  settings_file = temp_files.get('.txt').name
+  settings_file = os.path.relpath(temp_files.get('.txt').name)
   def save_settings():
     global settings_text
     settings_text = json.dumps(settings, sort_keys=True)
@@ -147,7 +147,7 @@ def emscript(infile, settings, outfile, libraries=[], compiler_engine=None,
 
   # Phase 1 - pre
   if DEBUG: t = time.time()
-  pre_file = temp_files.get('.pre.ll').name
+  pre_file = os.path.relpath(temp_files.get('.pre.ll').name)
   pre_input = ''.join(pre) + '\n' + meta
   out = None
   if jcache:
@@ -178,7 +178,7 @@ def emscript(infile, settings, outfile, libraries=[], compiler_engine=None,
       if DEBUG: print >> sys.stderr, '  saving pre to jcache'
       jcache.set(shortkey, keys, out)
   pre, forwarded_data = out.split('//FORWARDED_DATA:')
-  forwarded_file = temp_files.get('.json').name
+  forwarded_file = os.path.relpath(temp_files.get('.json').name)
   open(forwarded_file, 'w').write(forwarded_data)
   if DEBUG: print >> sys.stderr, '  emscript: phase 1 took %s seconds' % (time.time() - t)
 
@@ -333,13 +333,13 @@ def emscript(infile, settings, outfile, libraries=[], compiler_engine=None,
 
   # forward
   forwarded_data = json.dumps(forwarded_json)
-  forwarded_file = temp_files.get('.2.json').name
+  forwarded_file = os.path.relpath(temp_files.get('.2.json').name)
   open(forwarded_file, 'w').write(indexize(forwarded_data))
   if DEBUG: print >> sys.stderr, '  emscript: phase 2c took %s seconds' % (time.time() - t)
 
   # Phase 3 - post
   if DEBUG: t = time.time()
-  post_file = temp_files.get('.post.ll').name
+  post_file = os.path.relpath(temp_files.get('.post.ll').name)
   open(post_file, 'w').write('\n') # no input, just processing of forwarded data
   out = jsrun.run_js(compiler, compiler_engine, [settings_file, post_file, 'post', forwarded_file] + libraries, stdout=subprocess.PIPE,
                      cwd=path_from_root('src'))
@@ -761,14 +761,14 @@ WARNING: You should normally never use this! Use emcc instead.
     keywords.outfile = open(keywords.outfile, 'w')
 
   if keywords.relooper:
-    relooper = os.path.abspath(keywords.relooper)
+    relooper = keywords.relooper
   else:
     relooper = None # use the cache
 
   if keywords.temp_dir is None:
     temp_files = get_configuration().get_temp_files()
   else:
-    temp_dir = os.path.abspath(keywords.temp_dir)
+    temp_dir = keywords.temp_dir
     if not os.path.exists(temp_dir):
       os.makedirs(temp_dir)
     temp_files = tempfiles.TempFiles(temp_dir)
