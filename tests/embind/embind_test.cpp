@@ -96,6 +96,10 @@ public:
         this->v = v;
     }
 
+    int returnIntPlusFive( int x ) {
+        return x + 5;
+    }
+
     static int some_class_method(int i) {
         return i;
     }
@@ -229,6 +233,24 @@ void emval_test_call_function(val v, int i, float f, TupleVector tv, StructVecto
     v(i, f, tv, sv);
 }
 
+void optional_test_copy() {
+    using emscripten::internal::optional;
+
+    optional<int> foo = 22;
+    optional<int> bar(foo);
+
+    return bool(bar);
+}
+
+void optional_test_copy2() {
+    using emscripten::internal::optional;
+
+    optional<int> foo;
+    optional<int> bar(foo);
+
+    return bool(bar);
+}
+
 EMSCRIPTEN_BINDINGS(([]() {
     function("mallinfo", &emval_test_mallinfo);
 
@@ -286,6 +308,7 @@ EMSCRIPTEN_BINDINGS(([]() {
         .constructor<val>()
         .method("getVal", &ValHolder::getVal)
         .method("setVal", &ValHolder::setVal)
+        .method("returnIntPlusFive", &ValHolder::returnIntPlusFive)
         .classmethod("some_class_method", &ValHolder::some_class_method)
         ;
     function("emval_test_return_ValHolder", &emval_test_return_ValHolder);
@@ -332,4 +355,7 @@ EMSCRIPTEN_BINDINGS(([]() {
     function("emval_test_call_method3", &emval_test_call_method3);
 
     function("emval_test_call_function", &emval_test_call_function);
+
+    function('optional_test_copy', &optional_test_copy);
+    function('optional_test_copy2', &optional_test_copy2);
 }));

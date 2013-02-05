@@ -264,9 +264,7 @@ namespace emscripten {
     template<typename ReturnType, typename... Args, typename... Policies>
     void function(const char* name, ReturnType (fn)(Args...), Policies...) {
         using namespace internal;
-
         registerStandardTypes();
-
         typename WithPolicies<Policies...>::template ArgTypeList<ReturnType, Args...> args;
         _embind_register_function(
             name,
@@ -623,6 +621,7 @@ namespace emscripten {
                 args.count,
                 args.types,
                 reinterpret_cast<GenericFunction>(&raw_constructor<ClassType, ConstructorArgs...>));
+            return *this;
         }
 
         template<typename ReturnType, typename... Args, typename... Policies>
@@ -709,6 +708,30 @@ namespace emscripten {
                 TypeID<ElementType>::get(),
                 TypeID<IndexType>::get(),
                 reinterpret_cast<internal::GenericFunction>(&internal::ArrayAccessGetInvoker<ClassType, ElementType, IndexType>::invoke));
+            return *this;
+        }
+
+        template<typename ElementType, typename IndexType>
+        class_& arrayoperatorset() {
+            using namespace internal;
+
+            _embind_register_class_operator_array_set(
+                TypeID<ClassType>::get(),
+                TypeID<ElementType>::get(),
+                TypeID<IndexType>::get(),
+                reinterpret_cast<internal::GenericFunction>(&internal::ArrayAccessSetInvoker<ClassType, ElementType, IndexType>::invoke));
+            return *this;
+        }
+
+        template<typename ElementType, typename IndexType>
+        class_& arrayoperatorget() {
+            using namespace internal;
+
+            _embind_register_class_operator_array_get(
+                TypeID<ClassType>::get(),
+                TypeID<ElementType>::get(),
+                TypeID<IndexType>::get(),
+                reinterpret_cast<internal::GenericFunction>(&internal::ArrayAccessGetInvoker<ClassType, ElementType, IndexType>::invoke));
         }
 
         template<typename ElementType, typename IndexType>
@@ -739,6 +762,9 @@ namespace emscripten {
         return rv;
     };
 
+    ////////////////////////////////////////////////////////////////////////////////
+    // VECTORS
+    ////////////////////////////////////////////////////////////////////////////////
     template<typename T>
     class_<std::vector<T>> register_vector(const char* name) {
         using namespace std;
@@ -816,9 +842,18 @@ namespace emscripten {
                 }
             }
 
-            optional(const optional&) = delete;
+            optional(const optional& rhs)
+                : initialized(false)
+            {
+                *this = rhs;
+            }
 
             T& operator*() {
+                assert(initialized);
+                return *get();
+            }
+
+            const T& operator*() const {
                 assert(initialized);
                 return *get();
             }
@@ -833,19 +868,27 @@ namespace emscripten {
                 }
                 new(get()) T(v);
                 initialized = true;
+                return *this;
             }
 
-            optional& operator=(optional& o) {
+            optional& operator=(const optional& o) {
                 if (initialized) {
                     get()->~T();
                 }
-                new(get()) T(*o);
-                initialized = true;
+                if (o.initialized) {
+                    new(get()) T(*o);
+                }
+                initialized = o.initialized;
+                return *this;
             }
 
         private:
             T* get() {
                 return reinterpret_cast<T*>(&data);
+            }
+
+            T const* get() const {
+                return reinterpret_cast<T const*>(&data);
             }
 
             bool initialized;
@@ -863,9 +906,9 @@ namespace emscripten {
             initialize(handle);
         }
 
-        JSInterface(JSInterface& obj) {
-            jsobj = obj.jsobj;
-        }
+        JSInterface(const JSInterface& obj)
+            : jsobj(obj.jsobj)
+        {}
 
         template<typename ReturnType, typename... Args>
         ReturnType call(const char* name, Args... args) {
@@ -873,7 +916,7 @@ namespace emscripten {
             return Caller<ReturnType, Args...>::call(*jsobj, name, args...);
         }
 
-        static std::shared_ptr<JSInterface> cloneToSharedPtr(JSInterface& i) {
+        static std::shared_ptr<JSInterface> cloneToSharedPtr(const JSInterface& i) {
             return std::make_shared<JSInterface>(i);
         }
 

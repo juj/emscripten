@@ -42,7 +42,7 @@ function ignoreLoopy() {
   }
 }
 function bits() {
-  print(($s & 65535) + (($f & 65535) << 16 >> 16) * (($f & 65535) << 16 >> 16) % 256 & 65535);
+  print(($s & 65535) + ((($f & 65535) << 16 >> 16) * (($f & 65535) << 16 >> 16) | 0) % 256 & 65535);
   z(HEAP32[$id + 40 >> 2]);
   z($f << 2);
   z($f | 255);
@@ -50,7 +50,7 @@ function bits() {
   z($f ^ 1);
   z($f << 2);
   z($f * 100 << 2);
-  z($f % 2 | 255);
+  z(($f | 0) % 2 | 255);
   z(($f | 0) / 55 & 255);
   z($f - 22 ^ 1);
   z($f + 15 << 2);
@@ -91,11 +91,11 @@ function hoisting() {
   }
   pause(5);
   if ($i < $N) {
-    __label__ = 2;
+    label = 2;
   } else {
     somethingElse();
   }
-  if (__label__ == 55) {
+  if (label == 55) {
     callOther();
   }
   pause(6);
@@ -105,7 +105,7 @@ function hoisting() {
   pause(7);
   while (1) {
     if ($i >= $N) {
-      __label__ = 3;
+      label = 3;
       break;
     }
     somethingElse();
@@ -119,19 +119,19 @@ function hoisting() {
   do {
     if ($cmp95) {
       if (!$cmp103) {
-        __label__ = 38;
+        label = 38;
         break;
       }
       if (!$cmp106) {
-        __label__ = 38;
+        label = 38;
         break;
       }
-      __label__ = 39;
+      label = 39;
       break;
     }
-    __label__ = 38;
+    label = 38;
   } while (0);
-  if (__label__ == 38) {
+  if (label == 38) {
     var $79 = $_pr6;
   }
   pause(9);
@@ -200,15 +200,15 @@ function demangle($cmp) {
   do {
     if (!$cmp) {
       if (something()) {
-        __label__ = 3;
+        label = 3;
         break;
       }
       more();
       break;
     }
-    __label__ = 3;
+    label = 3;
   } while (0);
-  if (__label__ == 3) {
+  if (label == 3) {
     final();
   }
 }
@@ -229,15 +229,15 @@ function lua() {
   }
   pause();
   if ($1435 == 0) {
-    __label__ = 176;
+    label = 176;
     cheez();
   } else if ($1435 != 1) {
-    __label__ = 180;
+    label = 180;
     cheez();
   }
   pause();
   if ($1435 == 0) {
-    __label__ = 176;
+    label = 176;
     cheez();
   }
 }
@@ -279,5 +279,19 @@ function notComps() {
 function tricky() {
   var $conv642 = $conv6374 - (($132 << 16 >> 16 | 0) / 2 & -1) & 65535;
 }
-// EMSCRIPTEN_GENERATED_FUNCTIONS: ["abc", "xyz", "xyz2", "expr", "loopy", "bits", "maths", "hoisting", "demangle", "lua", "moreLabels", "notComps", "tricky"]
+function asmy() {
+  f(HEAPU8[_buf + i6 & 16777215]);
+  f(HEAPU8[_buf + i6 & 16777215]);
+  f(HEAP8[_buf + i6 & 16777215] & 1);
+  f(HEAPU8[_buf + i6 & 16777215] & 1);
+  f(HEAP8[_buf + i6 & 16777215] & 1);
+  f(HEAPU8[_buf + i6 & 16777215] & 1);
+  f((HEAP8[_buf + i6 & 16777215] & 1) + i5 | 0);
+  f((HEAPU8[_buf + i6 & 16777215] & 1) + i5 | 0);
+  f((HEAP8[_buf + i6 & 16777215] & 1) + i5 | 0);
+  f((HEAPU8[_buf + i6 & 16777215] & 1) + i5 | 0);
+  if ((_sbrk($419 | 0) | 0) == -1) {
+    print("fleefl");
+  }
+}
 

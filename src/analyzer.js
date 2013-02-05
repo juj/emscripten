@@ -19,7 +19,7 @@ function recomputeLines(func) {
 
 var BRANCH_INVOKE = set('branch', 'invoke');
 var SIDE_EFFECT_CAUSERS = set('call', 'invoke', 'atomic');
-var UNUNFOLDABLE = set('value', 'type', 'phiparam');
+var UNUNFOLDABLE = set('value', 'structvalue', 'type', 'phiparam');
 
 // Analyzer
 
@@ -120,12 +120,14 @@ function analyzer(data, sidePass) {
     processItem: function(data) {
       // Legalization
       if (USE_TYPED_ARRAYS == 2) {
-        function getLegalVars(base, bits) {
-          assert(!isNumber(base));
+        function getLegalVars(base, bits, allowLegal) {
+          if (allowLegal && bits <= 32) return [{ ident: base, bits: bits }];
+          if (isNumber(base)) return getLegalLiterals(base, bits);
           var ret = new Array(Math.ceil(bits/32));
           var i = 0;
+          if (base == 'zeroinitializer' || base == 'undef') base = 0;
           while (bits > 0) {
-            ret[i] = { ident: base + '$' + i, bits: Math.min(32, bits) };
+            ret[i] = { ident: base ? base + '$' + i : '0', bits: Math.min(32, bits) };
             bits -= 32;
             i++;
           }
@@ -141,6 +143,23 @@ function analyzer(data, sidePass) {
             i++;
           }
           return ret;
+        }
+        function getLegalStructuralParts(value) {
+          return value.params.slice(0);
+        }
+        function getLegalParams(params, bits) {
+          return params.map(function(param) {
+            var value = param.value || param;
+            if (isNumber(value.ident)) {
+              return getLegalLiterals(value.ident, bits);
+            } else if (value.intertype == 'structvalue') {
+              return getLegalStructuralParts(value).map(function(part) {
+                return { ident: part.ident, bits: part.type.substr(1) };
+              });
+            } else {
+              return getLegalVars(value.ident, bits);
+            }
+          });
         }
         // Uses the right factor to multiply line numbers by so that they fit in between
         // the line[i] and the line after it
@@ -191,6 +210,7 @@ function analyzer(data, sidePass) {
           // Legalize lines in labels
           var tempId = 0;
           func.labels.forEach(function(label) {
+            if (dcheck('legalizer')) dprint('zz legalizing: \n' + dump(label.lines));
             var i = 0, bits;
             while (i < label.lines.length) {
               var item = label.lines[i];
@@ -207,8 +227,12 @@ function analyzer(data, sidePass) {
                 if (isIllegalType(item.valueType) || isIllegalType(item.type)) {
                   isIllegal = true;
                 }
+                if ((item.intertype == 'load' || item.intertype == 'store') && isStructType(item.valueType)) {
+                  isIllegal = true; // storing an entire structure is illegal
+                }
               });
               if (!isIllegal) {
+                //if (dcheck('legalizer')) dprint('no need to legalize \n' + dump(item));
                 i++;
                 continue;
               }
@@ -222,10 +246,10 @@ function analyzer(data, sidePass) {
                 if (subItem != item && (!(subItem.intertype in UNUNFOLDABLE) ||
                                        (subItem.intertype == 'value' && isNumber(subItem.ident) && isIllegalType(subItem.type)))) {
                   if (item.intertype == 'phi') {
-                    assert(subItem.intertype == 'value', 'We can only unfold illegal constants in phis');
+                    assert(subItem.intertype == 'value' || subItem.intertype == 'structvalue', 'We can only unfold illegal constants in phis');
                     // we must handle this in the phi itself, if we unfold normally it will not be pushed back with the phi
                   } else {
-                    var tempIdent = '$$emscripten$temp$' + (tempId++);
+                    var tempIdent = '$$etemp$' + (tempId++);
                     subItem.assignTo = tempIdent;
                     unfolded.unshift(subItem);
                     fixUnfolded(subItem);
@@ -234,7 +258,7 @@ function analyzer(data, sidePass) {
                 } else if (subItem.intertype == 'switch' && isIllegalType(subItem.type)) {
                   subItem.switchLabels.forEach(function(switchLabel) {
                     if (switchLabel.value[0] != '$') {
-                      var tempIdent = '$$emscripten$temp$' + (tempId++);
+                      var tempIdent = '$$etemp$' + (tempId++);
                       unfolded.unshift({
                         assignTo: tempIdent,
                         intertype: 'value',
@@ -258,8 +282,7 @@ function analyzer(data, sidePass) {
                 case 'store': {
                   var toAdd = [];
                   bits = getBits(item.valueType);
-                  var elements;
-                  elements = getLegalVars(item.value.ident, bits);
+                  var elements = getLegalParams([item.value], bits)[0];
                   var j = 0;
                   elements.forEach(function(element) {
                     var tempVar = '$st$' + i + '$' + j;
@@ -290,32 +313,43 @@ function analyzer(data, sidePass) {
                   i += removeAndAdd(label.lines, i, toAdd);
                   continue;
                 }
-                // call, return: Return value is in an unlegalized array literal. Not fully optimal.
+                // call, return: Return the first 32 bits, the rest are in temp
                 case 'call': {
                   bits = getBits(value.type);
                   var elements = getLegalVars(item.assignTo, bits);
                   var toAdd = [value];
                   // legalize parameters
                   legalizeFunctionParameters(value.params);
-                  if (value.assignTo) {
+                  if (value.assignTo && isIllegalType(item.type)) {
                     // legalize return value
-                    var j = 0;
-                    toAdd = toAdd.concat(elements.map(function(element) {
-                      return {
+                    value.assignTo = elements[0].ident;
+                    for (var j = 1; j < elements.length; j++) {
+                      var element = elements[j];
+                      toAdd.push({
                         intertype: 'value',
                         assignTo: element.ident,
-                        type: 'i' + bits,
-                        ident: value.assignTo + '[' + (j++) + ']'
-                      };
-                    }));
+                        type: element.bits,
+                        ident: 'tempRet' + (j - 1)
+                      });
+                      assert(j<10); // TODO: dynamically create more than 10 tempRet-s
+                    }
                   }
                   i += removeAndAdd(label.lines, i, toAdd);
+                  continue;
+                }
+                case 'landingpad': {
+                  // not much to legalize
+                  i++;
                   continue;
                 }
                 case 'return': {
                   bits = getBits(item.type);
                   var elements = getLegalVars(item.value.ident, bits);
-                  item.value.ident = '[' + elements.map(function(element) { return element.ident }).join(',') + ']';
+                  item.value.ident = '(';
+                  for (var j = 1; j < elements.length; j++) {
+                    item.value.ident += 'tempRet' + (j-1) + '=' + elements[j].ident + ',';
+                  }
+                  item.value.ident += elements[0].ident + ')';
                   i++;
                   continue;
                 }
@@ -338,6 +372,21 @@ function analyzer(data, sidePass) {
                       ident: values[j++].ident
                     };
                   });
+                  i += removeAndAdd(label.lines, i, toAdd);
+                  continue;
+                }
+                case 'structvalue': {
+                  bits = getBits(value.type);
+                  var elements = getLegalVars(item.assignTo, bits);
+                  var toAdd = [];
+                  for (var j = 0; j < item.params.length; j++) {
+                    toAdd[j] = {
+                      intertype: 'value',
+                      assignTo: elements[j].ident,
+                      type: 'i32',
+                      ident: item.params[j].ident
+                    };
+                  }
                   i += removeAndAdd(label.lines, i, toAdd);
                   continue;
                 }
@@ -382,13 +431,9 @@ function analyzer(data, sidePass) {
                   var toAdd = [];
                   var elements = getLegalVars(item.assignTo, bits);
                   var j = 0;
-                  var literalValues = {}; // special handling of literals - we cannot unfold them normally
-                  value.params.map(function(param) {
-                    if (isNumber(param.value.ident)) {
-                      literalValues[param.value.ident] = getLegalLiterals(param.value.ident, bits);
-                    }
-                  });
+                  var values = getLegalParams(value.params, bits);
                   elements.forEach(function(element) {
+                    var k = 0;
                     toAdd.push({
                       intertype: 'phi',
                       assignTo: element.ident,
@@ -399,7 +444,7 @@ function analyzer(data, sidePass) {
                           label: param.label,
                           value: {
                            intertype: 'value',
-                           ident: (param.value.ident in literalValues) ? literalValues[param.value.ident][j].ident : (param.value.ident + '$' + j),
+                           ident: values[k++][j].ident,
                            type: 'i' + element.bits,
                           }
                         };
@@ -413,6 +458,62 @@ function analyzer(data, sidePass) {
                 case 'switch': {
                   i++;
                   continue; // special case, handled in makeComparison
+                }
+                case 'extractvalue': { // XXX we assume 32-bit alignment in extractvalue/insertvalue,
+                                       // but in theory they can run on packed structs too (see use getStructuralTypePartBits)
+                  // potentially legalize the actual extracted value too if it is >32 bits, not just the extraction in general
+                  var index = item.indexes[0][0].text;
+                  var parts = getStructureTypeParts(item.type);
+                  var indexedType = parts[index];
+                  var targetBits = getBits(indexedType);
+                  var sourceBits = getBits(item.type);
+                  var elements = getLegalVars(item.assignTo, targetBits, true); // possibly illegal
+                  var sourceElements = getLegalVars(item.ident, sourceBits); // definitely illegal
+                  var toAdd = [];
+                  var sourceIndex = 0;
+                  for (var partIndex = 0; partIndex < parts.length; partIndex++) {
+                    if (partIndex == index) {
+                      for (var j = 0; j < elements.length; j++) {
+                        toAdd.push({
+                          intertype: 'value',
+                          assignTo: elements[j].ident,
+                          type: 'i' + elements[j].bits,
+                          ident: sourceElements[sourceIndex+j].ident
+                        });
+                      }
+                      break;
+                    }
+                    sourceIndex += getStructuralTypePartBits(parts[partIndex])/32;
+                  }
+                  i += removeAndAdd(label.lines, i, toAdd);
+                  continue;
+                }
+                case 'insertvalue': {
+                  var index = item.indexes[0][0].text; // the modified index
+                  var parts = getStructureTypeParts(item.type);
+                  var indexedType = parts[index];
+                  var indexBits = getBits(indexedType);
+                  var bits = getBits(item.type); // source and target
+                  bits = getBits(value.type);
+                  var toAdd = [];
+                  var elements = getLegalVars(item.assignTo, bits);
+                  var sourceElements = getLegalVars(item.ident, bits);
+                  var indexElements = getLegalVars(item.value.ident, indexBits, true); // possibly legal
+                  var sourceIndex = 0;
+                  for (var partIndex = 0; partIndex < parts.length; partIndex++) {
+                    var currNum = getStructuralTypePartBits(parts[partIndex])/32;
+                    for (var j = 0; j < currNum; j++) {
+                      toAdd.push({
+                        intertype: 'value',
+                        assignTo: elements[sourceIndex+j].ident,
+                        type: 'i' + elements[sourceIndex+j].bits,
+                        ident: partIndex == index ? indexElements[j].ident : sourceElements[sourceIndex+j].ident
+                      });
+                    }
+                    sourceIndex += currNum;
+                  }
+                  i += removeAndAdd(label.lines, i, toAdd);
+                  continue;
                 }
                 case 'bitcast': {
                   var inType = item.type2;
@@ -467,21 +568,26 @@ function analyzer(data, sidePass) {
                       break;
                     }
                     case 'bitcast': {
+                      if (!sourceBits) {
+                        // we can be asked to bitcast doubles or such to integers, handle that as best we can (if it's a double that
+                        // was an x86_fp80, this code will likely break when called)
+                        sourceBits = targetBits = Runtime.getNativeTypeSize(value.params[0].type);
+                        warn('legalizing non-integer bitcast on ll #' + item.lineNum);
+                      }
                       break;
                     }
                     case 'select': {
                       sourceBits = targetBits = getBits(value.params[1].type);
-                      var otherElementsA = getLegalVars(value.params[1].ident, sourceBits);
-                      var otherElementsB = getLegalVars(value.params[2].ident, sourceBits);
+                      var params = getLegalParams(value.params.slice(1), sourceBits);
                       processor = function(result, j) {
                         return {
                           intertype: 'mathop',
                           op: 'select',
-                          type: 'i' + otherElementsA[j].bits,
+                          type: 'i' + params[0][j].bits,
                           params: [
                             value.params[0],
-                            { intertype: 'value', ident: otherElementsA[j].ident, type: 'i' + otherElementsA[j].bits },
-                            { intertype: 'value', ident: otherElementsB[j].ident, type: 'i' + otherElementsB[j].bits }
+                            { intertype: 'value', ident: params[0][j].ident, type: 'i' + params[0][j].bits },
+                            { intertype: 'value', ident: params[1][j].ident, type: 'i' + params[1][j].bits }
                           ]
                         };
                       };
@@ -511,8 +617,8 @@ function analyzer(data, sidePass) {
                           for (var i = 0; i < targetElements.length; i++) {
                             if (i > 0) {
                               switch(value.variant) {
-                                case 'eq': ident += '&&'; break;
-                                case 'ne': ident += '||'; break;
+                                case 'eq': ident += '&'; break;
+                                case 'ne': ident += '|'; break;
                                 default: throw 'unhandleable illegal icmp: ' + value.variant;
                               }
                             }
@@ -548,9 +654,13 @@ function analyzer(data, sidePass) {
                     // We can't statically legalize this, do the operation at runtime TODO: optimize
                     assert(sourceBits == 64, 'TODO: handle nonconstant shifts on != 64 bits');
                     value.intertype = 'value';
-                    value.ident = 'Runtime.bitshift64(' + sourceElements[0].ident + ', ' +
-                                                          sourceElements[1].ident + ',"' + value.op + '",' + value.params[1].ident + '$0);' +
-                                  'var ' + value.assignTo + '$0 = ' + value.assignTo + '[0], ' + value.assignTo + '$1 = ' + value.assignTo + '[1];';
+                    value.ident = 'Runtime' + (ASM_JS ? '_' : '.') + 'bitshift64(' + 
+                        asmCoercion(sourceElements[0].ident, 'i32') + ',' +
+                        asmCoercion(sourceElements[1].ident, 'i32') + ',' +
+                        Runtime['BITSHIFT64_' + value.op.toUpperCase()] + ',' +
+                        asmCoercion(value.params[1].ident + '$0', 'i32') + ');' +
+                      'var ' + value.assignTo + '$0 = ' + makeGetTempDouble(0, 'i32') + ', ' + value.assignTo + '$1 = ' + makeGetTempDouble(1, 'i32') + ';';
+                    value.assignTo = null;
                     i++;
                     continue;
                   }
@@ -684,6 +794,8 @@ function analyzer(data, sidePass) {
       var subType = check[2];
       addTypeInternal(subType, data); // needed for anonymous structure definitions (see below)
 
+      // Huge structural types are represented very inefficiently, both here and in generated JS. Best to avoid them - for example static char x[10*1024*1024]; is bad, while static char *x = malloc(10*1024*1024) is fine.
+      if (num >= 10*1024*1024) warnOnce('warning: very large fixed-size structural type: ' + type + ' - can you reduce it? (compilation may be slow)');
       Types.types[nonPointing] = {
         name_: nonPointing,
         fields: range(num).map(function() { return subType }),
@@ -1346,6 +1458,14 @@ function analyzer(data, sidePass) {
             }
           });
         });
+
+        if (func.ident in NECESSARY_BLOCKADDRS) {
+          Functions.blockAddresses[func.ident] = {};
+          for (var needed in NECESSARY_BLOCKADDRS[func.ident]) {
+            assert(needed in func.labelIds);
+            Functions.blockAddresses[func.ident][needed] = func.labelIds[needed];
+          }
+        }
       });
       this.forwardItem(item, 'StackAnalyzer');
     }
@@ -1425,524 +1545,32 @@ function analyzer(data, sidePass) {
     }
   });
 
-  //! @param toLabelId If false, just a dry run - useful to search for labels
-  function replaceLabels(line, labelIds, toLabelId) {
-    var ret = [];
-
-    var value = keys(labelIds)[0];
-    var wildcard = value.indexOf('*') >= 0;
-    assert(!wildcard || values(labelIds).length == 1); // For now, just handle that case
-    var wildcardParts = null;
-    if (wildcard) {
-      wildcardParts = value.split('|');
-    }
-    function wildcardCheck(s) {
-      var parts = s.split('|');
-      for (var i = 0; i < 3; i++) {
-        if (wildcardParts[i] !== '*' && wildcardParts[i] != parts[i]) return false;
-      }
-      return true;
-    }
-
-    operateOnLabels(line, function process(item, id) {
-      if (item[id] in labelIds || (wildcard && wildcardCheck(item[id]))) {
-        ret.push(item[id]);
-        if (dcheck('relooping')) dprint('zz ' + id + ' replace ' + item[id] + ' with ' + toLabelId);
-        if (toLabelId) {
-          // replace wildcards in new value with old parts
-          var oldParts = item[id].split('|');
-          var newParts = toLabelId.split('|');
-          for (var i = 1; i < 3; i++) {
-            if (newParts[i] === '*') newParts[i] = oldParts[i];
-          }
-          item[id] = newParts.join('|') + '|' + item[id];
-        }
-      }
-    });
-    return ret;
-  }
-
-  function replaceLabelLabels(labels, labelIds, toLabelId) {
-    ret = [];
-    labels.forEach(function(label) {
-      ret = ret.concat(replaceLabels(label.lines[label.lines.length-1], labelIds, toLabelId));
-    });
-    return ret;
-  }
-
-  function isReachable(label, otherLabels, ignoreLabel) { // is label reachable by otherLabels, ignoring ignoreLabel in those otherLabels
-    var reachable = false;
-    otherLabels.forEach(function(otherLabel) {
-      reachable = reachable || (otherLabel !== ignoreLabel && (label.ident == otherLabel.ident ||
-                                                               label.ident in otherLabel.allOutLabels));
-    });
-    return reachable;
-  }
-
   // ReLooper - reconstruct nice loops, as much as possible
+  // This is now done in the jsify stage, using compiled relooper2
   substrate.addActor('Relooper', {
     processItem: function(item) {
-      var that = this;
       function finish() {
-        that.forwardItem(item, 'LoopOptimizer');
+        item.__finalResult__ = true;
+        return [item];
       }
-
-      // Tools
-
-      function calcLabelBranchingData(labels, labelsDict) {
-        labels.forEach(function(label) {
-          label.outLabels = [];
-          label.inLabels = [];
-          label.hasReturn = false;
-          label.hasBreak = false;
-        });
-        // Find direct branchings
-        labels.forEach(function(label) {
-          var line = label.lines[label.lines.length-1];
-          operateOnLabels(line, function process(item, id) {
-            if (item[id][0] == 'B') { // BREAK, BCONT, BNOPP, BJSET
-              label.hasBreak = true;
-            } else {
-              label.outLabels.push(item[id]);
-              labelsDict[item[id]].inLabels.push(label.ident);
-            }
-          });
-          label.hasReturn |= line.intertype == 'return';
-        });
-        // Find all incoming and all outgoing - recursively
-        labels.forEach(function(label) {
-          label.allInLabels = [];
-          label.allOutLabels = [];
-        });
-
-        // First, find allInLabels. TODO: use typed arrays here to optimize this for memory and speed
-        var more = true, nextModified, modified = set(getLabelIds(labels));
-        while (more) {
-          more = false;
-          nextModified = {};
-          for (var labelId in modified) {
-            var label = labelsDict[labelId];
-            var temp = label.inLabels;
-            label.inLabels.forEach(function(label2Id) {
-              temp = temp.concat(labelsDict[label2Id].allInLabels);
-            });
-            temp = dedup(temp);
-            if (temp.length > label.allInLabels.length) {
-              label.allInLabels = temp;
-              for (var i = 0; i < label.outLabels.length; i++) {
-                nextModified[label.outLabels[i]] = true;
-              }
-              more = true;
-            }
-          }
-          modified = nextModified;
-        }
-
-        // Infer allOutLabels from allInLabels, they are mirror images
-        labels.forEach(function(label) {
-          label.allInLabels.forEach(function(inLabelId) {
-            labelsDict[inLabelId].allOutLabels.push(label.ident);
-          });
-        });
-
-        labels.forEach(function(label) {
-          if (dcheck('relooping')) {
-            dprint('// label: ' + label.ident + ' :out      : ' + JSON.stringify(label.outLabels));
-            dprint('//        ' + label.ident + ' :in       : ' + JSON.stringify(label.inLabels));
-            dprint('//        ' + label.ident + ' :ALL out  : ' + JSON.stringify(label.allOutLabels));
-            dprint('//        ' + label.ident + ' :ALL in   : ' + JSON.stringify(label.allInLabels));
-          }
-
-          // Convert to set, for speed (we mainly do lookups here) and code clarity (x in Xlabels)
-          // Also removes duplicates (which we can get in llvm switches)
-          // TODO do we need all these?
-          label.outLabels = set(label.outLabels);
-          label.inLabels = set(label.inLabels);
-          label.allOutLabels = set(label.allOutLabels);
-          label.allInLabels = set(label.allInLabels);
-        });
-      }
-
-      var idCounter = 0;
-      function makeBlockId(entries) {
-        idCounter++;
-        return '$_$' + idCounter;
-      }
-
-      // There are X main kinds of blocks:
-      //
-      //----------------------------------------------------------------------------------------
-      //
-      //  'emulated': A soup of labels, implemented as a barbaric switch in a loop. Any
-      //              label can get to any label. No block follows this.
-      //
-      //  'reloop': That is a block of the following shape:
-      //
-      //       loopX: while(1) {
-      //         // internal labels, etc. Labels are internal to the current one, if
-      //         // they can return to it.
-      //         //
-      //         // Such labels can either do |continue loopX| to get back to the entry label,
-      //         // or set __label__ and do |break loopX| to get to any of the external entries
-      //         // they need to get to. External labels, of course, are those that cannot
-      //         // get to the entry
-      //       }
-      //       // external labels
-      //
-      //  'multiple': A block that branches into multiple subblocks, each independent,
-      //              finally leading outside into another block afterwards
-      //              For now, we do this in a loop, so we can break out of it easily to get
-      //              to the labels afterwards. TODO: Optimize that out
-      //
       function makeBlock(labels, entries, labelsDict, forceEmulated) {
         if (labels.length == 0) return null;
         dprint('relooping', 'prelooping: ' + entries + ',' + labels.length + ' labels');
         assert(entries && entries[0]); // need at least 1 entry
 
-        var blockId = makeBlockId(entries);
-
         var emulated = {
           type: 'emulated',
-          id: blockId,
+          id: 'B',
           labels: labels,
           entries: entries.slice(0)
         };
-        if (!RELOOP || forceEmulated) return emulated;
-
-        calcLabelBranchingData(labels, labelsDict);
-
-        var s_entries = set(entries);
-        dprint('relooping', 'makeBlock: ' + entries + ',' + labels.length + ' labels');
-
-        var entryLabels = entries.map(function(entry) { return labelsDict[entry] });
-        assert(entryLabels[0]);
-
-        var canReturn = false, mustReturn = true;
-        entryLabels.forEach(function(entryLabel) {
-          var curr = values(entryLabel.inLabels).length > 0;
-          canReturn = canReturn || curr;
-          mustReturn = mustReturn && curr;
-        });
-
-        // Remove unreachables
-        allOutLabels = {};
-        entryLabels.forEach(function(entryLabel) {
-          mergeInto(allOutLabels, entryLabel.allOutLabels);
-        });
-        labels = labels.filter(function(label) { return label.ident in s_entries || label.ident in allOutLabels });
-
-        // === (simple) 'emulated' ===
-
-        if (entries.length == 1 && !canReturn) {
-          var entry = entries[0];
-          var entryLabel = entryLabels[0];
-          var others = labels.filter(function(label) { return label.ident != entry });
-
-          var nextEntries = keys(entryLabel.outLabels);
-          dprint('relooping', '   Creating simple emulated, outlabels: ' + nextEntries);
-          nextEntries.forEach(function(nextEntry) {
-            replaceLabelLabels([entryLabel], set(nextEntry), 'BJSET|' + nextEntry); // Just SET __label__ - no break or continue or whatnot
-          });
-          return {
-            type: 'emulated',
-            id: blockId,
-            labels: [entryLabel],
-            entries: entries,
-            next: makeBlock(others, keys(entryLabel.outLabels), labelsDict)
-          };
-        }
-
-        // === 'reloop' away a loop, if we need to ===
-
-        function makeLoop() {
-          var ret = {
-            type: 'reloop',
-            id: blockId,
-            needBlockId: true,
-            entries: entries,
-            labels: labels
-          };
-
-          // Find internal and external labels
-          var split_ = splitter(labels, function(label) {
-            // External labels are those that are (1) not an entry, and (2) cannot reach an entry. In other words,
-            // the labels inside the loop are the entries and those that can return to the entries.
-            return !(label.ident in s_entries) && values(setIntersect(s_entries, label.allOutLabels)).length == 0;
-          });
-          var externals = split_.splitOut;
-          var internals = split_.leftIn;
-          var externalsLabels = set(getLabelIds(externals));
-
-          if (dcheck('relooping')) dprint('   Creating reloop: Inner: ' + dump(getLabelIds(internals)) + ', Exxer: ' + dump(externalsLabels));
-
-          if (ASSERTIONS) {
-            // Verify that no external can reach an internal
-            var inLabels = set(getLabelIds(internals));
-            externals.forEach(function(external) {
-              if (values(setIntersect(external.outLabels, inLabels)).length > 0) {
-                dprint('relooping', 'Found an external that wants to reach an internal, fallback to emulated?');
-                throw "Spaghetti label flow";
-              }
-            });
-          }
-
-          // We will be in a loop, |continue| gets us back to the entry
-          var pattern = 'BCONT|' + blockId;
-          if (entries.length == 1) {
-            // We are returning to a loop that has one entry, so we don't need to set __label__
-            pattern = 'BCNOL|' + blockId;
-          }
-          entries.forEach(function(entry) {
-            replaceLabelLabels(internals, set(entries), pattern);
-          });
-
-          // Find the entries of the external labels
-          var externalsEntries = {};
-          internals.forEach(function(internal) {
-            mergeInto(externalsEntries, setIntersect(internal.outLabels, externalsLabels));
-          });
-          externalsEntries = keys(externalsEntries);
-
-          // We also want to include additional labels inside the loop. If the loop has just one exit label,
-          // then that is fine - keep the loop small by having the next code outside, and do not set __label__ in
-          // that break. If there is more than one, though, we can avoid __label__ checks in a multiple outside
-          // by hoisting labels into the loop.
-          if (externalsEntries.length > 1) {
-            (function() {
-              // If an external entry would make the loop too big, don't hoist
-              var maxHoist = Infinity; //sum(internals.map(function(internal) { return internal.lines.length }));
-              var avoid = externalsEntries.map(function(l) { return labelsDict[l] });
-              var totalNewEntries = {};
-              for (var i = 0; i < externalsEntries.length; i++) {
-                var exitLabel = labelsDict[externalsEntries[i]];
-                // Check if hoisting this external entry is worthwhile. We first do a dry run, aborting on
-                // loops (which we never hoist, to avoid over-nesting) or on seeing too many labels would be hoisted
-                // (to avoid enlarging loops too much). If the dry run succeeded, it will stop when it reaches
-                // places where we rejoin other external entries.
-                var seen, newEntries;
-                function prepare() {
-                  seen = {};
-                  newEntries = {};
-                }
-                function hoist(label, dryRun) { // returns false if aborting
-                  if (seen[label.ident]) return true;
-                  seen[label.ident] = true;
-                  if (label.ident in label.allInLabels) return false; // loop, abort
-                  if (isReachable(label, avoid, exitLabel)) {
-                    // We rejoined, so this is a new external entry
-                    newEntries[label.ident] = true;
-                    return true;
-                  }
-                  // Hoistable.
-                  if (!dryRun) {
-                    dprint('relooping', 'Hoisting into loop: ' + label.ident);
-                    internals.push(label);
-                    externals = externals.filter(function(l) { return l != label }); // not very efficient at all TODO: optimize
-                  }
-                  for (var outLabelId in label.outLabels) {
-                    var outLabel = labelsDict[outLabelId];
-                    if (!hoist(outLabel, dryRun)) return false;
-                  }
-                  return true;
-                }
-                prepare();
-                if (hoist(exitLabel, true)) {
-                  var seenList = unset(seen);
-                  var num = sum(seenList.map(function(seen) { return labelsDict[seen].lines.length }));
-                  // Only hoist if the sizes make sense
-                  if (seenList.length >= 1 && num <= maxHoist) { // && unset(newEntries).length <= 1) {
-                    prepare();
-                    hoist(exitLabel);
-                    mergeInto(totalNewEntries, newEntries);
-                    externalsEntries.splice(i, 1);
-                    i--;
-                  }
-                }
-              }
-              externalsLabels = set(getLabelIds(externals));
-              externalsEntries = keys(set(externalsEntries.concat(unset(totalNewEntries))));
-              assert(externalsEntries.length > 0 || externals.length == 0);
-            })();
-          }
-
-          // To get to any of our (not our parents') exit labels, we will break.
-          if (dcheck('relooping')) dprint('for exit purposes, Replacing: ' + dump(externalsLabels));
-          if (externals.length > 0) {
-            assert(externalsEntries.length > 0);
-            var pattern = 'BREAK|' + blockId;
-            if (externalsEntries.length == 1) {
-              // We are breaking out of a loop and have one entry after it, so we don't need to set __label__ 
-              pattern = 'BRNOL|' + blockId;
-            }
-            replaceLabelLabels(internals, externalsLabels, pattern);
-            if (dcheck('relooping')) dprint('externalsEntries: ' + dump(externalsEntries));
-          }
-
-          // inner
-          ret.inner = makeBlock(internals, entries, labelsDict);
-
-          if (externals.length > 0) {
-            // outer
-            ret.next = makeBlock(externals, externalsEntries, labelsDict);
-          }
-
-          return ret;
-        }
-
-        // XXX change this logic?
-        if (entries.length === 1 && canReturn) return makeLoop();
-
-        // === handle multiple branches from the entry with a 'multiple' ===
-        //
-        // For each entry, try to 'build it out' as much as possible. Add labels, until
-        //    * hit a post label
-        //    * hit a label reachable by another actual entry
-
-        dprint('relooping', 'trying multiple...');
-
-        var shouldNotReach = entryLabels;
-        var handlingNow = [];
-        var actualEntryLabels = [];
-        var postEntryLabels = {};
-        entryLabels.forEach(function(entryLabel) {
-          entryLabel.blockChildren = [];
-          var visited = {};
-          function tryAdd(label) {
-            if (label.ident in visited) return;
-            visited[label.ident] = true;
-            if (!isReachable(label, shouldNotReach, entryLabel)) {
-              entryLabel.blockChildren.push(label);
-              handlingNow.push(label);
-              keys(label.outLabels).forEach(function(outLabelId) { tryAdd(labelsDict[outLabelId]) });
-            } else {
-              postEntryLabels[label.ident] = true; // This will be an entry in the next block
-            }
-          }
-          tryAdd(entryLabel);
-          if (entryLabel.blockChildren.length > 0) {
-            dprint('relooping', '  Considering multiple, found a valid entry, ' + entryLabel.ident);
-            actualEntryLabels.push(entryLabel);
-          }
-        });
-
-        if (dcheck('relooping')) dprint('  Considering multiple, canHandle: ' + getLabelIds(handlingNow));
-
-        if (handlingNow.length > 0) {
-          // This is a 'multiple'
-
-          var actualEntries = getLabelIds(actualEntryLabels);
-          if (dcheck('relooping')) dprint('   Creating multiple, with entries: ' + actualEntries + ', post entries: ' + dump(postEntryLabels));
-          actualEntryLabels.forEach(function(actualEntryLabel) {
-            if (dcheck('relooping')) dprint('      creating sub-block in multiple for ' + actualEntryLabel.ident + ' : ' + getLabelIds(actualEntryLabel.blockChildren) + ' ::: ' + actualEntryLabel.blockChildren.length);
-
-            var pattern = 'BREAK|' + blockId;
-            if (keys(postEntryLabels).length == 1) {
-              // We are breaking out of a multiple and have one entry after it, so we don't need to set __label__
-              pattern = 'BRNOL|' + blockId;
-            }
-            keys(postEntryLabels).forEach(function(post) {
-              replaceLabelLabels(actualEntryLabel.blockChildren, set(post), pattern);
-            });
-
-            // Create child block
-            actualEntryLabel.block = makeBlock(actualEntryLabel.blockChildren, [actualEntryLabel.blockChildren[0].ident], labelsDict);
-          });
-          return {
-            type: 'multiple',
-            id: blockId,
-            needBlockId: true,
-            entries: actualEntries,
-            entryLabels: actualEntryLabels,
-            labels: handlingNow,
-            next: makeBlock(labels.filter(function(label) { return handlingNow.indexOf(label) == -1 }), keys(postEntryLabels), labelsDict)
-          };
-        }
-
-        assert(canReturn, 'If not a multiple, must be able to create a loop');
-
-        return makeLoop();
+        return emulated;
       }
-
-      // TODO: each of these can be run in parallel
       item.functions.forEach(function(func) {
         dprint('relooping', "// relooping function: " + func.ident);
         func.block = makeBlock(func.labels, [toNiceIdent(func.labels[0].ident)], func.labelsDict, func.forceEmulated);
       });
 
-      return finish();
-    }
-  });
-
-  // LoopOptimizer. The Relooper generates native loop structures, that are
-  //       logically correct. The LoopOptimizer works on that, doing further optimizations
-  //       like switching to BNOPP when possible, etc.
-
-  substrate.addActor('LoopOptimizer', {
-    processItem: function(item) {
-      var that = this;
-      function finish() {
-        item.__finalResult__ = true;
-        return [item];
-      }
-      if (!RELOOP) return finish();
-
-      // Find where each block will 'naturally' get to, just by the flow of code
-      function exploreBlockEndings(block, endOfTheWorld) { // endoftheworld - where we will get, if we have nothing else to get to - 'fall off the face of the earth'
-        if (!block) return;
-
-        function singular(block) {
-          if (!block) return endOfTheWorld;
-          if (block.type === 'multiple') return null;
-          if (block.entries.length == 1) {
-            return block.entries[0];
-          } else {
-            return null;
-          }
-        }
-
-        dprint('relooping', "//    exploring block: " + block.type + ' : ' + block.entries);
-
-        if (block.type == 'reloop') {
-          exploreBlockEndings(block.inner, singular(block.inner));
-        } else if (block.type == 'multiple') {
-          block.entryLabels.forEach(function(entryLabel) { exploreBlockEndings(entryLabel.block, singular(block.next)) });
-        }
-
-        exploreBlockEndings(block.next, endOfTheWorld);
-
-        if (block.next) {
-          block.willGetTo = singular(block.next);
-        } else {
-          block.willGetTo = endOfTheWorld;
-        }
-
-        dprint('relooping', "//    explored block: " + block.type + ' : ' + block.entries + ' , willGetTo: ' + block.willGetTo);
-      }
-
-      // Remove unneeded label settings, if we set it to where we will get anyhow
-      function optimizeBlockEndings(block) {
-        if (!block) return;
-
-        dprint('relooping', "//    optimizing block: " + block.type + ' : ' + block.entries);
-
-        recurseBlock(block, optimizeBlockEndings);
-
-        if (block.type === 'emulated' && block.willGetTo) {
-          dprint('relooping', '//         removing (trying): ' + block.willGetTo);
-          replaceLabelLabels(block.labels, set('BJSET|*|' + block.willGetTo), 'BNOPP');
-          replaceLabelLabels(block.labels, set('BCONT|*|' + block.willGetTo), 'BNOPP');
-          replaceLabelLabels(block.labels, set('BREAK|*|' + block.willGetTo), 'BNOPP');
-          replaceLabelLabels(block.labels, set('BRNOL|*|' + block.willGetTo), 'BNOPP');
-          replaceLabelLabels(block.labels, set('BCNOL|*|' + block.willGetTo), 'BNOPP');
-        }
-      }
-
-      // TODO: Parallelize
-      item.functions.forEach(function(func) {
-        dprint('relooping', "// loopOptimizing function: " + func.ident);
-        exploreBlockEndings(func.block);
-        optimizeBlockEndings(func.block);
-      });
       return finish();
     }
   });

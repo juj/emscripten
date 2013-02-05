@@ -81,6 +81,8 @@ function SAFE_HEAP_STORE(dest, value, type, ignore) {
   if (!ignore && !value && (value === null || value === undefined)) {
     throw('Warning: Writing an invalid value of ' + JSON.stringify(value) + ' at ' + dest + ' :: ' + new Error().stack + '\n');
   }
+  //if (!ignore && (value === Infinity || value === -Infinity || isNaN(value))) throw [value, typeof value, new Error().stack];
+
   SAFE_HEAP_ACCESS(dest, type, true, ignore);
   if (dest in HEAP_WATCHED) {
     Module.print((new Error()).stack);
@@ -273,7 +275,9 @@ Module['printProfiling'] = printProfiling;
 // Runtime essentials
 //========================================
 
-var __THREW__ = false; // Used in checking for thrown exceptions.
+var __THREW__ = 0; // Used in checking for thrown exceptions.
+var setjmpId = 1; // Used in setjmp/longjmp
+var setjmpLabels = {};
 
 var ABORT = false;
 
@@ -283,6 +287,7 @@ var undef = 0;
 var tempValue, tempInt, tempBigInt, tempInt2, tempBigInt2, tempPair, tempBigIntI, tempBigIntR, tempBigIntS, tempBigIntP, tempBigIntD;
 #if USE_TYPED_ARRAYS == 2
 var tempI64, tempI64b;
+var tempRet0, tempRet1, tempRet2, tempRet3, tempRet4, tempRet5, tempRet6, tempRet7, tempRet8, tempRet9;
 #endif
 
 function abort(text) {
@@ -303,18 +308,10 @@ var globalScope = this;
 // defined with extern "C").
 //
 // Note: LLVM optimizations can inline and remove functions, after which you will not be
-//       able to call them. Adding
+//       able to call them. Closure can also do so. To avoid that, add your function to
+//       the exports using something like
 //
-//         __attribute__((used))
-//
-//       to the function definition will prevent that.
-//
-// Note: Closure optimizations will minify function names, making
-//       functions no longer callable. If you run closure (on by default
-//       in -O2 and above), you should export the functions you will call
-//       by calling emcc with something like
-//
-//         -s EXPORTED_FUNCTIONS='["_func1","_func2"]'
+//         -s EXPORTED_FUNCTIONS='["_main", "_myfunc"]'
 //
 // @param ident      The name of the C function (note that C++ functions will be name-mangled - use extern "C")
 // @param returnType The return type of the function, one of the JS types 'number', 'string' or 'array' (use 'number' for any C pointer, and
@@ -325,6 +322,25 @@ var globalScope = this;
 //                   Note that string arguments will be stored on the stack (the JS string will become a C string on the stack).
 // @return           The return value, as a native JS value (as in returnType)
 function ccall(ident, returnType, argTypes, args) {
+  return ccallFunc(getCFunc(ident), returnType, argTypes, args);
+}
+Module["ccall"] = ccall;
+
+// Returns the C function with a specified identifier (for C++, you need to do manual name mangling)
+function getCFunc(ident) {
+  try {
+    var func = eval('_' + ident);
+  } catch(e) {
+    try {
+      func = globalScope['Module']['_' + ident]; // closure exported function
+    } catch(e) {}
+  }
+  assert(func, 'Cannot call unknown function ' + ident + ' (perhaps LLVM optimizations or closure removed it?)');
+  return func;
+}
+
+// Internal function that does a C call using a function, not an identifier
+function ccallFunc(func, returnType, argTypes, args) {
   var stack = 0;
   function toC(value, type) {
     if (type == 'string') {
@@ -348,14 +364,6 @@ function ccall(ident, returnType, argTypes, args) {
     assert(type != 'array');
     return value;
   }
-  try {
-    var func = eval('_' + ident);
-  } catch(e) {
-    try {
-      func = globalScope['Module']['_' + ident]; // closure exported function
-    } catch(e) {}
-  }
-  assert(func, 'Cannot call unknown function ' + ident + ' (perhaps LLVM optimizations or closure removed it?)');
   var i = 0;
   var cArgs = args ? args.map(function(arg) {
     return toC(arg, argTypes[i++]);
@@ -364,7 +372,6 @@ function ccall(ident, returnType, argTypes, args) {
   if (stack) Runtime.stackRestore(stack);
   return ret;
 }
-Module["ccall"] = ccall;
 
 // Returns a native JS wrapper for a C function. This is similar to ccall, but
 // returns a function you can call repeatedly in a normal way. For example:
@@ -374,9 +381,9 @@ Module["ccall"] = ccall;
 //   alert(my_function(99, 12));
 //
 function cwrap(ident, returnType, argTypes) {
-  // TODO: optimize this, eval the whole function once instead of going through ccall each time
+  var func = getCFunc(ident);
   return function() {
-    return ccall(ident, returnType, argTypes, Array.prototype.slice.call(arguments));
+    return ccallFunc(func, returnType, argTypes, Array.prototype.slice.call(arguments));
   }
 }
 Module["cwrap"] = cwrap;
@@ -460,9 +467,11 @@ Module['getValue'] = getValue;
 var ALLOC_NORMAL = 0; // Tries to use _malloc()
 var ALLOC_STACK = 1; // Lives for the duration of the current function call
 var ALLOC_STATIC = 2; // Cannot be freed
+var ALLOC_NONE = 3; // Do not allocate
 Module['ALLOC_NORMAL'] = ALLOC_NORMAL;
 Module['ALLOC_STACK'] = ALLOC_STACK;
 Module['ALLOC_STATIC'] = ALLOC_STATIC;
+Module['ALLOC_NONE'] = ALLOC_NONE;
 
 // allocate(): This is for internal use. You can use it yourself as well, but the interface
 //             is a little tricky (see docs right below). The reason is that it is optimized
@@ -477,7 +486,7 @@ Module['ALLOC_STATIC'] = ALLOC_STATIC;
 //         is initial data - if @slab is a number, then this does not matter at all and is
 //         ignored.
 // @allocator: How to allocate memory, see ALLOC_*
-function allocate(slab, types, allocator) {
+function allocate(slab, types, allocator, ptr) {
   var zeroinit, size;
   if (typeof slab === 'number') {
     zeroinit = true;
@@ -489,7 +498,12 @@ function allocate(slab, types, allocator) {
 
   var singleType = typeof types === 'string' ? types : null;
 
-  var ret = [_malloc, Runtime.stackAlloc, Runtime.staticAlloc][allocator === undefined ? ALLOC_STATIC : allocator](Math.max(size, singleType ? 1 : types.length));
+  var ret;
+  if (allocator == ALLOC_NONE) {
+    ret = ptr;
+  } else {
+    ret = [_malloc, Runtime.stackAlloc, Runtime.staticAlloc][allocator === undefined ? ALLOC_STATIC : allocator](Math.max(size, singleType ? 1 : types.length));
+  }
 
   if (zeroinit) {
       _memset(ret, 0, size);
@@ -532,6 +546,9 @@ function Pointer_stringify(ptr, /* optional */ length) {
   var i = 0;
   var t;
   while (1) {
+#if ASSERTIONS
+  assert(i < TOTAL_MEMORY);
+#endif
     t = {{{ makeGetValue('ptr', 'i', 'i8', 0, 1) }}};
     if (nullTerminated && t == 0) break;
     ret += utf8.processCChar(t);
@@ -552,9 +569,6 @@ function Array_stringify(array) {
 Module['Array_stringify'] = Array_stringify;
 
 // Memory management
-
-var FUNCTION_TABLE; // XXX: In theory the indexes here can be equal to pointers to stacked or malloced memory. Such comparisons should
-                    //      be false, but can turn out true. We should probably set the top bit to prevent such issues.
 
 var PAGE_SIZE = 4096;
 function alignMemoryPage(x) {
@@ -577,7 +591,7 @@ var STATICTOP;
 #if USE_TYPED_ARRAYS
 function enlargeMemory() {
 #if ALLOW_MEMORY_GROWTH == 0
-  abort('Cannot enlarge memory arrays. Adjust TOTAL_MEMORY (currently ' + TOTAL_MEMORY + ') or compile with ALLOW_MEMORY_GROWTH');
+  abort('Cannot enlarge memory arrays. Either (1) compile with -s TOTAL_MEMORY=X with X higher than the current value, (2) compile with ALLOW_MEMORY_GROWTH which adjusts the size at runtime but prevents some optimizations, or (3) set Module.TOTAL_MEMORY before the program runs.');
 #else
   // TOTAL_MEMORY is the current size of the actual array, and STATICTOP is the new top.
 #if ASSERTIONS
@@ -590,26 +604,26 @@ function enlargeMemory() {
   }
 #if USE_TYPED_ARRAYS == 1
   var oldIHEAP = IHEAP;
-  HEAP = IHEAP = new Int32Array(TOTAL_MEMORY);
+  Module['HEAP'] = Module['IHEAP'] = HEAP = IHEAP = new Int32Array(TOTAL_MEMORY);
   IHEAP.set(oldIHEAP);
   IHEAPU = new Uint32Array(IHEAP.buffer);
 #if USE_FHEAP
   var oldFHEAP = FHEAP;
-  FHEAP = new Float64Array(TOTAL_MEMORY);
+  Module['FHEAP'] = FHEAP = new Float64Array(TOTAL_MEMORY);
   FHEAP.set(oldFHEAP);
 #endif
 #endif
 #if USE_TYPED_ARRAYS == 2
   var oldHEAP8 = HEAP8;
   var buffer = new ArrayBuffer(TOTAL_MEMORY);
-  HEAP8 = new Int8Array(buffer);
-  HEAP16 = new Int16Array(buffer);
-  HEAP32 = new Int32Array(buffer);
-  HEAPU8 = new Uint8Array(buffer);
-  HEAPU16 = new Uint16Array(buffer);
-  HEAPU32 = new Uint32Array(buffer);
-  HEAPF32 = new Float32Array(buffer);
-  HEAPF64 = new Float64Array(buffer);
+  Module['HEAP8'] = HEAP8 = new Int8Array(buffer);
+  Module['HEAP16'] = HEAP16 = new Int16Array(buffer);
+  Module['HEAP32'] = HEAP32 = new Int32Array(buffer);
+  Module['HEAPU8'] = HEAPU8 = new Uint8Array(buffer);
+  Module['HEAPU16'] = HEAPU16 = new Uint16Array(buffer);
+  Module['HEAPU32'] = HEAPU32 = new Uint32Array(buffer);
+  Module['HEAPF32'] = HEAPF32 = new Float32Array(buffer);
+  Module['HEAPF64'] = HEAPF64 = new Float64Array(buffer);
   HEAP8.set(oldHEAP8);
 #endif
 #endif
@@ -675,47 +689,47 @@ Module['HEAPF64'] = HEAPF64;
 #endif
 
 STACK_ROOT = STACKTOP = Runtime.alignMemory(1);
-STACK_MAX = STACK_ROOT + TOTAL_STACK;
+STACK_MAX = TOTAL_STACK; // we lose a little stack here, but TOTAL_STACK is nice and round so use that as the max
 
 #if USE_TYPED_ARRAYS == 2
-var tempDoublePtr = Runtime.alignMemory(STACK_MAX, 8);
-var tempDoubleI8  = HEAP8.subarray(tempDoublePtr);
-var tempDoubleI32 = HEAP32.subarray(tempDoublePtr >> 2);
-var tempDoubleF32 = HEAPF32.subarray(tempDoublePtr >> 2);
-var tempDoubleF64 = HEAPF64.subarray(tempDoublePtr >> 3);
+var tempDoublePtr = Runtime.alignMemory(allocate(12, 'i8', ALLOC_STACK), 8);
+assert(tempDoublePtr % 8 == 0);
 function copyTempFloat(ptr) { // functions, because inlining this code is increases code size too much
-  tempDoubleI8[0] = HEAP8[ptr];
-  tempDoubleI8[1] = HEAP8[ptr+1];
-  tempDoubleI8[2] = HEAP8[ptr+2];
-  tempDoubleI8[3] = HEAP8[ptr+3];
+  HEAP8[tempDoublePtr] = HEAP8[ptr];
+  HEAP8[tempDoublePtr+1] = HEAP8[ptr+1];
+  HEAP8[tempDoublePtr+2] = HEAP8[ptr+2];
+  HEAP8[tempDoublePtr+3] = HEAP8[ptr+3];
 }
 function copyTempDouble(ptr) {
-  tempDoubleI8[0] = HEAP8[ptr];
-  tempDoubleI8[1] = HEAP8[ptr+1];
-  tempDoubleI8[2] = HEAP8[ptr+2];
-  tempDoubleI8[3] = HEAP8[ptr+3];
-  tempDoubleI8[4] = HEAP8[ptr+4];
-  tempDoubleI8[5] = HEAP8[ptr+5];
-  tempDoubleI8[6] = HEAP8[ptr+6];
-  tempDoubleI8[7] = HEAP8[ptr+7];
+  HEAP8[tempDoublePtr] = HEAP8[ptr];
+  HEAP8[tempDoublePtr+1] = HEAP8[ptr+1];
+  HEAP8[tempDoublePtr+2] = HEAP8[ptr+2];
+  HEAP8[tempDoublePtr+3] = HEAP8[ptr+3];
+  HEAP8[tempDoublePtr+4] = HEAP8[ptr+4];
+  HEAP8[tempDoublePtr+5] = HEAP8[ptr+5];
+  HEAP8[tempDoublePtr+6] = HEAP8[ptr+6];
+  HEAP8[tempDoublePtr+7] = HEAP8[ptr+7];
 }
-STACK_MAX = tempDoublePtr + 8;
 #endif
 
-STATICTOP = alignMemoryPage(STACK_MAX);
-
+STATICTOP = STACK_MAX;
 assert(STATICTOP < TOTAL_MEMORY); // Stack must fit in TOTAL_MEMORY; allocations from here on may enlarge TOTAL_MEMORY
 
-var nullString = allocate(intArrayFromString('(null)'), 'i8', ALLOC_STATIC);
+var nullString = allocate(intArrayFromString('(null)'), 'i8', ALLOC_STACK);
 
 function callRuntimeCallbacks(callbacks) {
   while(callbacks.length > 0) {
     var callback = callbacks.shift();
     var func = callback.func;
     if (typeof func === 'number') {
-      func = FUNCTION_TABLE[func];
+      if (callback.arg === undefined) {
+        Runtime.dynCall('v', func);
+      } else {
+        Runtime.dynCall('vi', func, [callback.arg]);
+      }
+    } else {
+      func(callback.arg === undefined ? null : callback.arg);
     }
-    func(callback.arg === undefined ? null : callback.arg);
   }
 }
 
@@ -738,7 +752,11 @@ function exitRuntime() {
 
 function String_len(ptr) {
   var i = ptr;
-  while ({{{ makeGetValue('i++', '0', 'i8') }}}) {}; // Note: should be |!= 0|, technically. But this helps catch bugs with undefineds
+  while ({{{ makeGetValue('i++', '0', 'i8') }}}) { // Note: should be |!= 0|, technically. But this helps catch bugs with undefineds
+#if ASSERTIONS
+  assert(i < TOTAL_MEMORY);
+#endif
+  }
   return i - ptr - 1;
 }
 Module['String_len'] = String_len;
@@ -793,8 +811,6 @@ function writeArrayToMemory(array, buffer) {
   }
 }
 Module['writeArrayToMemory'] = writeArrayToMemory;
-
-var STRING_TABLE = [];
 
 {{{ unSign }}}
 {{{ reSign }}}
@@ -855,7 +871,8 @@ function removeRunDependency(id) {
       clearInterval(runDependencyWatcher);
       runDependencyWatcher = null;
     } 
-    if (!calledRun) run();
+    // If run has never been called, and we should call run (INVOKE_RUN is true, and Module.noInitialRun is not false)
+    if (!calledRun && shouldRunNow) run();
   }
 }
 Module['removeRunDependency'] = removeRunDependency;

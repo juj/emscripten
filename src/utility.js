@@ -184,7 +184,7 @@ function dprint() {
     text = text(); // Allows deferred calculation, so dprints don't slow us down when not needed
   }
   text = DPRINT_INDENT + '// ' + text;
-  print(text);
+  printErr(text);
 }
 
 var PROF_ORIGIN = Date.now();
@@ -282,6 +282,14 @@ function setIntersect(x, y) {
   return ret;
 }
 
+function invertArray(x) {
+  var ret = {};
+  for (var i = 0; i < x.length; i++) {
+    ret[x[i]] = i;
+  }
+  return ret;
+}
+
 function copy(x) {
   return JSON.parse(JSON.stringify(x));
 }
@@ -313,17 +321,24 @@ function isPowerOfTwo(x) {
   return x > 0 && ((x & (x-1)) == 0);
 }
 
+function ceilPowerOfTwo(x) {
+  var ret = 1;
+  while (ret < x) ret <<= 1;
+  return ret;
+}
+
 function Benchmarker() {
   var starts = {}, times = {}, counts = {};
   this.start = function(id) {
     //printErr(['+', id, starts[id]]);
     starts[id] = (starts[id] || []).concat([Date.now()]);
   };
-  this.end = function(id) {
+  this.stop = function(id) {
     //printErr(['-', id, starts[id]]);
     assert(starts[id], new Error().stack);
     times[id] = (times[id] || 0) + Date.now() - starts[id].pop();
     counts[id] = (counts[id] || 0) + 1;
+    this.print();
   };
   this.print = function() {
     var ids = keys(times);

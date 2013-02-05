@@ -137,6 +137,8 @@ module({
             c.setVal('1234');
             assert.equal('1234', c.getVal());
 
+            assert.equal(1239, c.returnIntPlusFive(1234));
+
             c.delete();
             assert.equal(0, cm.count_emval_handles());
         },
@@ -387,5 +389,10 @@ module({
             cm.emval_test_call_method3(foo);
             assert.deepEqual(['called'], calls);
         },
+    });
+
+    test('emscripten::internal::optional', function () {
+        assert.true(cm.optional_test_copy());
+        assert.false(cm.optional_test_copy2());
     });
 });

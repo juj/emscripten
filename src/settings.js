@@ -43,7 +43,7 @@ var TOTAL_STACK = 5*1024*1024; // The total stack size. There is no way to enlar
                                // value must be large enough for the program's requirements. If
                                // assertions are on, we will assert on not exceeding this, otherwise,
                                // it will fail silently.
-var TOTAL_MEMORY = 10*1024*1024; // The total amount of memory to use. Using more memory than this will
+var TOTAL_MEMORY = 16777216;     // The total amount of memory to use. Using more memory than this will
                                  // cause us to expand the heap, which can be costly with typed arrays:
                                  // we need to copy the old heap into a new one in that case.
 var FAST_MEMORY = 2*1024*1024; // The amount of memory to initialize to 0. This ensures it will be
@@ -59,6 +59,8 @@ var ALLOW_MEMORY_GROWTH = 0; // If false, we abort with an error if we try to al
 // Code embetterments
 var MICRO_OPTS = 1; // Various micro-optimizations, like nativizing variables
 var RELOOP = 0; // Recreate js native loops from llvm data
+var RELOOPER = 'relooper.js'; // Loads the relooper from this path relative to compiler.js
+
 var USE_TYPED_ARRAYS = 2; // Use typed arrays for the heap. See https://github.com/kripken/emscripten/wiki/Code-Generation-Modes/
                           // 0 means no typed arrays are used.
                           // 1 has two heaps, IHEAP (int32) and FHEAP (double),
@@ -88,6 +90,10 @@ var PRECISE_I64_MATH = 1; // If enabled, i64 addition etc. is emulated - which i
                           // Note that we do not catch 32-bit multiplication by default (which must be done in
                           // 64 bits for high values for full precision) - you must manually set PRECISE_I32_MUL
                           // for that.
+                          // If set to 2, we always include the i64 math code, which is necessary in the case
+                          // that we can't know at compile time that 64-bit math is needed. For example, if you
+                          // print 64-bit values with printf, but never add them, we can't know at compile time
+                          // and you need to set this to 2.
 var PRECISE_I32_MUL = 0; // If enabled, i64 math is done in i32 multiplication. This is necessary if the values
                          // exceed the JS double-integer limit of ~52 bits. This option can normally be disabled
                          // because generally i32 multiplication works ok without it, and enabling it has a big
@@ -114,7 +120,9 @@ var INLINING_LIMIT = 50; // A limit on inlining. If 0, we will inline normally i
 var CATCH_EXIT_CODE = 0; // If set, causes exit() to throw an exception object which is caught
                          // in a try..catch block and results in the exit status being
                          // returned from run(). If zero (the default), the program is just
-                         // terminated with an error message.
+                         // terminated with an error message, that is, the exception thrown
+                         // by exit() is not handled in any way (in particular, the stack
+                         // position will not be reset).
 
 // Generated code debugging options
 var SAFE_HEAP = 0; // Check each write to the heap, for example, this will give a clear
@@ -126,8 +134,15 @@ var SAFE_HEAP = 0; // Check each write to the heap, for example, this will give 
                    // that 3 is the option you usually want here.
 var SAFE_HEAP_LOG = 0; // Log out all SAFE_HEAP operations
 
-var LABEL_DEBUG = 0; // Print out labels and functions as we enter them
-var EXCEPTION_DEBUG = 1; // Print out exceptions in emscriptened code
+var LABEL_DEBUG = 0; // 1: Print out functions as we enter them
+                     // 2: Also print out each label as we enter it
+var LABEL_FUNCTION_FILTERS = []; // Filters for function label debug.
+                                 // The items for this array will be used
+                                 // as filters for function names. Only the
+                                 // labels of functions that is equaled to
+                                 // one of the filters are printed out
+                                 // When the array is empty, the filter is disabled.
+var EXCEPTION_DEBUG = 0; // Print out exceptions in emscriptened code
 
 var LIBRARY_DEBUG = 0; // Print out when we enter a library call (library*.js). You can also unset
                        // Runtime.debug at runtime for logging to cease, and can set it when you
@@ -189,11 +204,17 @@ var PGO = 0; // Profile-guided optimization.
              // All CORRECT_* options default to 1 with PGO builds.
              // See https://github.com/kripken/emscripten/wiki/Optimizing-Code for more info
 
+var NAMED_GLOBALS = 0; // If 1, we use global variables for globals. Otherwise
+                       // they are referred to by a base plus an offset (called an indexed global),
+                       // saving global variables but adding runtime overhead.
+
 var PROFILE = 0; // Enables runtime profiling. See test_profiling for a usage example.
 
-var EXPORTED_FUNCTIONS = ['_main', '_malloc', '_free']; // Functions that are explicitly exported, so they are guaranteed to
-                                                        // be accessible outside of the generated code even after running closure compiler.
-                                                        // Note the necessary prefix of "_".
+var EXPORT_ALL = 0; // If true, we export all the symbols
+var EXPORTED_FUNCTIONS = ['_main']; // Functions that are explicitly exported. These functions are kept alive
+                                    // through LLVM dead code elimination, and also made accessible outside of
+                                    // the generated code even after running closure compiler (on "Module").
+                                    // Note the necessary prefix of "_".
 
 var DEFAULT_LIBRARY_FUNCS_TO_INCLUDE = ['memcpy', 'memset', 'malloc', 'free', '$Browser']; // JS library functions (C functions implemented in JS)
                                                                                            // that we include by default. If you want to make sure
@@ -202,6 +223,12 @@ var DEFAULT_LIBRARY_FUNCS_TO_INCLUDE = ['memcpy', 'memset', 'malloc', 'free', '$
                                                                                            // C API call from C, but you want to call it from JS,
                                                                                            // add it here (and in EXPORTED FUNCTIONS with prefix
                                                                                            // "_", for closure).
+
+var LIBRARY_DEPS_TO_AUTOEXPORT = ['memcpy']; // This list is also used to determine
+                                             // auto-exporting of library dependencies (i.e., functions that
+                                             // might be dependencies of JS library functions, that if
+                                             // so we must export so that if they are implemented in C
+                                             // they will be accessible, in ASM_JS mode).
 
 var IGNORED_FUNCTIONS = []; // Functions that we should not generate, neither a stub nor a complete function.
                             // This is useful if your project code includes a function, and you want to replace
@@ -275,6 +302,21 @@ var WARN_ON_UNDEFINED_SYMBOLS = 0; // If set to 1, we will warn on any undefined
 var SMALL_XHR_CHUNKS = 0; // Use small chunk size for binary synchronous XHR's in Web Workers.
                           // Used for testing.
                           // See test_chunked_synchronous_xhr in runner.py and library.js.
+
+var HEADLESS = 0; // If 1, will include shim code that tries to 'fake' a browser
+                  // environment, in order to let you run a browser program (say,
+                  // using SDL) in the shell. Obviously nothing is rendered, but
+                  // this can be useful for benchmarking and debugging if actual
+                  // rendering is not the issue. Note that the shim code is
+                  // very partial - it is hard to fake a whole browser! - so
+                  // keep your expectations low for this to work.
+
+var ASM_JS = 0; // If 1, generate code in asm.js format. XXX This is highly experimental,
+                // and will not work on most codebases yet. It is NOT recommended that you
+                // try this yet.
+var USE_MATH_IMUL = 0; // If 1, use Math.imul when useful
+
+var NECESSARY_BLOCKADDRS = []; // List of (function, block) for all block addresses that are taken.
 
 // Compiler debugging options
 var DEBUG_TAGS_SHOWING = [];
@@ -1159,6 +1201,8 @@ var C_DEFINES = {'SI_MESGQ': '5',
    '_SC_TTY_NAME_MAX': '41',
    'AF_INET': '1',
    'AF_INET6': '6',
-   'FIONREAD': '1'
+   'FIONREAD': '1',
+   'SOCK_STREAM': '200',
+   'IPPROTO_TCP': 1
 };
 

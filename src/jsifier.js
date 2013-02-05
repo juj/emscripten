@@ -7,39 +7,47 @@
 
 var STRUCT_LIST = set('struct', 'list');
 var UNDERSCORE_OPENPARENS = set('_', '(');
+var RELOOP_IGNORED_LASTS = set('return', 'unreachable', 'resume');
+
+var addedLibraryItems = {};
 
 // JSifier
 function JSify(data, functionsOnly, givenFunctions) {
   var mainPass = !functionsOnly;
 
   if (mainPass) {
-    // We will start to print out the data, but must do so carefully - we are
-    // dealing with potentially *huge* strings. Convenient replacements and
-    // manipulations may create in-memory copies, and we may OOM.
-    //
-    // Final shape that will be created:
-    //    shell
-    //      (body)
-    //        preamble
-    //          runtime
-    //        generated code
-    //        postamble
-    //          global_vars
-    //
-    // First, we print out everything until the generated code. Then the
-    // functions will print themselves out as they are parsed. Finally, we
-    // will call finalCombiner in the main pass, to print out everything
-    // else. This lets us not hold any strings in memory, we simply print
-    // things out as they are ready.
-
     var shellFile = SHELL_FILE ? SHELL_FILE : (BUILD_AS_SHARED_LIB ? 'shell_sharedlib.js' : 'shell.js');
-    var shellParts = read(shellFile).split('{{BODY}}');
-    print(shellParts[0]);
-    var preFile = BUILD_AS_SHARED_LIB ? 'preamble_sharedlib.js' : 'preamble.js';
-    var pre = processMacros(preprocess(read(preFile).replace('{{RUNTIME}}', getRuntime())));
-    print(pre);
 
-    Functions.implementedFunctions = set(data.unparsedFunctions.map(function(func) { return func.ident }));
+    if (phase == 'pre') {
+      // We will start to print out the data, but must do so carefully - we are
+      // dealing with potentially *huge* strings. Convenient replacements and
+      // manipulations may create in-memory copies, and we may OOM.
+      //
+      // Final shape that will be created:
+      //    shell
+      //      (body)
+      //        preamble
+      //          runtime
+      //        generated code
+      //        postamble
+      //          global_vars
+      //
+      // First, we print out everything until the generated code. Then the
+      // functions will print themselves out as they are parsed. Finally, we
+      // will call finalCombiner in the main pass, to print out everything
+      // else. This lets us not hold any strings in memory, we simply print
+      // things out as they are ready.
+
+      var shellParts = read(shellFile).split('{{BODY}}');
+      print(shellParts[0]);
+      var preFile = BUILD_AS_SHARED_LIB ? 'preamble_sharedlib.js' : 'preamble.js';
+      var pre = processMacros(preprocess(read(preFile).replace('{{RUNTIME}}', getRuntime())));
+      print(pre);
+
+      data.unparsedFunctions.forEach(function(func) {
+        Functions.implementedFunctions[func.ident] = Functions.getSignature(func.returnType, func.params.map(function(param) { return param.type }));
+      });
+    }
   }
 
   // Does simple 'macro' substitution, using Django-like syntax,
@@ -61,40 +69,32 @@ function JSify(data, functionsOnly, givenFunctions) {
     // Add additional necessary items for the main pass. We can now do this since types are parsed (types can be used through
     // generateStructInfo in library.js)
     LibraryManager.load();
-    var libFuncsToInclude;
-    if (INCLUDE_FULL_LIBRARY) {
-      assert(!BUILD_AS_SHARED_LIB, 'Cannot have both INCLUDE_FULL_LIBRARY and BUILD_AS_SHARED_LIB set.')
-      libFuncsToInclude = [];
-      for (var key in LibraryManager.library) {
-        if (!key.match(/__(deps|postset|inline)$/)) {
-          libFuncsToInclude.push(key);
+
+    if (phase == 'pre') {
+      var libFuncsToInclude;
+      if (INCLUDE_FULL_LIBRARY) {
+        assert(!BUILD_AS_SHARED_LIB, 'Cannot have both INCLUDE_FULL_LIBRARY and BUILD_AS_SHARED_LIB set.')
+        libFuncsToInclude = [];
+        for (var key in LibraryManager.library) {
+          if (!key.match(/__(deps|postset|inline)$/)) {
+            libFuncsToInclude.push(key);
+          }
         }
+      } else {
+        libFuncsToInclude = DEFAULT_LIBRARY_FUNCS_TO_INCLUDE;
       }
-    } else {
-      libFuncsToInclude = DEFAULT_LIBRARY_FUNCS_TO_INCLUDE;
-    }
-    libFuncsToInclude.forEach(function(ident) {
-      data.functionStubs.push({
-        intertype: 'functionStub',
-        ident: '_' + ident
+      libFuncsToInclude.forEach(function(ident) {
+        data.functionStubs.push({
+          intertype: 'functionStub',
+          ident: '_' + ident
+        });
       });
-    });
+    }
   }
 
   // Functions
 
-  Functions.currFunctions = !mainPass ? givenFunctions.currFunctions : {};
   Functions.currExternalFunctions = !mainPass ? givenFunctions.currExternalFunctions : {};
-
-  // Now that first-pass analysis has completed (so we have basic types, etc.), we can get around to handling unparsedFunctions
-  (!mainPass ? data.functions : data.unparsedFunctions.concat(data.functions)).forEach(function(func) {
-    // Save just what we need, to save memory
-    Functions.currFunctions[func.ident] = {
-      hasVarArgs: func.hasVarArgs,
-      numParams: func.params.length,
-      labelIds: func.labelIds // TODO: We need this for globals, but perhaps we can calculate them early and free this
-   };
-  });
 
   data.functionStubs.forEach(function(func) {
     // Don't overwrite stubs that have more info.
@@ -107,24 +107,26 @@ function JSify(data, functionsOnly, givenFunctions) {
     }
   });
 
-  var MAX_BATCH_FUNC_LINES = 1000;
-  while (data.unparsedFunctions.length > 0) {
-    var currFuncLines = [];
-    var currBaseLineNums = [];
-    while (currFuncLines.length == 0 ||
-           (data.unparsedFunctions.length > 0 && currFuncLines.length + data.unparsedFunctions[0].lines.length <= MAX_BATCH_FUNC_LINES)) {
-      currBaseLineNums.push([currFuncLines.length, data.unparsedFunctions[0].lineNum-1]);
-      currFuncLines = currFuncLines.concat(data.unparsedFunctions[0].lines); // for first one, assign, do not concat?
-      data.unparsedFunctions.shift();
+  if (phase == 'funcs') { // pre has function shells, just to defined implementedFunctions
+    var MAX_BATCH_FUNC_LINES = 1000;
+    while (data.unparsedFunctions.length > 0) {
+      var currFuncLines = [];
+      var currBaseLineNums = [];
+      while (currFuncLines.length == 0 ||
+             (data.unparsedFunctions.length > 0 && currFuncLines.length + data.unparsedFunctions[0].lines.length <= MAX_BATCH_FUNC_LINES)) {
+        currBaseLineNums.push([currFuncLines.length, data.unparsedFunctions[0].lineNum-1]);
+        currFuncLines = currFuncLines.concat(data.unparsedFunctions[0].lines); // for first one, assign, do not concat?
+        data.unparsedFunctions.shift();
+      }
+      dprint('unparsedFunctions','====================\n// Processing function batch of ' + currBaseLineNums.length +
+                                 ' functions, ' + currFuncLines.length + ' lines, functions left: ' + data.unparsedFunctions.length);
+      if (DEBUG_MEMORY) MemoryDebugger.tick('pre-func');
+      JSify(analyzer(intertyper(currFuncLines, true, currBaseLineNums), true), true, Functions);
+      if (DEBUG_MEMORY) MemoryDebugger.tick('post-func');
     }
-    dprint('unparsedFunctions','====================\n// Processing function batch of ' + currBaseLineNums.length +
-                               ' functions, ' + currFuncLines.length + ' lines, functions left: ' + data.unparsedFunctions.length);
-    if (DEBUG_MEMORY) MemoryDebugger.tick('pre-func');
-    JSify(analyzer(intertyper(currFuncLines, true, currBaseLineNums), true), true, Functions);
-    if (DEBUG_MEMORY) MemoryDebugger.tick('post-func');
+    currFuncLines = currBaseLineNums = null; // Do not hold on to anything from inside that loop (JS function scoping..)
+    data.unparsedFunctions = null;
   }
-  currFuncLines = currBaseLineNums = null; // Do not hold on to anything from inside that loop (JS function scoping..)
-  data.unparsedFunctions = null;
 
   // Actors
 
@@ -219,7 +221,7 @@ function JSify(data, functionsOnly, givenFunctions) {
           throw 'Invalid segment: ' + dump(segment);
         }
         assert(segment.type, 'Missing type for constant segment!');
-        return indexizeFunctions(ret, segment.type);
+        return makeGlobalUse(indexizeFunctions(ret, segment.type));
       };
       return tokens.map(handleSegment)
     }
@@ -228,7 +230,7 @@ function JSify(data, functionsOnly, givenFunctions) {
     if (value.intertype in PARSABLE_LLVM_FUNCTIONS) {
       return [finalizeLLVMFunctionCall(value)];
     } else if (Runtime.isNumberType(type) || pointingLevels(type) >= 1) {
-      return indexizeFunctions(parseNumerical(value.value), type);
+      return makeGlobalUse(indexizeFunctions(parseNumerical(value.value), type));
     } else if (value.intertype === 'emptystruct') {
       return makeEmptyStruct(type);
     } else if (value.intertype === 'string') {
@@ -252,7 +254,7 @@ function JSify(data, functionsOnly, givenFunctions) {
     processItem: function(item) {
       function needsPostSet(value) {
         return value[0] in UNDERSCORE_OPENPARENS || value.substr(0, 14) === 'CHECK_OVERFLOW'
-            || value.substr(0, 13) === 'STRING_TABLE.';
+                                                 || value.substr(0, 6) === 'GLOBAL';
       }
 
       item.intertype = 'GlobalVariableStub';
@@ -260,26 +262,28 @@ function JSify(data, functionsOnly, givenFunctions) {
       var ret = [item];
       if (item.ident == '_llvm_global_ctors') {
         item.JS = '\n__ATINIT__ = __ATINIT__.concat([\n' +
-                    item.ctors.map(function(ctor) { return '  { func: ' + toNiceIdent(ctor) + ' }' }).join(',\n') +
+                    item.ctors.map(function(ctor) { return '  { func: function() { ' + ctor + '() } }' }).join(',\n') +
                   '\n]);\n';
         return ret;
       } else {
+        var constant = null;
+        var allocator = (BUILD_AS_SHARED_LIB && !item.external) ? 'ALLOC_NORMAL' : 'ALLOC_STATIC';
+        var index = null;
         if (item.external && BUILD_AS_SHARED_LIB) {
           // External variables in shared libraries should not be declared as
           // they would shadow similarly-named globals in the parent.
           item.JS = '';
         } else {
-          if (!(item.ident in Variables.globals) || !Variables.globals[item.ident].isString) {
-          	item.JS = 'var ' + item.ident + ';';
-          } 
+        	item.JS = makeGlobalDef(item.ident);
         }
-        var constant = null;
-        if (item.external) {
+
+        if (item.external && !ASM_JS) { // ASM_JS considers externs to be globals
           // Import external global variables from the library if available.
           var shortident = item.ident.slice(1);
           if (LibraryManager.library[shortident] &&
               LibraryManager.library[shortident].length &&
               !BUILD_AS_SHARED_LIB) {
+            if (addedLibraryItems[shortident]) return ret;
             var val = LibraryManager.library[shortident];
             var padding;
             if (Runtime.isNumberType(item.type) || isPointerType(item.type)) {
@@ -288,7 +292,7 @@ function JSify(data, functionsOnly, givenFunctions) {
               padding = makeEmptyStruct(item.type);
             }
             var padded = val.concat(padding.slice(val.length));
-            var js = item.ident + '=' + makePointer(JSON.stringify(padded), null, 'ALLOC_STATIC', item.type) + ';'
+            var js = item.ident + '=' + makePointer(JSON.stringify(padded), null, allocator, item.type, index) + ';'
             if (LibraryManager.library[shortident + '__postset']) {
               js += '\n' + LibraryManager.library[shortident + '__postset'];
             }
@@ -299,7 +303,21 @@ function JSify(data, functionsOnly, givenFunctions) {
           }
           return ret;
         } else {
-          constant = parseConst(item.value, item.type, item.ident);
+          if (!NAMED_GLOBALS && isIndexableGlobal(item.ident)) {
+            index = makeGlobalUse(item.ident); // index !== null indicates we are indexing this
+            allocator = 'ALLOC_NONE';
+          }
+          if (item.external) {
+            assert(ASM_JS);
+            if (Runtime.isNumberType(item.type) || isPointerType(item.type)) {
+              constant = zeros(Runtime.getNativeFieldSize(item.type));
+            } else {
+              constant = makeEmptyStruct(item.type);
+            }
+            constant = JSON.stringify(constant);
+          } else {
+            constant = parseConst(item.value, item.type, item.ident);
+          }
           if (typeof constant === 'string' && constant[0] != '[') {
             constant = [constant]; // A single item. We may need a postset for it.
           }
@@ -309,7 +327,7 @@ function JSify(data, functionsOnly, givenFunctions) {
               if (needsPostSet(value)) { // ident, or expression containing an ident
                 ret.push({
                   intertype: 'GlobalVariablePostSet',
-                  JS: makeSetValue(item.ident, i, value, 'i32', false, true) + ';' // ignore=true, since e.g. rtti and statics cause lots of safe_heap errors
+                  JS: makeSetValue(makeGlobalUse(item.ident), i, value, 'i32', false, true) + ';' // ignore=true, since e.g. rtti and statics cause lots of safe_heap errors
                 });
                 constant[i] = '0';
               }
@@ -318,28 +336,28 @@ function JSify(data, functionsOnly, givenFunctions) {
           }
           // NOTE: This is the only place that could potentially create static
           //       allocations in a shared library.
-          constant = makePointer(constant, null, BUILD_AS_SHARED_LIB ? 'ALLOC_NORMAL' : 'ALLOC_STATIC', item.type);
-
+          constant = makePointer(constant, null, allocator, item.type, index);
           var js;
 
-          // Strings are held in STRING_TABLE, to not clutter up the main namespace (in some cases we have
-          // many many strings, possibly exceeding the js engine limit on global vars).
-          if (Variables.globals[item.ident].isString) {
-            js = 'STRING_TABLE.' + item.ident + '=' + constant + ';';
-          } else {
-          	js = item.ident + '=' + constant + ';';
-          }
+        	js = (index !== null ? '' : item.ident + '=') + constant + ';'; // \n Module.print("' + item.ident + ' :" + ' + makeGlobalUse(item.ident) + ');';
 
           // Special case: class vtables. We make sure they are null-terminated, to allow easy runtime operations
           if (item.ident.substr(0, 5) == '__ZTV') {
-            js += '\n' + makePointer('[0]', null, BUILD_AS_SHARED_LIB ? 'ALLOC_NORMAL' : 'ALLOC_STATIC', ['void*']) + ';';
+            if (index !== null) {
+              index = getFastValue(index, '+', Runtime.alignMemory(calcAllocatedSize(Variables.globals[item.ident].type)));
+            }
+            js += '\n' + makePointer('[0]', null, allocator, ['void*'], index) + ';';
           }
-          if (item.ident in EXPORTED_GLOBALS) {
+          if (!ASM_JS && (EXPORT_ALL || (item.ident in EXPORTED_GLOBALS))) {
             js += '\nModule["' + item.ident + '"] = ' + item.ident + ';';
           }
           if (BUILD_AS_SHARED_LIB == 2 && !item.private_) {
             // TODO: make the assert conditional on ASSERTIONS
             js += 'if (globalScope) { assert(!globalScope["' + item.ident + '"]); globalScope["' + item.ident + '"] = ' + item.ident + ' }';
+          }
+          if (item.external && !NAMED_GLOBALS) {
+            assert(ASM_JS);
+            js = 'var ' + item.ident + ' = ' + js; // force an explicit naming, even if unnamed globals, for asm forwarding
           }
           return ret.concat({
             intertype: 'GlobalVariable',
@@ -378,8 +396,6 @@ function JSify(data, functionsOnly, givenFunctions) {
     }
   });
 
-  var addedLibraryItems = {};
-
   // functionStub
   substrate.addActor('FunctionStub', {
     processItem: function(item) {
@@ -400,12 +416,18 @@ function JSify(data, functionsOnly, givenFunctions) {
         var isFunction = false;
 
         if (typeof snippet === 'string') {
-          if (LibraryManager.library[snippet]) {
+          var target = LibraryManager.library[snippet];
+          if (target) {
             // Redirection for aliases. We include the parent, and at runtime make ourselves equal to it.
             // This avoid having duplicate functions with identical content.
             redirectedIdent = snippet;
             deps.push(snippet);
             snippet = '_' + snippet;
+          }
+          // In asm, we need to know about library functions. If there is a target, though, then no
+          // need to consider this a library function - we will call directly to it anyhow
+          if (ASM_JS && !redirectedIdent && (typeof target == 'function' || /Math\..+/.exec(snippet))) {
+            Functions.libraryFunctions[ident] = 1;
           }
         } else if (typeof snippet === 'object') {
           snippet = stringifyWithFunctions(snippet);
@@ -418,9 +440,10 @@ function JSify(data, functionsOnly, givenFunctions) {
           // name the function; overwrite if it's already named
           snippet = snippet.replace(/function(?:\s+([^(]+))?\s*\(/, 'function _' + ident + '(');
           if (LIBRARY_DEBUG) {
-            snippet = snippet.replace('{', '{ var ret = (function() { if (Runtime.debug) Module.printErr("[library call:' + ident + ': " + Array.prototype.slice.call(arguments).map(Runtime.prettyPrint) + "]"); ');
-            snippet = snippet.substr(0, snippet.length-1) + '}).apply(this, arguments); if (Runtime.debug && typeof ret !== "undefined") Module.printErr("  [     return:" + Runtime.prettyPrint(ret)); return ret; }';
+            snippet = snippet.replace('{', '{ var ret = (function() { if (Runtime.debug) Module.print("[library call:' + ident + ': " + Array.prototype.slice.call(arguments).map(Runtime.prettyPrint) + "]"); ');
+            snippet = snippet.substr(0, snippet.length-1) + '}).apply(this, arguments); if (Runtime.debug && typeof ret !== "undefined") Module.print("  [     return:" + Runtime.prettyPrint(ret)); return ret; }';
           }
+          if (ASM_JS) Functions.libraryFunctions[ident] = 1;
         }
 
         var postsetId = ident + '__postset';
@@ -436,6 +459,18 @@ function JSify(data, functionsOnly, givenFunctions) {
         if (redirectedIdent) {
           deps = deps.concat(LibraryManager.library[redirectedIdent + '__deps'] || []);
         }
+        if (ASM_JS) {
+          // In asm, dependencies implemented in C might be needed by JS library functions.
+          // We don't know yet if they are implemented in C or not. To be safe, export such
+          // special cases.
+          [LIBRARY_DEPS_TO_AUTOEXPORT].forEach(function(special) {
+            deps.forEach(function(dep) {
+              if (dep == special && !EXPORTED_FUNCTIONS[dep]) {
+                EXPORTED_FUNCTIONS[dep] = 1;
+              }
+            });
+          });
+        }
         // $ident's are special, we do not prefix them with a '_'.
         if (ident[0] === '$') {
           ident = ident.substr(1);
@@ -443,8 +478,9 @@ function JSify(data, functionsOnly, givenFunctions) {
           ident = '_' + ident;
         }
         var text = (deps ? '\n' + deps.map(addFromLibrary).filter(function(x) { return x != '' }).join('\n') : '');
-        text += isFunction ? snippet : 'var ' + ident + '=' + snippet + ';';
-        if (ident in EXPORTED_FUNCTIONS) {
+        // redirected idents just need a var, but no value assigned to them - it would be unused
+        text += isFunction ? snippet : ('var ' + ident + (redirectedIdent ? '' : '=' + snippet) + ';');
+        if (EXPORT_ALL || (ident in EXPORTED_FUNCTIONS)) {
           text += '\nModule["' + ident + '"] = ' + ident + ';';
         }
         return text;
@@ -487,6 +523,19 @@ function JSify(data, functionsOnly, givenFunctions) {
     }
   });
 
+  // function for filtering functions for label debugging
+  if (LABEL_FUNCTION_FILTERS.length > 0) {
+    var LABEL_FUNCTION_FILTER_SET = set(LABEL_FUNCTION_FILTERS);
+    var functionNameFilterTest = function(ident) {
+      return (ident in LABEL_FUNCTION_FILTER_SET);
+    };
+  } else {
+    // no filters are specified, all function names are printed
+    var functionNameFilterTest = function(ident) {
+      return true;
+    }
+  }
+
   // function reconstructor & post-JS optimizer
   substrate.addActor('FunctionReconstructor', {
     funcs: {},
@@ -520,8 +569,8 @@ function JSify(data, functionsOnly, givenFunctions) {
       func.JS = '\n';
 
       var paramIdents = func.params.map(function(param) {
-          return (param.intertype == 'varargs') ? null : toNiceIdent(param.ident);
-      }).filter(function(param) { return param != null; })
+          return toNiceIdent(param.ident);
+      });
 
       if (CLOSURE_ANNOTATIONS) {
         func.JS += '/**\n';
@@ -539,6 +588,36 @@ function JSify(data, functionsOnly, givenFunctions) {
       
       func.JS += 'function ' + func.ident + '(' + paramIdents.join(', ') + ') {\n';
 
+      if (ASM_JS) {
+        // spell out argument types
+        func.params.forEach(function(param) {
+          func.JS += '  ' + param.ident + ' = ' + asmCoercion(param.ident, param.type) + ';\n';
+        });
+
+        // spell out local variables
+        var vars = values(func.variables).filter(function(v) { return v.origin != 'funcparam' });
+        if (vars.length > 0) {
+          var chunkSize = 8;
+          var chunks = [];
+          var i = 0;
+          while (i < vars.length) {
+            chunks.push(vars.slice(i, i+chunkSize));
+            i += chunkSize;
+          }
+          for (i = 0; i < chunks.length; i++) {
+            func.JS += '  var ' + chunks[i].map(function(v) {
+              if (!isIllegalType(v.type) || v.ident.indexOf('$', 1) > 0) { // not illegal, or a broken up illegal
+                return v.ident + ' = ' + asmInitializer(v.type); //, func.variables[v.ident].impl);
+              } else {
+                return range(Math.ceil(getBits(v.type)/32)).map(function(i) {
+                  return v.ident + '$' + i + '= 0';
+                }).join(',');
+              }
+            }).join(', ') + ';\n';
+          }
+        }
+      }
+
       if (PROFILE) {
         func.JS += '  if (PROFILING) { '
                 +      'var __parentProfilingNode__ = PROFILING_NODE; PROFILING_NODE = PROFILING_NODE.children["' + func.ident + '"]; '
@@ -546,6 +625,21 @@ function JSify(data, functionsOnly, givenFunctions) {
                 +      'PROFILING_NODE.calls++; '
                 +      'var __profilingStartTime__ = Date.now() '
                 +    '}\n';
+      }
+
+      if (true) { // TODO: optimize away when not needed
+        if (CLOSURE_ANNOTATIONS) func.JS += '/** @type {number} */';
+        func.JS += '  var label = 0;\n';
+      }
+
+      if (ASM_JS) {
+        var hasByVal = false;
+        func.params.forEach(function(param) {
+          hasByVal = hasByVal || param.byVal;
+        });
+        if (hasByVal) {
+          func.JS += '  var tempParam = 0;\n';
+        }
       }
 
       // Prepare the stack, if we need one. If we have other stack allocations, force the stack to be set up.
@@ -562,26 +656,21 @@ function JSify(data, functionsOnly, givenFunctions) {
         if (param.byVal) {
           var type = removePointing(param.type);
           var typeInfo = Types.types[type];
-          func.JS += '  var tempParam = ' + param.ident + '; ' + param.ident + ' = ' + RuntimeGenerator.stackAlloc(typeInfo.flatSize) + ';' +
+          func.JS += '  ' + (ASM_JS ? '' : 'var ') + 'tempParam = ' + param.ident + '; ' + param.ident + ' = ' + RuntimeGenerator.stackAlloc(typeInfo.flatSize) + ';' +
                      makeCopyValues(param.ident, 'tempParam', typeInfo.flatSize, 'null', null, param.byVal) + ';\n';
         }
       });
 
-      if (LABEL_DEBUG) func.JS += "  Module.print(INDENT + ' Entering: " + func.ident + "'); INDENT += '  ';\n";
-
-      if (true) { // TODO: optimize away when not needed
-        if (CLOSURE_ANNOTATIONS) func.JS += '/** @type {number} */';
-        func.JS += '  var __label__;\n';
-      }
+      if (LABEL_DEBUG && functionNameFilterTest(func.ident)) func.JS += "  Module.print(INDENT + ' Entering: " + func.ident + ": ' + Array.prototype.slice.call(arguments)); INDENT += '  ';\n";
 
       // Walk function blocks and generate JS
       function walkBlock(block, indent) {
         if (!block) return '';
         dprint('relooping', 'walking block: ' + block.type + ',' + block.entries + ' : ' + block.labels.length);
-        function getLabelLines(label, indent) {
+        function getLabelLines(label, indent, relooping) {
           if (!label) return '';
           var ret = '';
-          if (LABEL_DEBUG) {
+          if ((LABEL_DEBUG >= 2) && functionNameFilterTest(func.ident)) {
             ret += indent + "Module.print(INDENT + '" + func.ident + ":" + label.ident + "');\n";
           }
           if (EXECUTION_TIMEOUT > 0) {
@@ -595,23 +684,36 @@ function JSify(data, functionsOnly, givenFunctions) {
           }
           
           // for special labels we care about (for phi), mark that we visited them
-          return ret + label.lines.map(function(line) { return line.JS + (Debugging.on ? Debugging.getComment(line.lineNum) : '') })
+          var i = 0;
+          return ret + label.lines.map(function(line) {
+            var JS = line.JS;
+            if (relooping && i == label.lines.length-1) {
+              if (line.intertype == 'branch' || line.intertype == 'switch') {
+                JS = ''; // just branching operations - done in the relooper, so nothing need be done here
+              } else if (line.intertype == 'invoke') {
+                JS = line.reloopingJS; // invokes have code that is not rendered in the relooper (the call inside a try-catch)
+              }
+            }
+            i++;
+            return JS + (Debugging.on ? Debugging.getComment(line.lineNum) : '');
+          })
                                   .join('\n')
                                   .split('\n') // some lines include line breaks
                                   .map(function(line) { return indent + line })
                                   .join('\n');
         }
         var ret = '';
-        if (block.type == 'emulated') {
+        if (!RELOOP || func.forceEmulated) { // TODO: also if just 1 label?
           if (block.labels.length > 1) {
             if (block.entries.length == 1) {
-              ret += indent + '__label__ = ' + getLabelId(block.entries[0]) + '; ' + (SHOW_LABELS ? '/* ' + getOriginalLabelId(block.entries[0]) + ' */' : '') + '\n';
+              ret += indent + 'label = ' + getLabelId(block.entries[0]) + '; ' + (SHOW_LABELS ? '/* ' + getOriginalLabelId(block.entries[0]) + ' */' : '') + '\n';
             } // otherwise, should have been set before!
             if (func.setjmpTable) {
               var setjmpTable = {};
+              ret += indent + 'var mySetjmpIds = {};\n';
               ret += indent + 'var setjmpTable = {';
               func.setjmpTable.forEach(function(triple) { // original label, label we created for right after the setjmp, variable setjmp result goes into
-                ret += '"' + getLabelId(triple[0]) + '": ' + 'function(value) { __label__ = ' + getLabelId(triple[1]) + '; ' + triple[2] + ' = value },';
+                ret += '"' + getLabelId(triple[0]) + '": ' + 'function(value) { label = ' + getLabelId(triple[1]) + '; ' + triple[2] + ' = value },';
               });
               ret += 'dummy: 0';
               ret += '};\n';
@@ -620,55 +722,69 @@ function JSify(data, functionsOnly, givenFunctions) {
             if (func.setjmpTable) {
               ret += 'try { ';
             }
-            ret += 'switch(__label__) {\n';
+            ret += 'switch(label) {\n';
             ret += block.labels.map(function(label) {
               return indent + '  case ' + getLabelId(label.ident) + ': ' + (SHOW_LABELS ? '// ' + getOriginalLabelId(label.ident) : '') + '\n'
                             + getLabelLines(label, indent + '    ');
             }).join('\n');
-            ret += '\n' + indent + '  default: assert(0, "bad label: " + __label__);\n' + indent + '}';
+            ret += '\n' + indent + '  default: assert(0, "bad label: " + label);\n' + indent + '}';
             if (func.setjmpTable) {
-              ret += ' } catch(e) { if (!e.longjmp) throw(e); setjmpTable[e.label](e.value) }';
+              ret += ' } catch(e) { if (!e.longjmp || !(e.id in mySetjmpIds)) throw(e); setjmpTable[setjmpLabels[e.id]](e.value) }';
             }
           } else {
             ret += (SHOW_LABELS ? indent + '/* ' + block.entries[0] + ' */' : '') + '\n' + getLabelLines(block.labels[0], indent);
           }
           ret += '\n';
-        } else if (block.type == 'reloop') {
-          ret += indent + block.id + ': while(1) { ' + (SHOW_LABELS ? ' /* ' + block.entries + + ' */' : '') + '\n';
-          ret += walkBlock(block.inner, indent + '  ');
-          ret += indent + '}\n';
-        } else if (block.type == 'multiple') {
-          var first = true;
-          var multipleIdent = '';
-          ret += indent + block.id + ': do { \n';
-          multipleIdent = '  ';
-          // TODO: Find out cases where the final if/case is not needed - where we know we must be in a specific label at that point
-          var SWITCH_IN_MULTIPLE = 0; // This appears to never be worth it, for no amount of labels
-          if (SWITCH_IN_MULTIPLE && block.entryLabels.length >= 2) {
-            ret += indent + multipleIdent + 'switch(__label__) {\n';
-            block.entryLabels.forEach(function(entryLabel) {
-              ret += indent + multipleIdent + '  case ' + getLabelId(entryLabel.ident) + ': {\n';
-              ret += walkBlock(entryLabel.block, indent + '    ' + multipleIdent);
-              ret += indent + multipleIdent + '  } break;\n';
-            });
-            ret += indent + multipleIdent + '}\n';
-          } else {
-            block.entryLabels.forEach(function(entryLabel) {
-              ret += indent + multipleIdent + (first ? '' : 'else ') + 'if (__label__ == ' + getLabelId(entryLabel.ident) + ') {\n';
-              ret += walkBlock(entryLabel.block, indent + '  ' + multipleIdent);
-              ret += indent + multipleIdent + '}\n';
-              first = false;
-            });
-          }
-          ret += indent + '} while(0);\n';
         } else {
-          throw "Walked into an invalid block type: " + block.type;
+          // Reloop multiple blocks using the compiled relooper
+
+          //Relooper.setDebug(1);
+          Relooper.init();
+
+          if (ASM_JS) Relooper.setAsmJSMode(1);
+
+          var blockMap = {};
+          // add blocks
+          for (var i = 0; i < block.labels.length; i++) {
+            var label = block.labels[i];
+            var content = getLabelLines(label, '', true);
+            //printErr(func.ident + ' : ' + label.ident + ' : ' + content + '\n');
+            blockMap[label.ident] = Relooper.addBlock(content);
+          }
+          // add branchings
+          function relevant(x) { return x && x.length > 2 ? x : 0 } // ignores ';' which valueJS and label*JS can be if empty
+          for (var i = 0; i < block.labels.length; i++) {
+            var label = block.labels[i];
+            var ident = label.ident;
+            var last = label.lines[label.lines.length-1];
+            //printErr('zz last ' + dump(last));
+            if (last.intertype == 'branch') {
+              if (last.label) { // 1 target
+                Relooper.addBranch(blockMap[ident], blockMap[last.label], 0, relevant(last.labelJS));
+              } else { // 2 targets
+                Relooper.addBranch(blockMap[ident], blockMap[last.labelTrue], last.valueJS, relevant(last.labelTrueJS));
+                Relooper.addBranch(blockMap[ident], blockMap[last.labelFalse], 0, relevant(last.labelFalseJS));
+              }
+            } else if (last.intertype == 'switch') {
+              last.groupedLabels.forEach(function(switchLabel) {
+                Relooper.addBranch(blockMap[ident], blockMap[switchLabel.label], switchLabel.value, relevant(switchLabel.labelJS));
+              });
+              Relooper.addBranch(blockMap[ident], blockMap[last.defaultLabel], 0, relevant(last.defaultLabelJS));
+            } else if (last.intertype == 'invoke') {
+              Relooper.addBranch(blockMap[ident], blockMap[last.toLabel], '!__THREW__', relevant(last.toLabelJS));
+              Relooper.addBranch(blockMap[ident], blockMap[last.unwindLabel], 0, relevant(last.unwindLabelJS));
+            } else if (last.intertype in RELOOP_IGNORED_LASTS) {
+            } else {
+              throw 'unknown reloop last line: ' + last.intertype;
+            }
+          }
+          ret += Relooper.render(blockMap[block.entries[0]]);
         }
-        return ret + walkBlock(block.next, indent);
+        return ret;
       }
       func.JS += walkBlock(func.block, '  ');
       // Finalize function
-      if (LABEL_DEBUG) func.JS += "  INDENT = INDENT.substr(0, INDENT.length-2);\n";
+      if (LABEL_DEBUG && functionNameFilterTest(func.ident)) func.JS += "  INDENT = INDENT.substr(0, INDENT.length-2);\n";
       // Add an unneeded return, needed for strict mode to not throw warnings in some cases.
       // If we are not relooping, then switches make it unimportant to have this (and, we lack hasReturn anyhow)
       if (RELOOP && func.lines.length > 0 && func.labels.filter(function(label) { return label.hasReturn }).length > 0) {
@@ -679,12 +795,12 @@ function JSify(data, functionsOnly, givenFunctions) {
       if (PRINT_SPLIT_FILE_MARKER) {
           func.JS += '\n//FUNCTION_END_MARKER_OF_SOURCE_FILE_' + associatedSourceFile + '\n';
       }
-      
-      if (func.ident in EXPORTED_FUNCTIONS) {
+
+      if (!ASM_JS && (EXPORT_ALL || (func.ident in EXPORTED_FUNCTIONS))) {
         func.JS += 'Module["' + func.ident + '"] = ' + func.ident + ';';
       }
 
-      if (INLINING_LIMIT && func.lines.length >= INLINING_LIMIT) {
+      if (!ASM_JS && INLINING_LIMIT && func.lines.length >= INLINING_LIMIT) {
         func.JS += func.ident + '["X"]=1;';
       }
 
@@ -693,6 +809,7 @@ function JSify(data, functionsOnly, givenFunctions) {
         func.JS += 'if (globalScope) { assert(!globalScope["' + func.ident + '"]); globalScope["' + func.ident + '"] = ' + func.ident + ' }';
       }
 
+      func.JS = func.JS.replace(/\n *;/g, '\n'); // remove unneeded lines
       return func;
     }
   });
@@ -729,8 +846,9 @@ function JSify(data, functionsOnly, givenFunctions) {
     var valueJS = item.JS;
     item.JS = '';
     if (CLOSURE_ANNOTATIONS) item.JS += '/** @type {number} */ ';
-    item.JS += (item.overrideSSA ? '' : 'var ') + toNiceIdent(item.assignTo);
-
+    if (!ASM_JS || item.intertype != 'alloca' || item.funcData.variables[item.assignTo].impl == VAR_EMULATED) { // asm only needs non-allocas
+      item.JS += ((ASM_JS || item.overrideSSA) ? '' : 'var ') + toNiceIdent(item.assignTo);
+    }
     var value = parseNumerical(valueJS);
     var impl = getVarImpl(item.funcData, item.assignTo);
     switch (impl) {
@@ -760,7 +878,7 @@ function JSify(data, functionsOnly, givenFunctions) {
     return substrate.addActor('Intertype:' + intertype, {
       processItem: function(item) {
         item.JS = func(item);
-        if (!item.JS) throw "No JS generated for " + dump(item);
+        if (!item.JS) throw "No JS generated for " + dump((item.funcData=null,item));
         if (item.assignTo) {
           makeAssign(item);
           if (!item.JS) throw "No assign JS generated for " + dump(item);
@@ -776,7 +894,7 @@ function JSify(data, functionsOnly, givenFunctions) {
     return ';';
   });
   makeFuncLineActor('var', function(item) { // assigns into phis become simple vars
-    return 'var ' + item.ident + ';';
+    return ASM_JS ? ';' : ('var ' + item.ident + ';');
   });
   makeFuncLineActor('store', function(item) {
     var value = finalizeLLVMParameter(item.value);
@@ -797,7 +915,7 @@ function JSify(data, functionsOnly, givenFunctions) {
         break;
       case VAR_EMULATED:
         if (item.pointer.intertype == 'value') {
-          return makeSetValue(item.ident, 0, value, item.valueType, 0, 0, item.align) + ';';
+          return makeSetValue(makeGlobalUse(item.ident), 0, value, item.valueType, 0, 0, item.align) + ';';
         } else {
           return makeSetValue(0, finalizeLLVMParameter(item.pointer), value, item.valueType, 0, 0, item.align) + ';';
         }
@@ -827,7 +945,7 @@ function JSify(data, functionsOnly, givenFunctions) {
       var parts = label.split('|');
       var trueLabel = parts[1] || '';
       var oldLabel = parts[2] || '';
-      var labelSetting = oldLabel ? '__label__ = ' + getLabelId(oldLabel) + ';' +
+      var labelSetting = oldLabel ? 'label = ' + getLabelId(oldLabel) + ';' +
                          (SHOW_LABELS ? ' /* to: ' + getOriginalLabelId(cleanLabel(oldLabel)) + ' */' : '') : ''; // TODO: optimize away the setting
       if (label[1] == 'R') {
         if (label[2] == 'N') { // BRNOL: break, no label setting
@@ -848,7 +966,7 @@ function JSify(data, functionsOnly, givenFunctions) {
       }
     } else {
       if (!labelIsVariable) label = getLabelId(label);
-      return pre + '__label__ = ' + label + ';' + (SHOW_LABELS ? ' /* to: ' + getOriginalLabelId(cleanLabel(label)) + ' */' : '') + ' break;';
+      return pre + 'label = ' + label + ';' + (SHOW_LABELS ? ' /* to: ' + getOriginalLabelId(cleanLabel(label)) + ' */' : '') + ' break;';
     }
   }
 
@@ -870,7 +988,7 @@ function JSify(data, functionsOnly, givenFunctions) {
     var labelSets = phiSets[label];
     // FIXME: Many of the |var |s here are not needed, but without them we get slowdowns with closure compiler. TODO: remove this workaround.
     if (labelSets.length == 1) {
-      return 'var ' + labelSets[0].ident + ' = ' + labelSets[0].valueJS + ';';
+      return (ASM_JS ? '' : 'var ') + labelSets[0].ident + ' = ' + labelSets[0].valueJS + ';';
     }
     // TODO: eliminate unneeded sets (to undefined etc.)
     var deps = {}; // for each ident we will set, which others it depends on
@@ -924,11 +1042,11 @@ function JSify(data, functionsOnly, givenFunctions) {
   makeFuncLineActor('branch', function(item) {
     var phiSets = calcPhiSets(item);
     if (!item.value) {
-      return getPhiSetsForLabel(phiSets, item.label) + makeBranch(item.label, item.currLabelId);
+      return (item.labelJS = getPhiSetsForLabel(phiSets, item.label)) + makeBranch(item.label, item.currLabelId);
     } else {
-      var condition = finalizeLLVMParameter(item.value);
-      var labelTrue = getPhiSetsForLabel(phiSets, item.labelTrue) + makeBranch(item.labelTrue, item.currLabelId);
-      var labelFalse = getPhiSetsForLabel(phiSets, item.labelFalse) + makeBranch(item.labelFalse, item.currLabelId);
+      var condition = item.valueJS = finalizeLLVMParameter(item.value);
+      var labelTrue = (item.labelTrueJS = getPhiSetsForLabel(phiSets, item.labelTrue)) + makeBranch(item.labelTrue, item.currLabelId);
+      var labelFalse = (item.labelFalseJS = getPhiSetsForLabel(phiSets, item.labelFalse)) + makeBranch(item.labelFalse, item.currLabelId);
       if (labelTrue == ';' && labelFalse == ';') return ';';
       var head = 'if (' + condition + ') { ';
       var head2 = 'if (!(' + condition + ')) { ';
@@ -944,13 +1062,13 @@ function JSify(data, functionsOnly, givenFunctions) {
     }
   });
   makeFuncLineActor('switch', function(item) {
-    // TODO: Find a case where switch is important, and benchmark that. var SWITCH_IN_SWITCH = 1; 
+    var useIfs = RELOOP || item.switchLabels.length < 1024; // with a huge number of cases, if-else which looks nested to js parsers can cause problems
     var phiSets = calcPhiSets(item);
-    // Consolidate checks that go to the same label. This is important because it makes the
-    // js optimizer hoistMultiples much easier to implement (we hoist into one place, not
-    // many).
+    // Consolidate checks that go to the same label. This is important because it makes the relooper simpler and faster.
     var targetLabels = {}; // for each target label, the list of values going to it
+    var switchLabelMap = {};
     item.switchLabels.forEach(function(switchLabel) {
+      switchLabelMap[switchLabel.label] = switchLabel;
       if (!targetLabels[switchLabel.label]) {
         targetLabels[switchLabel.label] = [];
       }
@@ -959,21 +1077,53 @@ function JSify(data, functionsOnly, givenFunctions) {
     var ret = '';
     var first = true;
     var signedIdent = makeSignOp(item.ident, item.type, 're'); // we need to standardize for purpose of comparison
+    if (RELOOP) {
+      item.groupedLabels = [];
+    }
+    if (!useIfs) {
+      ret += 'switch(' + signedIdent + ') {\n';
+    }
     for (var targetLabel in targetLabels) {
-      if (!first) {
+      if (!first && useIfs) {
         ret += 'else ';
       } else {
         first = false;
       }
-      ret += 'if (' + targetLabels[targetLabel].map(function(value) {
-        return makeComparison(signedIdent, makeSignOp(value, item.type, 're'), item.type)
-      }).join(' || ') + ') {\n';
-      ret += '  ' + getPhiSetsForLabel(phiSets, targetLabel) + makeBranch(targetLabel, item.currLabelId || null) + '\n';
+      var value;
+      if (useIfs) {
+        value = targetLabels[targetLabel].map(function(value) {
+          return makeComparison(signedIdent, makeSignOp(value, item.type, 're'), item.type)
+        }).join(' | ');
+        ret += 'if (' + value + ') {\n';
+      } else {
+        value = targetLabels[targetLabel].map(function(value) {
+          return 'case ' + makeSignOp(value, item.type, 're') + ':';
+        }).join(' ');
+        ret += value + '{\n';
+      }
+      var phiSet = getPhiSetsForLabel(phiSets, targetLabel);
+      ret += '  ' + phiSet + makeBranch(targetLabel, item.currLabelId || null) + '\n';
       ret += '}\n';
+      if (RELOOP) {
+        item.groupedLabels.push({
+          label: targetLabel,
+          value: value,
+          labelJS: phiSet
+        });
+      }
     }
-    if (item.switchLabels.length > 0) ret += 'else {\n';
-    ret += getPhiSetsForLabel(phiSets, item.defaultLabel) + makeBranch(item.defaultLabel, item.currLabelId) + '\n';
-    if (item.switchLabels.length > 0) ret += '}\n';
+    var phiSet = item.defaultLabelJS = getPhiSetsForLabel(phiSets, item.defaultLabel);
+    if (useIfs) {
+      if (item.switchLabels.length > 0) ret += 'else {\n';
+      ret += phiSet + makeBranch(item.defaultLabel, item.currLabelId) + '\n';
+      if (item.switchLabels.length > 0) ret += '}\n';
+    } else {
+      ret += 'default: {\n';
+      ret += phiSet + makeBranch(item.defaultLabel, item.currLabelId) + '\n';
+      ret += '}\n';
+
+      ret += '} break; \n'; // finish switch and break, to move control flow properly (breaks from makeBranch just broke out of the switch)
+    }
     if (item.value) {
       ret += ' ' + toNiceIdent(item.value);
     }
@@ -987,42 +1137,50 @@ function JSify(data, functionsOnly, givenFunctions) {
           +    'PROFILING_NODE = __parentProfilingNode__ '
           +  '}\n';
     }
-    if (LABEL_DEBUG) {
+    if (LABEL_DEBUG && functionNameFilterTest(item.funcData.ident)) {
       ret += "Module.print(INDENT + 'Exiting: " + item.funcData.ident + "');\n"
           +  "INDENT = INDENT.substr(0, INDENT.length-2);\n";
     }
     ret += 'return';
     if (item.value) {
-      ret += ' ' + finalizeLLVMParameter(item.value);
+      ret += ' ' + asmCoercion(finalizeLLVMParameter(item.value), item.type);
     }
     return ret + ';';
   });
   makeFuncLineActor('resume', function(item) {
+    // If there is no current exception, set this one as it (during a resume, the current exception can be wiped out)
+    var ptr = makeStructuralAccess(item.ident, 0);
     return (EXCEPTION_DEBUG ? 'Module.print("Resuming exception");' : '') + 
-    	'throw ' + makeGetValue('_llvm_eh_exception.buf', '0', 'void*') + ';';
+      'if (' + makeGetValue('_llvm_eh_exception.buf', 0, 'void*') + ' == 0) { ' + makeSetValue('_llvm_eh_exception.buf', 0, ptr, 'void*') + ' } ' + 
+      makeThrow('ptr') + ';';
   });
   makeFuncLineActor('invoke', function(item) {
     // Wrapping in a function lets us easily return values if we are
     // in an assignment
     var phiSets = calcPhiSets(item);
     var call_ = makeFunctionCall(item.ident, item.params, item.funcData, item.type);
-    var ret = '(function() { try { __THREW__ = false; return '
+    var ret = '(function() { try { __THREW__ = 0; return '
             + call_ + ' '
             + '} catch(e) { '
             + 'if (typeof e != "number") throw e; '
-            + 'if (ABORT) throw e; __THREW__ = true; '
+            + 'if (ABORT) throw e; __THREW__ = 1; '
             + (EXCEPTION_DEBUG ? 'Module.print("Exception: " + e + ", currently at: " + (new Error().stack)); ' : '')
             + 'return null } })();';
     if (item.assignTo) {
       ret = 'var ' + item.assignTo + ' = ' + ret;
-      if (isIllegalType(item.type)) {
-        assert(item.type == 'i64', 'Can only handle i64 invoke among illegal invokes');
-        ret += 'var ' + item.assignTo + '$0 = ' + item.assignTo + '[0], ' + item.assignTo + '$1 = ' + item.assignTo + '[1];';
+      if (USE_TYPED_ARRAYS == 2 && isIllegalType(item.type)) {
+        var bits = getBits(item.type);
+        for (var i = 0; i < bits/32; i++) {
+          ret += 'var ' + item.assignTo + '$' + i + ' = ' + (i == 0 ? item.assignTo : 'tempRet' + (i-1)) + ';'
+        }
       }
       item.assignTo = null;
     }
-    ret += 'if (!__THREW__) { ' + getPhiSetsForLabel(phiSets, item.toLabel) + makeBranch(item.toLabel, item.currLabelId)
-            + ' } else { ' + getPhiSetsForLabel(phiSets, item.unwindLabel)  + makeBranch(item.unwindLabel, item.currLabelId) + ' }';
+    item.reloopingJS = ret; // everything but the actual branching (which the relooper will do for us)
+    item.toLabelJS = getPhiSetsForLabel(phiSets, item.toLabel);
+    item.unwindLabelJS = getPhiSetsForLabel(phiSets, item.unwindLabel);
+    ret += 'if (!__THREW__) { ' + item.toLabelJS + makeBranch(item.toLabel, item.currLabelId)
+            + ' } else { ' + item.unwindLabelJS + makeBranch(item.unwindLabel, item.currLabelId) + ' }';
     return ret;
   });
   makeFuncLineActor('atomic', function(item) {
@@ -1030,19 +1188,24 @@ function JSify(data, functionsOnly, givenFunctions) {
     var param1 = finalizeLLVMParameter(item.params[0]);
     var param2 = finalizeLLVMParameter(item.params[1]);
     switch (item.op) {
-      case 'add': return '(tempValue=' + makeGetValue(param1, 0, type) + ',' + makeSetValue(param1, 0, 'tempValue+' + param2, type) + ',tempValue)';
-      case 'sub': return '(tempValue=' + makeGetValue(param1, 0, type) + ',' + makeSetValue(param1, 0, 'tempValue-' + param2, type) + ',tempValue)';
-      case 'xchg': return '(tempValue=' + makeGetValue(param1, 0, type) + ',' + makeSetValue(param1, 0, param2, type) + ',tempValue)';
+      case 'add': return '(tempValue=' + makeGetValue(param1, 0, type) + ',' + makeSetValue(param1, 0, 'tempValue+' + param2, type, null, null, null, null, ',') + ',tempValue)';
+      case 'sub': return '(tempValue=' + makeGetValue(param1, 0, type) + ',' + makeSetValue(param1, 0, 'tempValue-' + param2, type, null, null, null, null, ',') + ',tempValue)';
+      case 'xchg': return '(tempValue=' + makeGetValue(param1, 0, type) + ',' + makeSetValue(param1, 0, param2, type, null, null, null, null, ',') + ',tempValue)';
       case 'cmpxchg': {
         var param3 = finalizeLLVMParameter(item.params[2]);
-        return '(tempValue=' + makeGetValue(param1, 0, type) + ',(' + makeGetValue(param1, 0, type) + '==' + param2 + ' && (' + makeSetValue(param1, 0, param3, type) + ')),tempValue)';
+        return '(tempValue=' + makeGetValue(param1, 0, type) + ',(' + makeGetValue(param1, 0, type) + '==' + param2 + ' ? ' + makeSetValue(param1, 0, param3, type, null, null, null, null, ',') + ' : 0),tempValue)';
       }
       default: throw 'unhandled atomic op: ' + item.op;
     }
   });
   makeFuncLineActor('landingpad', function(item) {
     var catchTypeArray = item.catchables.map(finalizeLLVMParameter).join(',');
-    return '___cxa_find_matching_catch('+ makeGetValue('_llvm_eh_exception.buf', '0', 'void*') +',' + makeGetValue('_llvm_eh_exception.buf', QUANTUM_SIZE, 'void*') + ',[' + catchTypeArray +'])';
+    var ret = '___cxa_find_matching_catch('+ makeGetValue('_llvm_eh_exception.buf', '0', 'void*') +',' + makeGetValue('_llvm_eh_exception.buf', QUANTUM_SIZE, 'void*') + ',[' + catchTypeArray +'])';
+    if (USE_TYPED_ARRAYS == 2) {
+      ret = makeVarDef(item.assignTo) + '$0 = ' + ret + '; ' + item.assignTo + '$1 = tempRet0;';
+      item.assignTo = null;
+    }
+    return ret;
   });
   makeFuncLineActor('load', function(item) {
     var value = finalizeLLVMParameter(item.pointer);
@@ -1084,7 +1247,7 @@ function JSify(data, functionsOnly, givenFunctions) {
   makeFuncLineActor('alloca', function(item) {
     if (typeof item.allocatedIndex === 'number') {
       if (item.allocatedSize === 0) return ''; // This will not actually be shown - it's nativized
-      return getFastValue('__stackBase__', '+', item.allocatedIndex.toString());
+      return asmCoercion(getFastValue('__stackBase__', '+', item.allocatedIndex.toString()), 'i32');
     } else {
       return RuntimeGenerator.stackAlloc(getFastValue(calcAllocatedSize(item.allocatedType), '*', item.allocatedNum));
     }
@@ -1107,15 +1270,26 @@ function JSify(data, functionsOnly, givenFunctions) {
     // We cannot compile assembly. See comment in intertyper.js:'Call'
     assert(ident != 'asm', 'Inline assembly cannot be compiled to JavaScript!');
 
-    var shortident = LibraryManager.getRootIdent(ident.slice(1)) || ident.slice(1); // ident may not be in library, if all there is is ident__inline
+    var shortident = ident.slice(1);
+    var callIdent = LibraryManager.getRootIdent(shortident);
+    if (callIdent) {
+      shortident = callIdent; // ident may not be in library, if all there is is ident__inline, but in this case it is
+      if (callIdent.indexOf('.') < 0) {
+        callIdent = '_' + callIdent; // Not Math.*, so add the normal prefix
+      }
+    } else {
+      callIdent = ident;
+    }
     var args = [];
     var argsTypes = [];
     var varargs = [];
     var varargsTypes = [];
+    var varargsByVals = {};
     var ignoreFunctionIndexizing = [];
     var useJSArgs = (shortident + '__jsargs') in LibraryManager.library;
     var hasVarArgs = isVarArgsFunctionType(type);
     var normalArgs = (hasVarArgs && !useJSArgs) ? countNormalArgs(type) : -1;
+    var byPointer = getVarData(funcData, ident);
 
     params.forEach(function(param, i) {
       var val = finalizeParam(param);
@@ -1123,14 +1297,30 @@ function JSify(data, functionsOnly, givenFunctions) {
         args.push(val);
         argsTypes.push(param.type);
       } else {
+        var size;
+        if (param.byVal) {
+          varargsByVals[varargs.length] = param.byVal;
+          size = calcAllocatedSize(removeAllPointing(param.type));
+        } else {
+          size = Runtime.getNativeFieldSize(param.type);
+        }
         varargs.push(val);
-        varargs = varargs.concat(zeros(Runtime.getNativeFieldSize(param.type)-1));
+        varargs = varargs.concat(zeros(size-1));
+        // TODO: replace concats like this with push
         varargsTypes.push(param.type);
-        varargsTypes = varargsTypes.concat(zeros(Runtime.getNativeFieldSize(param.type)-1));
+        varargsTypes = varargsTypes.concat(zeros(size-1));
       }
     });
 
     args = args.map(function(arg, i) { return indexizeFunctions(arg, argsTypes[i]) });
+    if (ASM_JS) {
+      if (shortident in Functions.libraryFunctions) {
+        args = args.map(function(arg, i) { return asmCoercion(arg, argsTypes[i]) });
+      } else {
+        args = args.map(function(arg, i) { return asmEnsureFloat(arg, argsTypes[i]) });
+      }
+    }
+
     varargs = varargs.map(function(vararg, i) {
       if (ignoreFunctionIndexizing.indexOf(i) >= 0) return vararg;
       return vararg === 0 ? 0 : indexizeFunctions(vararg, varargsTypes[i])
@@ -1146,12 +1336,22 @@ function JSify(data, functionsOnly, givenFunctions) {
                 varargs.map(function(arg, i) {
                   var type = varargsTypes[i];
                   if (type == 0) return null;
-                  var ret = makeSetValue(getFastValue('tempInt', '+', offset), 0, arg, type, null, null, QUANTUM_SIZE, null, ',');
-                  offset += Runtime.getNativeFieldSize(type);
+                  var ret;
+                  if (!varargsByVals[i]) {
+                    ret = makeSetValue(getFastValue('tempInt', '+', offset), 0, arg, type, null, null, QUANTUM_SIZE, null, ',');
+                    offset += Runtime.getNativeFieldSize(type);
+                  } else {
+                    assert(offset % 4 == 0); // varargs must be aligned
+                    var size = calcAllocatedSize(removeAllPointing(type));
+                    assert(size % 4 == 0); // varargs must stay aligned
+                    ret = makeCopyValues(getFastValue('tempInt', '+', offset), arg, size, null, null, varargsByVals[i], ',');
+                    offset += size;
+                  }
                   return ret;
                 }).filter(function(arg) {
                   return arg !== null;
                 }).join(',') + ',tempInt)';
+      varargs = asmCoercion(varargs, 'i32');
     }
 
     args = args.concat(varargs);
@@ -1164,11 +1364,26 @@ function JSify(data, functionsOnly, givenFunctions) {
       return inline.apply(null, args); // Warning: inlining does not prevent recalculation of the arguments. They should be simple identifiers
     }
 
-    if (getVarData(funcData, ident)) {
-      ident = 'FUNCTION_TABLE[' + ident + ']';
+    var returnType;
+    if (byPointer || ASM_JS) returnType = type.split(' ')[0];
+
+    if (byPointer) {
+      var sig = Functions.getSignature(returnType, argsTypes);
+      if (ASM_JS) {
+        assert(returnType.search(/\("'\[,/) == -1); // XXX need isFunctionType(type, out)
+        callIdent = '(' + callIdent + ')&{{{ FTM_' + sig + ' }}}'; // the function table mask is set in emscripten.py
+      }
+      callIdent = Functions.getTable(sig) + '[' + callIdent + ']';
     }
 
-    return ident + '(' + args.join(', ') + ')';
+    var ret = callIdent + '(' + args.join(', ') + ')';
+    if (ASM_JS) { // TODO: do only when needed (library functions and Math.*?) XXX && shortident in Functions.libraryFunctions) {
+      ret = asmCoercion(ret, returnType);
+      if (shortident == 'abort' && funcData.returnType != 'void') {
+        ret += '; return 0'; // special case: abort() can happen without return, breaking the return type of asm functions. ensure a return
+      }
+    }
+    return ret;
   }
   makeFuncLineActor('getelementptr', function(item) { return finalizeLLVMFunctionCall(item) });
   makeFuncLineActor('call', function(item) {
@@ -1220,27 +1435,74 @@ function JSify(data, functionsOnly, givenFunctions) {
     //
 
     if (!mainPass) {
+      if (phase == 'pre' && !Variables.generatedGlobalBase) {
+        Variables.generatedGlobalBase = true;
+        if (Variables.nextIndexedOffset > 0) {
+          // Variables have been calculated, get to base stuff before we print them
+          // GLOBAL_BASE is statically known to be equal to STACK_MAX and to TOTAL_STACK, assert on this
+          print('assert(STATICTOP == STACK_MAX); assert(STACK_MAX == TOTAL_STACK);\n');
+          print('STATICTOP += ' + Variables.nextIndexedOffset + ';\n');
+          print('assert(STATICTOP < TOTAL_MEMORY);\n');
+        }
+      }
       var generated = itemsDict.function.concat(itemsDict.type).concat(itemsDict.GlobalVariableStub).concat(itemsDict.GlobalVariable).concat(itemsDict.GlobalVariablePostSet);
-      Functions.allIdents = Functions.allIdents.concat(itemsDict.function.map(function(func) {
-        return func.ident;
-      }).filter(function(func) {
-        return IGNORED_FUNCTIONS.indexOf(func.ident) < 0;
-      }));
       if (!DEBUG_MEMORY) print(generated.map(function(item) { return item.JS }).join('\n'));
       return;
     }
 
-    // This is the main pass. Print out the generated code that we have here, together with the
+    // Print out global variables and postsets TODO: batching
+    if (phase == 'pre') {
+      var legalizedI64sDefault = legalizedI64s;
+      legalizedI64s = false;
+
+      var globalsData = analyzer(intertyper(data.unparsedGlobalss[0].lines, true), true);
+
+      if (!NAMED_GLOBALS) {
+        sortGlobals(globalsData.globalVariables).forEach(function(g) {
+          var ident = g.ident;
+          if (!isIndexableGlobal(ident)) return;
+          Variables.indexedGlobals[ident] = Variables.nextIndexedOffset;
+          Variables.nextIndexedOffset += Runtime.alignMemory(calcAllocatedSize(Variables.globals[ident].type));
+          if (ident.substr(0, 5) == '__ZTV') { // leave room for null-terminating the vtable
+            Variables.nextIndexedOffset += Runtime.getNativeTypeSize('i32');
+          }
+        });
+      }
+
+      JSify(globalsData, true, Functions);
+      globalsData = null;
+      data.unparsedGlobalss = null;
+
+      var generated = itemsDict.functionStub.concat(itemsDict.GlobalVariablePostSet);
+      generated.forEach(function(item) { print(indentify(item.JS || '', 2)); });
+
+      legalizedI64s = legalizedI64sDefault;
+    } else {
+      if (singlePhase) {
+        assert(data.unparsedGlobalss[0].lines.length == 0, dump([phase, data.unparsedGlobalss]));
+        assert(itemsDict.functionStub.length == 0, dump([phase, itemsDict.functionStub]));
+      }
+    }
+
+    if (phase == 'pre' || phase == 'funcs') {
+      PassManager.serialize();
+      return;
+    }
+
+    // This is the main 'post' pass. Print out the generated code that we have here, together with the
     // rest of the output that we started to print out earlier (see comment on the
     // "Final shape that will be created").
-    if (PRECISE_I64_MATH && preciseI64MathUsed) {
+    if (PRECISE_I64_MATH && Types.preciseI64MathUsed) {
       print(read('long.js'));
     } else {
       print('// Warning: printing of i64 values may be slightly rounded! No deep i64 math used, so precise i64 code not included');
       print('var i64Math = null;');
     }
-    var generated = itemsDict.functionStub.concat(itemsDict.GlobalVariablePostSet);
-    generated.forEach(function(item) { print(indentify(item.JS || '', 2)); });
+    if (HEADLESS) {
+      print('if (!ENVIRONMENT_IS_WEB) {');
+      print(read('headless.js').replace("'%s'", "'http://emscripten.org'").replace("'?%s'", "''").replace('%s,', 'null,').replace('%d', '0'));
+      print('}');
+    }
     if (RUNTIME_TYPE_INFO) {
       Types.cleanForRuntime();
       print('Runtime.typeInfo = ' + JSON.stringify(Types.types));
@@ -1250,23 +1512,23 @@ function JSify(data, functionsOnly, givenFunctions) {
     var postParts = processMacros(preprocess(read(postFile))).split('{{GLOBAL_VARS}}');
     print(postParts[0]);
 
-    // Print out global variables and postsets TODO: batching
-    legalizedI64s = false;
-    JSify(analyzer(intertyper(data.unparsedGlobalss[0].lines, true), true), true, Functions);
-    data.unparsedGlobalss = null;
-
-    print(Functions.generateIndexing()); // done last, as it may rely on aliases set in postsets
+    Functions.generateIndexing(); // done last, as it may rely on aliases set in postsets
 
     // Load runtime-linked libraries
     RUNTIME_LINKED_LIBS.forEach(function(lib) {
-      print('eval(Module["read"]("' + lib + '"))(FUNCTION_TABLE.length, this);');
+      print('eval(Module["read"]("' + lib + '"))(' + Functions.getTable('x') + '.length, this);');
     });
 
     print(postParts[1]);
 
+    var shellParts = read(shellFile).split('{{BODY}}');
     print(shellParts[1]);
     // Print out some useful metadata (for additional optimizations later, like the eliminator)
-    print('// EMSCRIPTEN_GENERATED_FUNCTIONS: ' + JSON.stringify(Functions.allIdents) + '\n');
+    print('// EMSCRIPTEN_GENERATED_FUNCTIONS: ' + JSON.stringify(keys(Functions.implementedFunctions).filter(function(func) {
+      return IGNORED_FUNCTIONS.indexOf(func.ident) < 0;
+    })) + '\n');
+
+    PassManager.serialize();
 
     return null;
   }
@@ -1277,7 +1539,7 @@ function JSify(data, functionsOnly, givenFunctions) {
     substrate.addItems(data.functionStubs, 'FunctionStub');
     assert(data.functions.length == 0);
   } else {
-    substrate.addItems(values(data.globalVariables), 'GlobalVariable');
+    substrate.addItems(sortGlobals(data.globalVariables), 'GlobalVariable');
     substrate.addItems(data.aliass, 'Alias');
     substrate.addItems(data.functions, 'FunctionSplitter');
   }

@@ -707,7 +707,9 @@ var LibrarySDL = {
 
   SDL_Quit: function() {
     for (var i = 0; i < SDL.numChannels; ++i) {
-      SDL.channels[i].audio.pause();
+      if (SDL.channels[i].audio) {
+        SDL.channels[i].audio.pause();
+      }
     }
     if (SDL.music.audio) {
       SDL.music.audio.pause();
@@ -898,7 +900,7 @@ var LibrarySDL = {
   },
 
   SDL_GetError: function() {
-    return allocate(intArrayFromString("SDL is cool"), 'i8');
+    return allocate(intArrayFromString("unknown SDL-emscripten error"), 'i8');
   },
 
   SDL_CreateRGBSurface: function(flags, width, height, depth, rmask, gmask, bmask, amask) {
@@ -964,6 +966,16 @@ var LibrarySDL = {
   SDL_BlitSurface__deps: ['SDL_UpperBlit'],
   SDL_BlitSurface: function(src, srcrect, dst, dstrect) {
     return _SDL_UpperBlit(src, srcrect, dst, dstrect);
+  },
+
+  zoomSurface: function(src, x, y, smooth) {
+    var srcData = SDL.surfaces[src];
+    var w = srcData.width*x;
+    var h = srcData.height*y;
+    var ret = SDL.makeSurface(w, h, srcData.flags, false, 'zoomSurface');
+    var dstData = SDL.surfaces[ret];
+    dstData.ctx.drawImage(srcData.canvas, 0, 0, w, h);
+    return ret;
   },
 
   SDL_SetAlpha: function(surf, flag, alpha) {
@@ -1106,7 +1118,7 @@ var LibrarySDL = {
     SDL.audio.bufferSize = totalSamples*2; // hardcoded 16-bit audio
     SDL.audio.buffer = _malloc(SDL.audio.bufferSize);
     SDL.audio.caller = function() {
-      FUNCTION_TABLE[SDL.audio.callback](SDL.audio.userdata, SDL.audio.buffer, SDL.audio.bufferSize);
+      Runtime.dynCall('viii', SDL.audio.callback, [SDL.audio.userdata, SDL.audio.buffer, SDL.audio.bufferSize]);
       SDL.audio.pushAudio(SDL.audio.buffer, SDL.audio.bufferSize);
     };
     // Mozilla Audio API. TODO: Other audio APIs
@@ -1150,6 +1162,8 @@ var LibrarySDL = {
   SDL_CreateMutex: function() { return 0 },
   SDL_LockMutex: function() {},
   SDL_UnlockMutex: function() {},
+  SDL_mutexP: function() { return 0 },
+  SDL_mutexV: function() { return 0 },
   SDL_DestroyMutex: function() {},
 
   SDL_CreateCond: function() { return 0 },
@@ -1268,7 +1282,7 @@ var LibrarySDL = {
     channelInfo.audio = audio = audio.cloneNode(true);
     if (SDL.channelFinished) {
       audio['onended'] = function() { // TODO: cache these
-        Runtime.getFuncWrapper(SDL.channelFinished)(channel);
+        Runtime.getFuncWrapper(SDL.channelFinished, 'vi')(channel);
       }
     }
     // Either play the element, or load the dynamic data into it
@@ -1339,7 +1353,7 @@ var LibrarySDL = {
       info.audio = null;
     }
     if (SDL.channelFinished) {
-      Runtime.getFuncWrapper(SDL.channelFinished)(channel);
+      Runtime.getFuncWrapper(SDL.channelFinished, 'vi')(channel);
     }
     return 0;
   },
@@ -1398,7 +1412,7 @@ var LibrarySDL = {
     audio.pause();
     SDL.music.audio = null;
     if (SDL.hookMusicFinished) {
-      FUNCTION_TABLE[SDL.hookMusicFinished]();
+      Runtime.dynCall('v', SDL.hookMusicFinished);
     }
     return 0;
   },
@@ -1427,6 +1441,10 @@ var LibrarySDL = {
       size: size
     });
     return id;
+  },
+
+  TTF_CloseFont: function(font) {
+    SDL.fonts[font] = null;
   },
 
   TTF_RenderText_Solid: function(font, text, color) {
@@ -1523,6 +1541,12 @@ var LibrarySDL = {
 
   SDL_GL_SwapBuffers: function() {},
 
+  // TODO
+
+  SDL_SetGamma: function(r, g, b) {
+    return -1;
+  },
+
   // Misc
 
   SDL_InitSubSystem: function(flags) { return 0 },
@@ -1541,7 +1565,7 @@ var LibrarySDL = {
 
   SDL_AddTimer: function(interval, callback, param) {
     return window.setTimeout(function() {
-      FUNCTION_TABLE[callback](interval, param);
+      Runtime.dynCall('ii', callback, [interval, param]);
     }, interval);
   },
   SDL_RemoveTimer: function(id) {

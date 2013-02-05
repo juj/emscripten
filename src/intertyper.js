@@ -61,7 +61,7 @@ function intertyper(data, sidePass, baseLineNums) {
       var baseLineNumPosition = 0;
       for (var i = 0; i < lines.length; i++) {
         var line = lines[i];
-        lines[i] = null; // lines may be very very large. Allow GCing to occur in the loop by releasing refs here
+        if (singlePhase) lines[i] = null; // lines may be very very large. Allow GCing to occur in the loop by releasing refs here
 
         while (baseLineNumPosition < baseLineNums.length-1 && i >= baseLineNums[baseLineNumPosition+1][0]) {
           baseLineNumPosition++;
@@ -69,17 +69,17 @@ function intertyper(data, sidePass, baseLineNums) {
 
         if (mainPass && (line[0] == '%' || line[0] == '@')) {
           // If this isn't a type, it's a global variable, make a note of the information now, we will need it later
-          var testType = /[@%\w\d\.\" $-]+ = type .*/.exec(line);
+          var parts = line.split(' = ');
+          assert(parts.length >= 2);
+          var left = parts[0], right = parts.slice(1).join(' = ');
+          var testType = /^type .*/.exec(right);
           if (!testType) {
-            var global = /([@%\w\d\.\" $-]+) = .*/.exec(line);
-            var globalIdent = toNiceIdent(global[1]);
-            var testAlias = /[@%\w\d\.\" $-]+ = alias .*/.exec(line);
-            var testString = /[@%\w\d\.\" $-]+ = [\w ]+ \[\d+ x i8] c".*/.exec(line);
+            var globalIdent = toNiceIdent(left);
+            var testAlias = /^(hidden )?alias .*/.exec(right);
             Variables.globals[globalIdent] = {
               name: globalIdent,
               alias: !!testAlias,
-              impl: VAR_EMULATED,
-              isString : !!testString
+              impl: VAR_EMULATED
             };
             unparsedGlobals.lines.push(line);
           } else {
@@ -127,6 +127,7 @@ function intertyper(data, sidePass, baseLineNums) {
               // We need this early, to know basic function info - ident, params, varargs
               ident: toNiceIdent(func.ident),
               params: func.params,
+              returnType: func.returnType,
               hasVarArgs: func.hasVarArgs,
               lineNum: currFunctionLineNum,
               lines: currFunctionLines
@@ -165,7 +166,7 @@ function intertyper(data, sidePass, baseLineNums) {
       function makeToken(text) {
         if (text.length == 0) return;
         // merge certain tokens
-        if (lastToken && ( (lastToken.text == '%' && text[0] == '"') || /^\**$/.exec(text) ) ) {
+        if (lastToken && ( (lastToken.text == '%' && text[0] == '"') || /^\**$/.test(text) ) ) {
           lastToken.text += text;
           return;
         }
@@ -182,7 +183,7 @@ function intertyper(data, sidePass, baseLineNums) {
         // merge certain tokens
         if (lastToken && isType(lastToken.text) && isFunctionDef(token)) {
           lastToken.text += ' ' + text;
-        } else if (lastToken && /^}\**$/.exec(text)) { // }, }*, etc.
+        } else if (lastToken && text[0] == '}') { // }, }*, etc.
           var openBrace = tokens.length-1;
           while (tokens[openBrace].text.substr(-1) != '{') openBrace --;
           token = combineTokens(tokens.slice(openBrace+1));
@@ -459,6 +460,9 @@ function intertyper(data, sidePass, baseLineNums) {
         };
         ret.type = ret.value.type;
         Types.needAnalysis[ret.type] = 0;
+        if (!NAMED_GLOBALS) {
+          Variables.globals[ret.ident].type = ret.type;
+        }
         return [ret];
       }
       if (item.tokens[2].text == 'type') {
@@ -509,13 +513,22 @@ function intertyper(data, sidePass, baseLineNums) {
           private_: private_,
           lineNum: item.lineNum
         };
+        if (!NAMED_GLOBALS) {
+          Variables.globals[ret.ident].type = ret.type;
+          Variables.globals[ret.ident].external = external;
+        }
         Types.needAnalysis[ret.type] = 0;
         if (ident == '@llvm.global_ctors') {
           ret.ctors = [];
           if (item.tokens[3].item) {
             var subTokens = item.tokens[3].item.tokens;
             splitTokenList(subTokens).forEach(function(segment) {
-              ret.ctors.push(segment[1].tokens.slice(-1)[0].text);
+              var ctor = toNiceIdent(segment[1].tokens.slice(-1)[0].text);
+              ret.ctors.push(ctor);
+              if (ASM_JS) { // must export the global constructors from asm.js module, so mark as implemented and exported
+                Functions.implementedFunctions[ctor] = 'v';
+                EXPORTED_FUNCTIONS[ctor] = 1;
+              }
             });
           }
         } else if (!external) {
@@ -674,7 +687,7 @@ function intertyper(data, sidePass, baseLineNums) {
       // Inline assembly is just JavaScript that we paste into the code
       item.intertype = 'value';
       if (tokensLeft[0].text == 'sideeffect') tokensLeft.splice(0, 1);
-      item.ident = tokensLeft[0].text.substr(1, tokensLeft[0].text.length-2);
+      item.ident = tokensLeft[0].text.substr(1, tokensLeft[0].text.length-2) || ';'; // use ; for empty inline assembly
       return { forward: null, ret: [item], item: item };
     } 
     if (item.ident.substr(-2) == '()') {
@@ -736,6 +749,7 @@ function intertyper(data, sidePass, baseLineNums) {
       }
       var last = getTokenIndexByText(item.tokens, ';');
       item.params = splitTokenList(item.tokens.slice(1, last)).map(parseLLVMSegment);
+      item.type = item.params[1].type;
       this.forwardItem(item, 'Reintegrator');
     }
   });
@@ -837,6 +851,8 @@ function intertyper(data, sidePass, baseLineNums) {
         item.type = item.params[1].ident;
         item.params[0].type = item.params[1].type;
         // TODO: also remove 2nd param?
+      } else if (item.op in LLVM.COMPS) {
+        item.type = 'i1';
       }
       if (USE_TYPED_ARRAYS == 2) {
         // Some specific corrections, since 'i64' is special
@@ -914,6 +930,7 @@ function intertyper(data, sidePass, baseLineNums) {
     processItem: function(item) {
       return [{
         intertype: 'resume',
+        ident: toNiceIdent(item.tokens[2].text),
         lineNum: item.lineNum
       }];
     }

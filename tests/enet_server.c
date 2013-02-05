@@ -29,7 +29,7 @@ void main_loop() {
 #if EMSCRIPTEN
   counter++;
 #endif
-  if (counter == 10) {
+  if (counter == 100) {
     printf("stop!\n");
     emscripten_cancel_main_loop();
     return;
@@ -96,7 +96,7 @@ int main (int argc, char ** argv)
     exit (EXIT_FAILURE);
   }
 
-  emscripten_set_main_loop(main_loop, 1, 1);
+  emscripten_set_main_loop(main_loop, 3, 1);
 
   return 1;
 }

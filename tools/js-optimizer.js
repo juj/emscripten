@@ -214,6 +214,7 @@ function traverse(node, pre, post, stack) {
 
 // Only walk through the generated functions
 function traverseGenerated(ast, pre, post, stack) {
+  assert(generatedFunctions);
   traverse(ast, function(node) {
     if (node[0] == 'defun' && isGenerated(node[1])) {
       traverse(node, pre, post, stack);
@@ -223,6 +224,7 @@ function traverseGenerated(ast, pre, post, stack) {
 }
 
 function traverseGeneratedFunctions(ast, callback) {
+  assert(generatedFunctions);
   traverse(ast, function(node) {
     if (node[0] == 'defun' && isGenerated(node[1])) {
       callback(node);
@@ -259,6 +261,10 @@ function traverseWithVariables(ast, callback) {
 
 function emptyNode() { // XXX do we need to create new nodes here? can't we reuse?
   return ['toplevel', []]
+}
+
+function isEmptyNode(node) {
+  return node.length == 2 && node[0] == 'toplevel' && node[1].length == 0;
 }
 
 // Passes
@@ -371,8 +377,8 @@ function removeAssignsToUndefined(ast) {
 }
 
 // XXX This is an invalid optimization
-// We sometimes leave some settings to __label__ that are not needed, if later in
-// the relooper we realize that we have a single entry, so no checks on __label__
+// We sometimes leave some settings to label that are not needed, if later in
+// the relooper we realize that we have a single entry, so no checks on label
 // are actually necessary. It's easy to clean those up now.
 function removeUnneededLabelSettings(ast) {
   traverse(ast, function(node, type) {
@@ -380,14 +386,14 @@ function removeUnneededLabelSettings(ast) {
       // Find all checks
       var checked = {};
       traverse(node, function(node, type) {
-        if (type == 'binary' && node[1] == '==' && node[2][0] == 'name' && node[2][1] == '__label__') {
+        if (type == 'binary' && node[1] == '==' && node[2][0] == 'name' && node[2][1] == 'label') {
           assert(node[3][0] == 'num');
           checked[node[3][1]] = 1;
         }
       });
       // Remove unneeded sets
       traverse(node, function(node, type) {
-        if (type == 'assign' && node[2][0] == 'name' && node[2][1] == '__label__') {
+        if (type == 'assign' && node[2][0] == 'name' && node[2][1] == 'label') {
           assert(node[3][0] == 'num');
           if (!(node[3][1] in checked)) return emptyNode();
         }
@@ -407,25 +413,36 @@ function simplifyExpressionsPre(ast) {
 
   function simplifyBitops(ast) {
     var USEFUL_BINARY_OPS = set('<<', '>>', '|', '&', '^');
-    var SAFE_BINARY_OPS = set('+', '-', '*', '%'); // division is unsafe as it creates non-ints in JS
+    var SAFE_BINARY_OPS = set('+', '-', '*'); // division is unsafe as it creates non-ints in JS; mod is unsafe as signs matter so we can't remove |0's
     var ZERO = ['num', 0];
     var rerun = true;
     while (rerun) {
       rerun = false;
-      traverseGenerated(ast, function(node, type, stack) {
-        if (type == 'binary' && node[1] == '|' && (jsonCompare(node[2], ZERO) || jsonCompare(node[3], ZERO))) {
-          stack.push(1); // From here on up, no need for this kind of correction, it's done at the top
-
-          // We might be able to remove this correction
-          for (var i = stack.length-2; i >= 0; i--) {
-            if (stack[i] == 1) {
-              // Great, we can eliminate
-              rerun = true;
-              return jsonCompare(node[2], ZERO) ? node[3] : node[2];
-            } else if (stack[i] == -1) {
-              break; // Too bad, we can't
+      traverseGenerated(ast, function process(node, type, stack) {
+        if (type == 'binary' && node[1] == '|') {
+          if (node[2][0] == 'num' && node[3][0] == 'num') {
+            return ['num', node[2][1] | node[3][1]];
+          } else if (jsonCompare(node[2], ZERO) || jsonCompare(node[3], ZERO)) {
+            // We might be able to remove this correction
+            for (var i = stack.length-1; i >= 0; i--) {
+              if (stack[i] == 1) {
+                // we will replace ourselves with the non-zero side. Recursively process that node.
+                var result = jsonCompare(node[2], ZERO) ? node[3] : node[2], other;
+                // Great, we can eliminate
+                rerun = true;
+                while (other = process(result, result[0], stack)) {
+                  result = other;
+                }
+                return result;
+              } else if (stack[i] == -1) {
+                break; // Too bad, we can't
+              } else if (asm) {
+                break; // we must keep a coercion right on top of a heap access in asm mode
+              }
             }
           }
+          stack.push(1); // From here on up, no need for this kind of correction, it's done at the top
+                         // (Add this at the end, so it is only added if we did not remove it)
         } else if (type == 'binary' && node[1] in USEFUL_BINARY_OPS) {
           stack.push(1);
         } else if ((type == 'binary' && node[1] in SAFE_BINARY_OPS) || type == 'num' || type == 'name') {
@@ -435,6 +452,39 @@ function simplifyExpressionsPre(ast) {
         }
       }, null, []);
     }
+
+    // &-related optimizations
+    traverseGenerated(ast, function(node, type) {
+      if (type == 'binary' && node[1] == '&' && node[3][0] == 'num') {
+        if (node[2][0] == 'num') return ['num', node[2][1] & node[3][1]];
+        var input = node[2];
+        var amount = node[3][1];
+        if (input[0] == 'binary' && input[1] == '&' && input[3][0] == 'num') {
+          // Collapse X & 255 & 1
+          node[3][1] = amount & input[3][1];
+          node[2] = input[2];
+        } else if (input[0] == 'sub' && input[1][0] == 'name') {
+          // HEAP8[..] & 255 => HEAPU8[..]
+          var name = input[1][1];
+          if (name.substr(0, 4) == 'HEAP') {
+            var unsigned = name[4] == 'U';
+            var bits = parseInt(name.substr(unsigned ? 5 : 4));
+            if (amount == Math.pow(2, bits)-1) {
+              if (!unsigned) {
+                input[1][1] = 'HEAPU' + bits; // make unsigned
+              }
+              if (asm) {
+                // we cannot return HEAPU8 without a coercion, but at least we do HEAP8 & 255 => HEAPU8 | 0
+                node[1] = '|';
+                node[3][1] = 0;
+                return node;
+              }
+              return input;
+            }
+          }
+        }
+      }
+    });
   }
 
   // The most common mathop is addition, e.g. in getelementptr done repeatedly. We can join all of those,
@@ -847,7 +897,7 @@ var NO_SIDE_EFFECTS = set('num', 'name');
 
 function hasSideEffects(node) { // this is 99% incomplete!
   if (node[0] in NO_SIDE_EFFECTS) return false;
-  if (node[0] == 'unary-prefix' && node[1] == '!') return hasSideEffects(node[2]);
+  if (node[0] == 'unary-prefix') return hasSideEffects(node[2]);
   if (node[0] == 'binary') return hasSideEffects(node[2]) || hasSideEffects(node[3]);
   return true;
 }
@@ -954,9 +1004,9 @@ function getStatements(node) {
 }
 
 // Multiple blocks from the relooper are, in general, implemented by
-//   if (__label__ == x) { } else if ..
+//   if (label == x) { } else if ..
 // and branching into them by
-//   if (condition) { __label__ == x } else ..
+//   if (condition) { label == x } else ..
 // We can hoist the multiple block into the condition, thus removing code and one 'if' check
 function hoistMultiples(ast) {
   traverseGeneratedFunctions(ast, function(node) {
@@ -987,7 +1037,7 @@ function hoistMultiples(ast) {
         // Look into this if, and its elseifs
         while (postInner && postInner[0] == 'if') {
           var cond = postInner[1];
-          if (cond[0] == 'binary' && cond[1] == '==' && cond[2][0] == 'name' && cond[2][1] == '__label__') {
+          if (cond[0] == 'binary' && cond[1] == '==' && cond[2][0] == 'name' && cond[2][1] == 'label') {
             assert(cond[3][0] == 'num');
             // We have a valid Multiple check here. Try to hoist it, look for the source in |pre| and its else's
             var labelNum = cond[3][1];
@@ -995,10 +1045,10 @@ function hoistMultiples(ast) {
             assert(labelBlock[0] == 'block');
             var found = false;
             traverse(pre, function(preNode, preType) {
-              if (!found && preType == 'assign' && preNode[2][0] == 'name' && preNode[2][1] == '__label__') {
+              if (!found && preType == 'assign' && preNode[2][0] == 'name' && preNode[2][1] == 'label') {
                 assert(preNode[3][0] == 'num');
                 if (preNode[3][1] == labelNum) {
-                  // That's it! Hoist away. We can also throw away the __label__ setting as its goal has already been achieved
+                  // That's it! Hoist away. We can also throw away the label setting as its goal has already been achieved
                   found = true;
                   modifiedI = true;
                   postInner[2] = ['block', []];
@@ -1021,7 +1071,7 @@ function hoistMultiples(ast) {
       if (modified) return node;
     });
 
-    // After hoisting in this function, it is safe to remove { __label__ = x; } blocks, because
+    // After hoisting in this function, it is safe to remove { label = x; } blocks, because
     // if they were leading to the next code right after them, they would be hoisted, and if they
     // are going to some other place entirely, they would break or continue. The only risky
     // situation is if the code after us is a multiple, in which case we might be checking for
@@ -1035,7 +1085,7 @@ function hoistMultiples(ast) {
         if (node[0] == 'block' && node[1] && node[1].length > 0) {
           var subNode = node[1][node[1].length-1];
           if (subNode[0] == 'stat' && subNode[1][0] == 'assign' && subNode[1][2][0] == 'name' &&
-              subNode[1][2][1] == '__label__' && subNode[1][3][0] == 'num') {
+              subNode[1][2][1] == 'label' && subNode[1][3][0] == 'num') {
             if (node[1].length == 1) {
               return emptyNode();
             } else {
@@ -1195,6 +1245,149 @@ function loopOptimizer(ast) {
   vacuum(ast);
 }
 
+function unVarify(vars, ret) { // transform var x=1, y=2 etc. into (x=1, y=2), i.e., the same assigns, but without a var definition
+  ret = ret || [];
+  ret[0] = 'stat';
+  if (vars.length == 1) {
+    ret[1] = ['assign', true, ['name', vars[0][0]], vars[0][1]];
+  } else {
+    ret[1] = [];
+    var curr = ret[1];
+    for (var i = 0; i < vars.length-1; i++) {
+      curr[0] = 'seq';
+      curr[1] = ['assign', true, ['name', vars[i][0]], vars[i][1]];
+      if (i != vars.length-2) curr = curr[2] = [];
+    }
+    curr[2] = ['assign', true, ['name', vars[vars.length-1][0]], vars[vars.length-1][1]];
+  }
+  return ret;
+}
+
+// asm.js support code - normalize (convert asm.js code to 'normal' JS, without
+// annotations, plus explicit metadata) and denormalize (vice versa)
+var ASM_INT = 0;
+var ASM_DOUBLE = 1;
+
+function detectAsmCoercion(node) {
+  // for params, +x vs x|0, for vars, 0.0 vs 0
+  if (node[0] == 'num' && node[1].toString().indexOf('.') >= 0) return ASM_DOUBLE;
+  return node[0] == 'unary-prefix' ? ASM_DOUBLE : ASM_INT;
+}
+
+function makeAsmParamCoercion(param, type) {
+  return type == ASM_INT ? ['binary', '|', ['name', param], ['num', 0]] : ['unary-prefix', '+', ['name', param]];
+}
+
+function makeAsmVarDef(v, type) {
+  return [v, type == ASM_INT ? ['num', 0] : ['unary-prefix', '+', ['num', 0]]];
+}
+
+function normalizeAsm(func) {
+  //printErr('pre-normalize \n\n' + astToSrc(func) + '\n\n');
+  var data = {
+    params: {}, // ident => ASM_* type
+    vars: {}, // ident => ASM_* type
+  };
+  // process initial params
+  var stats = func[3];
+  var i = 0;
+  while (i < stats.length) {
+    var node = stats[i];
+    if (node[0] != 'stat' || node[1][0] != 'assign' || node[1][2][0] != 'name') break;
+    node = node[1];
+    data.params[node[2][1]] = detectAsmCoercion(node[3]);
+    stats[i] = emptyNode();
+    i++;
+  }
+  // process initial variable definitions
+  outer:
+  while (i < stats.length) {
+    var node = stats[i];
+    if (node[0] != 'var') break;
+    for (var j = 0; j < node[1].length; j++) {
+      var v = node[1][j];
+      var name = v[0];
+      var value = v[1];
+      if (!(name in data.vars)) {
+        assert(value[0] == 'num' || (value[0] == 'unary-prefix' && value[2][0] == 'num')); // must be valid coercion no-op
+        data.vars[name] = detectAsmCoercion(value);
+        v.length = 1; // make an un-assigning var
+      } else {
+        break outer;
+      }
+    }
+    i++;
+  }
+  // finally, look for other var definitions and collect them
+  while (i < stats.length) {
+    traverse(stats[i], function(node, type) {
+      if (type == 'var') {
+        for (var j = 0; j < node[1].length; j++) {
+          var v = node[1][j];
+          var name = v[0];
+          var value = v[1];
+          if (!(name in data.vars)) {
+            data.vars[name] = detectAsmCoercion(value);
+          }
+        }
+        unVarify(node[1], node);
+      } else if (type == 'dot') {
+        if (node[1][0] == 'name' && node[1][1] == 'Math') {
+          // transform Math.max to Math_max; we forward in the latter version
+          node[0] = 'name';
+          node[1] = 'Math_' + node[2];
+        }
+      }
+    });
+    i++;
+  }
+  //printErr('normalized \n\n' + astToSrc(func) + '\n\nwith: ' + JSON.stringify(data));
+  return data;
+}
+
+function denormalizeAsm(func, data) {
+  //printErr('pre-denormalize \n\n' + astToSrc(func) + '\n\nwith: ' + JSON.stringify(data));
+  var stats = func[3];
+  // Remove var definitions, if any
+  for (var i = 0; i < stats.length; i++) {
+    if (stats[i][0] == 'var') {
+      stats[i] = emptyNode();
+    } else {
+      if (!isEmptyNode(stats[i])) break;
+    }
+  }
+  // each param needs a line; reuse emptyNodes as much as we can
+  var numParams = 0;
+  for (var i in data.params) numParams++;
+  var emptyNodes = 0;
+  while (emptyNodes < stats.length) {
+    if (!isEmptyNode(stats[emptyNodes])) break;
+    emptyNodes++;
+  }
+  var neededEmptyNodes = numParams + 1; // params plus one big var
+  if (neededEmptyNodes > emptyNodes) {
+    var args = [0, 0];
+    for (var i = 0; i < neededEmptyNodes - emptyNodes; i++) args[i+2] = 0;
+    stats.splice.apply(stats, args);
+  }
+  // add param coercions
+  var next = 0;
+  func[2].forEach(function(param) {
+    stats[next++] = ['stat', ['assign', true, ['name', param], makeAsmParamCoercion(param, data.params[param])]];
+  });
+  // add variable definitions
+  var varDefs = [];
+  for (var v in data.vars) {
+    varDefs.push(makeAsmVarDef(v, data.vars[v]));
+  }
+  if (varDefs.length) {
+    stats[next] = ['var', varDefs];
+  } else {
+    stats[next] = emptyNode();
+  }
+  //printErr('denormalized \n\n' + astToSrc(func) + '\n\n');
+}
+
 // Very simple 'registerization', coalescing of variables into a smaller number.
 // We do not optimize when there are switches, so this pass only makes sense with
 // relooping.
@@ -1203,31 +1396,39 @@ function loopOptimizer(ast) {
 //       closure simple?
 function registerize(ast) {
   traverseGeneratedFunctions(ast, function(fun) {
+    if (asm) var asmData = normalizeAsm(fun);
+    // Add parameters as a first (fake) var (with assignment), so they get taken into consideration
+    var params = {}; // note: params are special, they can never share a register between them (see later)
+    if (fun[2] && fun[2].length) {
+      var assign = ['num', 0];
+      fun[3].unshift(['var', fun[2].map(function(param) {
+        params[param] = 1;
+        return [param, assign];
+      })]);
+    }
+    if (asm) {
+      // copy params into vars
+      for (var p in asmData.params) asmData.vars[p] = asmData.params[p];
+      //printErr('fake params: \n\n' + astToSrc(fun) + '\n\n');
+    }
     // Replace all var definitions with assignments; we will add var definitions at the top after we registerize
     // We also mark local variables - i.e., having a var definition
     var localVars = {};
     var hasSwitch = false; // we cannot optimize variables if there is a switch
+    var hasReturnValue = false;
     traverse(fun, function(node, type) {
       if (type == 'var') {
         node[1].forEach(function(defined) { localVars[defined[0]] = 1 });
         var vars = node[1].filter(function(varr) { return varr[1] });
-        if (vars.length > 1) {
-          var ret = ['stat', []];
-          var curr = ret[1];
-          for (var i = 0; i < vars.length-1; i++) {
-            curr[0] = 'seq';
-            curr[1] = ['assign', true, ['name', vars[i][0]], vars[i][1]];
-            if (i != vars.length-2) curr = curr[2] = [];
-          }
-          curr[2] = ['assign', true, ['name', vars[vars.length-1][0]], vars[vars.length-1][1]];
-          return ret;
-        } else if (vars.length == 1) {
-          return ['stat', ['assign', true, ['name', vars[0][0]], vars[0][1]]];
+        if (vars.length >= 1) {
+          return unVarify(vars);
         } else {
           return emptyNode();
         }
       } else if (type == 'switch') {
         hasSwitch = true;
+      } else if (asm && type == 'return' && node[1]) {
+        hasReturnValue = true;
       }
     });
     vacuum(fun);
@@ -1291,7 +1492,7 @@ function registerize(ast) {
     // we just use a fresh register to make sure we avoid this, but it could be
     // optimized to check for safe registers (free, and not used in this loop level).
     var varRegs = {}; // maps variables to the register they will use all their life
-    var freeRegs = [];
+    var freeRegsClasses = asm ? [[], []] : []; // two classes for asm, one otherwise
     var nextReg = 1;
     var fullNames = {};
     var loopRegs = {}; // for each loop nesting level, the list of bound variables
@@ -1299,18 +1500,24 @@ function registerize(ast) {
     var saved = 0;
     var activeOptimizables = {};
     var optimizableLoops = {};
+    var paramRegs = {}; // true if the register is used by a parameter (and so needs no def at start of function; also cannot
+                        // be shared with another param, each needs its own)
     function decUse(name) {
       if (!varUses[name]) return false; // no uses left, or not a relevant variable
       if (optimizables[name]) activeOptimizables[name] = 1;
       var reg = varRegs[name];
+      if (asm) assert(name in asmData.vars, name);
+      var freeRegs = asm ? freeRegsClasses[asmData.vars[name]] : freeRegsClasses;
       if (!reg) {
         // acquire register
-        if (optimizables[name] && freeRegs.length > 0) {
+        if (optimizables[name] && freeRegs.length > 0 &&
+            !(params[name] && paramRegs[freeRegs[freeRegs.length-1]])) { // do not share registers between parameters
           reg = freeRegs.pop();
           saved++;
         } else {
           reg = nextReg++;
-          fullNames[reg] = 'r' + reg; // TODO: even smaller names
+          fullNames[reg] = (asm ? (asmData.vars[name] ? 'd' : 'i') : 'r') + reg; // TODO: even smaller names
+          if (params[name]) paramRegs[reg] = 1;
         }
         varRegs[name] = reg;
       }
@@ -1351,21 +1558,63 @@ function registerize(ast) {
       if (type in LOOP) {
         // Free registers that were locked to this loop
         if (loopRegs[loops]) {
-          freeRegs = freeRegs.concat(loopRegs[loops]);
-          loopRegs[loops] = [];
+          if (asm) {
+            loopRegs[loops].forEach(function(loopReg) {
+              freeRegsClasses[fullNames[loopReg][0] == 'i' ? ASM_INT : ASM_DOUBLE].push(loopReg);
+            });
+          } else {
+            freeRegsClasses = freeRegsClasses.concat(loopRegs[loops]);
+          }
+          loopRegs[loops].length = 0;
         }
         loops--;
       }
     });
-    // Add vars at the beginning
-    if (nextReg > 1) {
-      var vars = [];
-      for (var i = 1; i < nextReg; i++) {
-        vars.push([fullNames[i]]);
-      }
-      getStatements(fun).unshift(['var', vars]);
+    if (fun[2] && fun[2].length) {
+      fun[2].length = 0; // clear params, we will fill with registers
+      fun[3].shift(); // remove fake initial var
     }
-    //printErr(fun[1] + ': saved ' + saved + ' / ' + (saved + nextReg - 1) + ' vars through registerization'); // not totally accurate
+    //printErr('var regs: ' + JSON.stringify(varRegs) + '\n\nparam regs: ' + JSON.stringify(paramRegs));
+    if (!asm) {
+      if (nextReg > 1) {
+        var vars = [];
+        for (var i = 1; i < nextReg; i++) {
+          var reg = fullNames[i];
+          if (!paramRegs[i]) {
+            vars.push([reg]);
+          } else {
+            fun[2].push(reg);
+          }
+        }
+        getStatements(fun).unshift(['var', vars]);
+      }
+    } else {
+      //printErr('unfake params: \n\n' + astToSrc(fun) + '\n\n');
+      var finalAsmData = {
+        params: {},
+        vars: {},
+      };
+      for (var i = 1; i < nextReg; i++) {
+        var reg = fullNames[i];
+        var type = reg[0] == 'i' ? ASM_INT : ASM_DOUBLE
+        if (!paramRegs[i]) {
+          finalAsmData.vars[reg] = type;
+        } else {
+          finalAsmData.params[reg] = type;
+          fun[2].push(reg);
+        }
+      }
+      denormalizeAsm(fun, finalAsmData);
+      // Add a final return if one is missing. This is not strictly a register operation, but
+      // this pass traverses the entire AST anyhow so adding it here is efficient.
+      if (hasReturnValue) {
+        var stats = getStatements(fun);
+        var last = stats[stats.length-1];
+        if (last[0] != 'return') {
+          stats.push(['return', ['num', 0]]);
+        }
+      }
+    }
   });
 }
 
@@ -1409,6 +1658,7 @@ var ABORTING_ELIMINATOR_SCAN_NODES = set('new', 'object', 'function', 'defun', '
 function eliminate(ast, memSafe) {
   // Find variables that have a single use, and if they can be eliminated, do so
   traverseGeneratedFunctions(ast, function(func, type) {
+    if (asm) var asmData = normalizeAsm(func);
     //printErr('eliminate in ' + func[1]);
 
     // First, find the potentially eliminatable functions: that have one definition and one use
@@ -1416,7 +1666,7 @@ function eliminate(ast, memSafe) {
     var uses = {};
     var values = {};
     var locals = {};
-    var varsToRemove = {}; // variables being removed, that we can eliminate all 'var x;' of
+    var varsToRemove = {}; // variables being removed, that we can eliminate all 'var x;' of (this refers to 'var' nodes we should remove)
     var varsToTryToRemove = {}; // variables that have 0 uses, but have side effects - when we scan we can try to remove them
     // add arguments as locals
     if (func[2]) {
@@ -1433,7 +1683,7 @@ function eliminate(ast, memSafe) {
           var name = node1i[0];
           var value = node1i[1];
           if (value) {
-            if (!definitions[name]) definitions[name] = 0;
+            if (!(name in definitions)) definitions[name] = 0;
             definitions[name]++;
             if (!values[name]) values[name] = value;
           }
@@ -1448,7 +1698,7 @@ function eliminate(ast, memSafe) {
         var target = node[2];
         if (target[0] == 'name') {
           var name = target[1];
-          if (!definitions[name]) definitions[name] = 0;
+          if (!(name in definitions)) definitions[name] = 0;
           definitions[name]++;
           if (!uses[name]) uses[name] = 0;
           if (!values[name]) values[name] = node[3];
@@ -1459,10 +1709,11 @@ function eliminate(ast, memSafe) {
       }
     });
     var potentials = {}; // local variables with 1 definition and 1 use
+    var sideEffectFree = {}; // whether a local variable has no side effects in its definition
     for (var name in locals) {
       if (definitions[name] == 1 && uses[name] == 1) {
         potentials[name] = 1;
-      } else if (uses[name] == 0) {
+      } else if (uses[name] == 0 && (!definitions[name] || definitions[name] <= 1)) { // no uses, no def or 1 def (cannot operate on phis, and the llvm optimizer will remove unneeded phis anyhow)
         var hasSideEffects = false;
         if (values[name]) {
           traverse(values[name], function(node, type) {
@@ -1474,6 +1725,7 @@ function eliminate(ast, memSafe) {
         }
         if (!hasSideEffects) {
           varsToRemove[name] = 1; // remove it normally
+          sideEffectFree[name] = true;
         } else {
           varsToTryToRemove[name] = 1; // try to remove it later during scanning
         }
@@ -1481,10 +1733,11 @@ function eliminate(ast, memSafe) {
     }
     //printErr('defs: ' + JSON.stringify(definitions));
     //printErr('uses: ' + JSON.stringify(uses));
+    //printErr('values: ' + JSON.stringify(values));
     //printErr('locals: ' + JSON.stringify(locals));
     //printErr('varsToRemove: ' + JSON.stringify(varsToRemove));
-    //printErr('2varsToTryToRemove: ' + JSON.stringify(varsToTryToRemove));
-    definitions = uses = values = null;
+    //printErr('varsToTryToRemove: ' + JSON.stringify(varsToTryToRemove));
+    definitions = values = null;
     //printErr('potentials: ' + JSON.stringify(potentials));
     // We can now proceed through the function. In each list of statements, we try to eliminate
     var tracked = {};
@@ -1616,6 +1869,12 @@ function eliminate(ast, memSafe) {
                   invalidateGlobals();
                   globalsInvalidated = true;
                 }
+                // if we can track this name (that we assign into), and it has 0 uses and we want to remove its 'var'
+                // definition - then remove it right now, there is no later chance
+                if (allowTracking && (name in varsToRemove) && uses[name] == 0) {
+                  track(name, node[3], node);
+                  doEliminate(name, node);
+                }
               } else {
                 // replace it in-place
                 node.length = value.length;
@@ -1713,6 +1972,10 @@ function eliminate(ast, memSafe) {
         } else if (type == 'if') {
           if (allowTracking) {
             traverseInOrder(node[1]); // can eliminate into condition, but nowhere else
+            if (!callsInvalidated) { // invalidate calls, since we cannot eliminate them into an if that may not execute!
+              invalidateCalls();
+              callsInvalidated = true;
+            }
             allowTracking = false;
             traverseInOrder(node[2]); // 2 and 3 could be 'parallel', really..
             if (node[3]) traverseInOrder(node[3]);
@@ -1723,8 +1986,10 @@ function eliminate(ast, memSafe) {
           }
         } else if (type == 'block') {
           var stats = node[1];
-          for (var i = 0; i < stats.length; i++) {
-            traverseInOrder(stats[i]);
+          if (stats) {
+            for (var i = 0; i < stats.length; i++) {
+              traverseInOrder(stats[i]);
+            }
           }
         } else if (type == 'stat') {
           traverseInOrder(node[1]);
@@ -1764,24 +2029,31 @@ function eliminate(ast, memSafe) {
       var info = tracked[name];
       delete tracked[name];
       var defNode = info.defNode;
-      if (defNode[0] == 'var') {
-        defNode[1].forEach(function(pair) {
-          if (pair[0] == name) {
-            value = pair[1];
-          }
-        });
-        assert(value);
-      } else { // assign
-        value = defNode[3];
-        // wipe out the assign
-        defNode[0] = 'toplevel';
-        defNode[1] = [];
-        defNode.length = 2;
-      }
-      // replace this node in-place
-      node.length = 0;
-      for (var i = 0; i < value.length; i++) {
-        node[i] = value[i];
+      if (!sideEffectFree[name]) {
+        if (defNode[0] == 'var') {
+          defNode[1].forEach(function(pair) {
+            if (pair[0] == name) {
+              value = pair[1];
+            }
+          });
+          assert(value);
+        } else { // assign
+          value = defNode[3];
+          // wipe out the assign
+          defNode[0] = 'toplevel';
+          defNode[1] = [];
+          defNode.length = 2;
+        }
+        // replace this node in-place
+        node.length = 0;
+        for (var i = 0; i < value.length; i++) {
+          node[i] = value[i];
+        }
+      } else {
+        // empty it out in-place
+        node.length = 0;
+        node[0] = 'toplevel';
+        node[1] = [];
       }
     }
     traverse(func, function(block) {
@@ -1804,6 +2076,7 @@ function eliminate(ast, memSafe) {
           tracked = {}; // not a var or assign, break all potential elimination so far
         }
       }
+      //printErr('delete StatBlock');
     });
 
     // clean up vars
@@ -1818,6 +2091,13 @@ function eliminate(ast, memSafe) {
         }
       }
     });
+
+    if (asm) {
+      for (var v in varsToRemove) {
+        delete asmData.vars[v];
+      }
+      denormalizeAsm(func, asmData);
+    }
   });
 
   // A class for optimizing expressions. We know that it is legitimate to collapse
@@ -1870,7 +2150,7 @@ function eliminateMemSafe(ast) {
 
 // Passes table
 
-var compress = false, printMetadata = true;
+var compress = false, printMetadata = true, asm = false, last = false;
 
 var passes = {
   dumpAst: dumpAst,
@@ -1887,8 +2167,10 @@ var passes = {
   registerize: registerize,
   eliminate: eliminate,
   eliminateMemSafe: eliminateMemSafe,
-  compress: function() { compress = true; },
-  noPrintMetadata: function() { printMetadata = false; }
+  compress: function() { compress = true },
+  noPrintMetadata: function() { printMetadata = false },
+  asm: function() { asm = true },
+  last: function() { last = true }
 };
 
 // Main
@@ -1903,15 +2185,16 @@ if (metadata) setGeneratedFunctions(metadata);
 arguments_.slice(1).forEach(function(arg) {
   passes[arg](ast);
 });
-
 var js = astToSrc(ast, compress), old;
 
 // remove unneeded newlines+spaces, and print
 do {
   old = js;
   js = js.replace(/\n *\n/g, '\n');
+  if (asm && last) {
+    js = js.replace(/ = \+0([,;])/g, function(m, end) { return ' = 0.0' + end }); // asm requires 0.0 in var definitions, not +0
+  }
 } while (js != old);
 print(js);
-if (metadata && printMetadata) print(metadata);
 print('\n');
 

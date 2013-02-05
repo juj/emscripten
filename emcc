@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 '''
 emcc - compiler helper script
@@ -90,12 +90,14 @@ LLVM_OPT_LEVEL = {
   3: 3,
 }
 
-DEBUG = os.environ.get('EMCC_DEBUG')
+MEMCPY_ALIASES = ['memcpy', 'llvm.memcpy.i32', 'llvm.memcpy.i64', 'llvm.memcpy.p0i8.p0i8.i32', 'llvm.memcpy.p0i8.p0i8.i64']
+
+DEBUG = int(os.environ.get('EMCC_DEBUG') or 0)
 TEMP_DIR = os.environ.get('EMCC_TEMP_DIR')
 LEAVE_INPUTS_RAW = os.environ.get('EMCC_LEAVE_INPUTS_RAW') # Do not compile .ll files into .bc, just compile them with emscripten directly
                                                            # Not recommended, this is mainly for the test runner, or if you have some other
                                                            # specific need.
-                                                           # One major limitation with this mode is that dlmalloc and libc++ cannot be
+                                                           # One major limitation with this mode is that libc and libc++ cannot be
                                                            # added in. Also, LLVM optimizations will not be done, nor dead code elimination
 AUTODEBUG = os.environ.get('EMCC_AUTODEBUG') # If set to 1, we will run the autodebugger (the automatic debugging tool, see tools/autodebugger).
                                              # Note that this will disable inclusion of libraries. This is useful because including
@@ -116,7 +118,7 @@ shared.check_sanity(force=DEBUG)
 
 if len(sys.argv) == 1:
   print 'emcc: no input files'
-  exit(0)
+  exit(1)
 
 if sys.argv[1] == '--version':
   print '''emcc (Emscripten GCC-like replacement) 2.0
@@ -172,6 +174,11 @@ Options that are modified or new in %s include:
 
                            (without the external "s in either of those,
                            you would get an error)
+
+  -g                       Use debug info. Note that you need this during
+                           the last compilation phase from bitcode to
+                           JavaScript, or else we will remove it by
+                           default in -O1 and above.
 
   --typed-arrays <mode>    0: No typed arrays
                            1: Parallel typed arrays
@@ -317,28 +324,40 @@ Options that are modified or new in %s include:
                            -v to Clang, and also enable EMCC_DEBUG
                            to details emcc's operations
 
-  --remove-duplicates      If set, will remove duplicate symbols when
-                           linking. This can be useful because
-                           llvm-link's behavior is not as permissive
-                           as ld is.
+  --jcache                 Use a JavaScript cache. This is disabled by
+                           default. When enabled, emcc will store the
+                           results of compilation in a cache and check
+                           the cache when compiling later, something
+                           like what ccache does. This allows incremental
+                           builds - where you are compiling a large
+                           program but only modified a small part of it -
+                           to be much faster (at the cost of more disk
+                           IO for cache accesses). Note that you need
+                           to enable --jcache for both loading and saving
+                           of data, so you must enable it on a full build
+                           for a later incremental build (where you also
+                           enable it) to be sped up.
 
   --clear-cache            Manually clears the cache of compiled
                            emscripten system libraries (libc++,
-                           libc++abi, dlmalloc). This is normally
+                           libc++abi, libc). This is normally
                            handled automatically, but if you update
                            llvm in-place (instead of having a different
                            directory for a new version), the caching
                            mechanism can get confused. Clearing the
                            cache can fix weird problems related to
                            cache incompatibilities, like clang failing
-                           to link with library files.
+                           to link with library files. This also clears
+                           other cached data like the jcache and
+                           the bootstrapped relooper. After the cache
+                           is cleared, this process will exit.
 
 The target file, if specified (-o <target>), defines what will
 be generated:
 
-  <name>.js                JavaScript (default)
+  <name>.js                JavaScript
   <name>.html              HTML with embedded JavaScript
-  <name>.bc                LLVM bitcode
+  <name>.bc                LLVM bitcode (default)
   <name>.o                 LLVM bitcode (same as .bc)
 
 The -c option (which tells gcc not to run the linker) will
@@ -352,10 +371,12 @@ or LLVM assembly files in human-readable form.
 emcc is affected by several environment variables. For details, view
 the source of emcc (search for 'os.environ').
 
+emcc: supported targets: llvm bitcode, javascript, NOT elf
+(autoconf likes to see elf above to enable shared object support)
 ''' % (this, this, this)
   exit(0)
 elif len(sys.argv) == 2 and sys.argv[1] == '-v': # -v with no inputs
-  print 'emcc (Emscripten GCC-like replacement) 2.0'
+  print 'emcc (Emscripten GCC-like replacement + linker emulating GNU ld ) 2.0'
   exit(subprocess.call([shared.CLANG, '-v']))
 
 def is_minus_s_for_emcc(newargs,i):
@@ -461,7 +482,7 @@ CC = shared.to_cc(CXX)
 if os.environ.get('EMMAKEN_CXX'):
   CC = CXX
 
-CC_ADDITIONAL_ARGS = shared.COMPILER_OPTS # + ['-g']?
+CC_ADDITIONAL_ARGS = shared.COMPILER_OPTS
 
 EMMAKEN_CFLAGS = os.environ.get('EMMAKEN_CFLAGS')
 if EMMAKEN_CFLAGS: CC_ADDITIONAL_ARGS += shlex.split(EMMAKEN_CFLAGS)
@@ -518,6 +539,15 @@ for i in range(len(sys.argv)-1):
     sys.argv = sys.argv[:i] + sys.argv[i+2:]
     break
 
+specified_target = target
+target = specified_target if specified_target is not None else 'a.out.js' # specified_target is the user-specified one, target is what we will generate
+target_basename = unsuffixed_basename(target)
+
+if '.' in target:
+  final_suffix = target.split('.')[-1]
+else:
+  final_suffix = ''
+
 if header: # header or such
   if len(sys.argv) >= 3: # if there is a source and a target, then copy, otherwise do nothing
     sys.argv = filter(lambda arg: not arg.startswith('-I'), sys.argv)
@@ -533,7 +563,7 @@ if TEMP_DIR:
     shutil.rmtree(temp_dir) # clear it
   os.makedirs(temp_dir)
 else:
-  temp_root = os.path.join(shared.TEMP_DIR, 'emcc')
+  temp_root = shared.TEMP_DIR
   if not os.path.exists(temp_root):
     os.makedirs(temp_root)
   temp_dir = tempfile.mkdtemp(dir=temp_root)
@@ -563,8 +593,9 @@ try:
   ignore_dynamic_linking = False
   shell_path = shared.path_from_root('src', 'shell.html')
   js_libraries = []
-  remove_duplicates = False
+  keep_debug = False
   bind = False
+  jcache = False
 
   def check_bad_eq(arg):
     assert '=' not in arg, 'Invalid parameter (do not use "=" with "--" options)'
@@ -572,6 +603,7 @@ try:
   absolute_warning_shown = False
 
   for i in range(len(newargs)):
+    newargs[i] = newargs[i].strip() # On Windows Vista (and possibly others), excessive spaces in the command line leak into the items in this array, so trim e.g. 'foo.cpp ' -> 'foo.cpp'
     if newargs[i].startswith('-O'):
       requested_level = newargs[i][2]
       if requested_level == 's':
@@ -622,7 +654,9 @@ try:
       check_bad_eq(newargs[i])
       split_js_file = int(newargs[i+1])
       newargs[i] = ''
-      newargs[i+1] = ''      
+      newargs[i+1] = ''
+    elif newargs[i] == '-g':
+      keep_debug = True
     elif newargs[i] == '--bind':
       bind = True
       newargs[i] = '-std=c++11' # Force C++11 for embind code
@@ -654,6 +688,7 @@ try:
     elif newargs[i] == '-v':
       shared.COMPILER_OPTS += ['-v']
       DEBUG = 1
+      os.environ['EMCC_DEBUG'] = '1' # send to child processes too
       newargs[i] = ''
     elif newargs[i].startswith('--shell-file'):
       check_bad_eq(newargs[i])
@@ -666,12 +701,16 @@ try:
       newargs[i] = ''
       newargs[i+1] = ''
     elif newargs[i] == '--remove-duplicates':
-      remove_duplicates = True
+      print >> sys.stderr, 'emcc: warning: --remove-duplicates is deprecated as it is no longer needed. If you cannot link without it, file a bug with a testcase'
+      newargs[i] = ''
+    elif newargs[i] == '--jcache':
+      jcache = True
       newargs[i] = ''
     elif newargs[i] == '--clear-cache':
       newargs[i] = ''
       print >> sys.stderr, 'emcc: clearing cache'
       shared.Cache.erase()
+      sys.exit(0)
     elif newargs[i].startswith(('-I/', '-L/')):
       if not absolute_warning_shown:
         print >> sys.stderr, 'emcc: warning: -I or -L of an absolute path encountered. If this is to a local system header/library, it may cause problems (local system files make sense for compiling natively on your system, but not necessarily to JavaScript)' # Of course an absolute path to a non-system-specific library or header is fine, and you can ignore this warning. The danger are system headers that are e.g. x86 specific and nonportable. The emscripten bundled headers are modified to be portable, local system ones are generally not
@@ -681,8 +720,9 @@ try:
   if llvm_opts is None: llvm_opts = LLVM_OPT_LEVEL[opt_level]
   if llvm_lto is None: llvm_lto = llvm_opts > 0
   if closure is None: closure = 1 if opt_level >= 2 else 0
-  if minify_whitespace is None:
-    minify_whitespace = closure # if closure is run, minify whitespace
+  if opt_level <= 0: keep_debug = True # always keep debug in -O0
+
+  if DEBUG: start_time = time.time() # done after parsing arguments, which might affect debug state
 
   if closure:
     assert os.path.exists(shared.CLOSURE_COMPILER), 'emcc: fatal: Closure compiler (%s) does not exist' % shared.CLOSURE_COMPILER
@@ -716,9 +756,9 @@ try:
 
     if i > 0:
       prev = newargs[i-1]
-      if prev in ['-MT', '-install_name']: continue # ignore this gcc-style argument
+      if prev in ['-MT', '-install_name', '-I', '-L']: continue # ignore this gcc-style argument
 
-    if arg.endswith(SOURCE_SUFFIXES + BITCODE_SUFFIXES + DYNAMICLIB_SUFFIXES + ASSEMBLY_SUFFIXES) or shared.Building.is_ar(arg): # we already removed -o <target>, so all these should be inputs
+    if not arg.startswith('-') and (arg.endswith(SOURCE_SUFFIXES + BITCODE_SUFFIXES + DYNAMICLIB_SUFFIXES + ASSEMBLY_SUFFIXES) or shared.Building.is_ar(arg)): # we already removed -o <target>, so all these should be inputs
       newargs[i] = ''
       if os.path.exists(arg):
         if arg.endswith(SOURCE_SUFFIXES):
@@ -741,7 +781,8 @@ try:
           else:
             print >> sys.stderr, 'emcc: %s: warning: Not valid LLVM bitcode' % arg
       else:
-        print >> sys.stderr, 'emcc: %s: warning: No such file or directory' % arg
+        print >> sys.stderr, 'emcc: %s: error: No such file or directory' % arg
+        exit(1)
     elif arg.startswith('-L'):
       lib_dirs.append(arg[2:])
       newargs[i] = ''
@@ -752,6 +793,18 @@ try:
   original_input_files = input_files[:]
 
   newargs = [ arg for arg in newargs if arg is not '' ]
+
+  # -c means do not link in gcc, and for us, the parallel is to not go all the way to JS, but stop at bitcode
+  has_dash_c = '-c' in newargs
+  if has_dash_c:
+    assert has_source_inputs, 'Must have source code inputs to use -c'
+    target = target_basename + '.o'
+    final_suffix = 'o'
+
+  # do not link in libs when just generating object code (not an 'executable', i.e. JS, or a library)
+  if ('.' + final_suffix) in BITCODE_SUFFIXES and len(libs) > 0:
+    print >> sys.stderr, 'emcc: warning: not linking against libraries since only compiling to bitcode'
+    libs = []
 
   # Find library files
   for lib in libs:
@@ -780,22 +833,6 @@ try:
 
   newargs += CC_ADDITIONAL_ARGS
 
-  specified_target = target
-  target = specified_target if specified_target is not None else 'a.out.js' # specified_target is the user-specified one, target is what we will generate
-
-  target_basename = unsuffixed_basename(target)
-
-  # -c means do not link in gcc, and for us, the parallel is to not go all the way to JS, but stop at bitcode
-  has_dash_c = '-c' in newargs
-  if has_dash_c:
-    assert has_source_inputs, 'Must have source code inputs to use -c'
-    target = target_basename + '.o'
-
-  if '.' in target:
-    final_suffix = target.split('.')[-1]
-  else:
-    final_suffix = ''
-
   assert not (Compression.on and final_suffix != 'html'), 'Compression only works when generating HTML'
 
   # If we are using embind and generating JS, now is the time to link in bind.cpp
@@ -809,6 +846,24 @@ try:
   for change in settings_changes:
     key, value = change.split('=')
     exec('shared.Settings.' + key + ' = ' + value)
+
+  # Apply effects from settings
+  if shared.Settings.ASM_JS:
+    if closure:
+      print >> sys.stderr, 'emcc: warning: disabling closure because it is not compatible with asm.js code generation'
+      closure = False
+    if shared.Settings.CORRECT_SIGNS != 1: 
+      print >> sys.stderr, 'emcc: warning: setting CORRECT_SIGNS to 1 for asm.js code generation'
+      shared.Settings.CORRECT_SIGNS = 1
+    if shared.Settings.CORRECT_OVERFLOWS != 1: 
+      print >> sys.stderr, 'emcc: warning: setting CORRECT_OVERFLOWS to 1 for asm.js code generation'
+      shared.Settings.CORRECT_OVERFLOWS = 1
+
+  if shared.Settings.CORRECT_SIGNS >= 2 or shared.Settings.CORRECT_OVERFLOWS >= 2 or shared.Settings.CORRECT_ROUNDINGS >= 2:
+    keep_debug = True # must keep debug info to do line-by-line operations 
+
+  if minify_whitespace is None:
+    minify_whitespace = closure # if closure is run, minify whitespace
 
   ## Compile source code to bitcode
 
@@ -864,8 +919,8 @@ try:
         assert len(original_input_files) == 1 or not has_dash_c, 'fatal error: cannot specify -o with -c with multiple files' + str(sys.argv) + ':' + str(original_input_files)
         # We have a specified target (-o <target>), which is not JavaScript or HTML, and
         # we have multiple files: Link them
-        if DEBUG: print >> sys.stderr, 'emcc: link: ' + str(temp_files)
-        shared.Building.link(temp_files, specified_target, remove_duplicates=remove_duplicates)
+        if DEBUG: print >> sys.stderr, 'emcc: link: ' + str(temp_files), specified_target
+        shared.Building.link(temp_files, specified_target)
     exit(0)
 
   ## Continue on to create JavaScript
@@ -881,16 +936,26 @@ try:
     # Note that we assume a single symbol is enough to know if we have/do not have dlmalloc etc. If you
     # include just a few symbols but want the rest, this will not work.
 
-    # dlmalloc
-    def create_dlmalloc():
-      if DEBUG: print >> sys.stderr, 'emcc: building dlmalloc for cache'
-      execute(shared.ENV_PREFIX + ['python', shared.EMCC, shared.path_from_root('system', 'lib', 'dlmalloc.c'), '-g', '-o', in_temp('dlmalloc.o')], stdout=stdout, stderr=stderr)
-      # we include the libc++ new stuff here, so that the common case of using just new/delete is quick to link
-      execute(shared.ENV_PREFIX + ['python', shared.EMXX, shared.path_from_root('system', 'lib', 'libcxx', 'new.cpp'), '-g', '-o', in_temp('new.o')], stdout=stdout, stderr=stderr)
-      shared.Building.link([in_temp('dlmalloc.o'), in_temp('new.o')], in_temp('dlmalloc_full.o'))
-      return in_temp('dlmalloc_full.o')
-    def fix_dlmalloc():
-      # dlmalloc needs some sign correction. # If we are in mode 0, switch to 2. We will add our lines
+    # libc
+    def create_libc():
+      if DEBUG: print >> sys.stderr, 'emcc: building libc for cache'
+      o_s = []
+      for src in ['dlmalloc.c', os.path.join('libc', 'musl', 'memcpy.c'), os.path.join('libcxx', 'new.cpp')]:
+        o = in_temp(os.path.basename(src) + '.o')
+        execute([shared.PYTHON, shared.EMCC, shared.path_from_root('system', 'lib', src), '-o', o], stdout=stdout, stderr=stderr)
+        o_s.append(o)
+      shared.Building.link(o_s, in_temp('libc.bc'))
+      return in_temp('libc.bc')
+
+    def fix_libc(need):
+      # If an intrinsic alias of memcpy is used, we need memcpy
+      for memcpy_alias in MEMCPY_ALIASES:
+        if memcpy_alias in need:
+          if '_memcpy' not in shared.Settings.EXPORTED_FUNCTIONS:
+            shared.Settings.EXPORTED_FUNCTIONS.append('_memcpy')
+            break
+
+      # libc needs some sign correction. # If we are in mode 0, switch to 2. We will add our lines
       try:
         if shared.Settings.CORRECT_SIGNS == 0: raise Exception('we need to change to 2')
       except: # we fail if equal to 0 - so we need to switch to 2 - or if CORRECT_SIGNS is not even in Settings
@@ -901,7 +966,7 @@ try:
       # so all is well anyhow too.
     # XXX We also need to add libc symbols that use malloc, for example strdup. It's very rare to use just them and not
     #     a normal malloc symbol (like free, after calling strdup), so we haven't hit this yet, but it is possible.
-    dlmalloc_symbols = open(shared.path_from_root('system', 'lib', 'dlmalloc.symbols')).read().split('\n')
+    libc_symbols = open(shared.path_from_root('system', 'lib', 'libc.symbols')).read().split('\n')
 
     # libcxx
     def create_libcxx():
@@ -909,17 +974,17 @@ try:
       os = []
       for src in ['algorithm.cpp', 'condition_variable.cpp', 'future.cpp', 'iostream.cpp', 'memory.cpp', 'random.cpp', 'stdexcept.cpp', 'system_error.cpp', 'utility.cpp', 'bind.cpp', 'debug.cpp', 'hash.cpp', 'mutex.cpp', 'string.cpp', 'thread.cpp', 'valarray.cpp', 'chrono.cpp', 'exception.cpp', 'ios.cpp', 'locale.cpp', 'regex.cpp', 'strstream.cpp', 'typeinfo.cpp']:
         o = in_temp(src + '.o')
-        execute(shared.ENV_PREFIX + ['python', shared.EMXX, shared.path_from_root('system', 'lib', 'libcxx', src), '-o', o], stdout=stdout, stderr=stderr)
+        execute([shared.PYTHON, shared.EMXX, shared.path_from_root('system', 'lib', 'libcxx', src), '-o', o], stdout=stdout, stderr=stderr)
         os.append(o)
       shared.Building.link(os, in_temp('libcxx.bc'))
       return in_temp('libcxx.bc')
-    def fix_libcxx():
+    def fix_libcxx(need):
       assert shared.Settings.QUANTUM_SIZE == 4, 'We do not support libc++ with QUANTUM_SIZE == 1'
       # libcxx might need corrections, so turn them all on. TODO: check which are actually needed
       shared.Settings.CORRECT_SIGNS = shared.Settings.CORRECT_OVERFLOWS = shared.Settings.CORRECT_ROUNDINGS = 1
       #print >> sys.stderr, 'emcc: info: using libcxx turns on CORRECT_* options'
     libcxx_symbols = map(lambda line: line.strip().split(' ')[1], open(shared.path_from_root('system', 'lib', 'libcxx', 'symbols')).readlines())
-    libcxx_symbols = filter(lambda symbol: symbol not in dlmalloc_symbols, libcxx_symbols)
+    libcxx_symbols = filter(lambda symbol: symbol not in libc_symbols, libcxx_symbols)
     libcxx_symbols = set(libcxx_symbols)
 
     # libcxxabi - just for dynamic_cast for now
@@ -928,47 +993,59 @@ try:
       os = []
       for src in ['private_typeinfo.cpp']:
         o = in_temp(src + '.o')
-        execute(shared.ENV_PREFIX + ['python', shared.EMXX, shared.path_from_root('system', 'lib', 'libcxxabi', 'src', src), '-o', o], stdout=stdout, stderr=stderr)
+        execute([shared.PYTHON, shared.EMXX, shared.path_from_root('system', 'lib', 'libcxxabi', 'src', src), '-o', o], stdout=stdout, stderr=stderr)
         os.append(o)
       shared.Building.link(os, in_temp('libcxxabi.bc'))
       return in_temp('libcxxabi.bc')
-    def fix_libcxxabi():
+    def fix_libcxxabi(need):
       assert shared.Settings.QUANTUM_SIZE == 4, 'We do not support libc++abi with QUANTUM_SIZE == 1'
       #print >> sys.stderr, 'emcc: info: using libcxxabi, this may need CORRECT_* options'
       #shared.Settings.CORRECT_SIGNS = shared.Settings.CORRECT_OVERFLOWS = shared.Settings.CORRECT_ROUNDINGS = 1
     libcxxabi_symbols = map(lambda line: line.strip().split(' ')[1], open(shared.path_from_root('system', 'lib', 'libcxxabi', 'symbols')).readlines())
-    libcxxabi_symbols = filter(lambda symbol: symbol not in dlmalloc_symbols, libcxxabi_symbols)
+    libcxxabi_symbols = filter(lambda symbol: symbol not in libc_symbols, libcxxabi_symbols)
     libcxxabi_symbols = set(libcxxabi_symbols)
 
-    force = False # If we have libcxx, we must force inclusion of dlmalloc, since libcxx uses new internally. Note: this is kind of hacky
+    force = False # If we have libcxx, we must force inclusion of libc, since libcxx uses new internally. Note: this is kind of hacky
 
     for name, create, fix, library_symbols in [('libcxx',    create_libcxx,    fix_libcxx,    libcxx_symbols),
                                                ('libcxxabi', create_libcxxabi, fix_libcxxabi, libcxxabi_symbols),
-                                               ('dlmalloc',  create_dlmalloc,  fix_dlmalloc,  dlmalloc_symbols)]:
-      need = []
-      has = []
+                                               ('libc',      create_libc,      fix_libc,      libc_symbols)]:
+      need = set()
+      has = set()
       for temp_file in temp_files:
         symbols = shared.Building.llvm_nm(temp_file)
         for library_symbol in library_symbols:
           if library_symbol in symbols.undefs:
-            need.append(library_symbol)
+            need.add(library_symbol)
           if library_symbol in symbols.defs:
-            has.append(library_symbol)
-      if DEBUG: print >> sys.stderr, 'emcc: considering including %s: we need |%s| and have |%s|' % (name, str(need), str(has))
-      if force or (need and not has):
+            has.add(library_symbol)
+      for haz in has: # remove symbols that are supplied by another of the inputs
+        if haz in need:
+          need.remove(haz)
+      if DEBUG: print >> sys.stderr, 'emcc: considering including %s: we need %s and have %s' % (name, str(need), str(has))
+      if force or len(need) > 0:
         # We need to build and link the library in
         if DEBUG: print >> sys.stderr, 'emcc: including %s' % name
-        extra_files_to_link.append(shared.Cache.get(name, create))
+        libfile = shared.Cache.get(name, create)
+        if len(has) > 0:
+          # remove the symbols we do not need
+          fixed = in_temp(uniquename(libfile)) + '.bc'
+          shutil.copyfile(libfile, fixed)
+          for haz in has:
+            if DEBUG: print >> sys.stderr, 'emcc: including: removing symbol "%s" that we have' % haz
+            shared.Building.remove_symbol(fixed, haz)
+          libfile = fixed
+        extra_files_to_link.append(libfile)
         force = True
         if fix:
-          fix()
+          fix(need)
 
   # First, combine the bitcode files if there are several. We must also link if we have a singleton .a
   if len(input_files) + len(extra_files_to_link) > 1 or \
      (not LEAVE_INPUTS_RAW and not (suffix(temp_files[0]) in BITCODE_SUFFIXES or suffix(temp_files[0]) in DYNAMICLIB_SUFFIXES) and shared.Building.is_ar(temp_files[0])):
     linker_inputs = temp_files + extra_files_to_link
     if DEBUG: print >> sys.stderr, 'emcc: linking: ', linker_inputs
-    shared.Building.link(linker_inputs, in_temp(target_basename + '.bc'), remove_duplicates=remove_duplicates)
+    shared.Building.link(linker_inputs, in_temp(target_basename + '.bc'))
     final = in_temp(target_basename + '.bc')
   else:
     if not LEAVE_INPUTS_RAW:
@@ -994,24 +1071,53 @@ try:
     if not LEAVE_INPUTS_RAW: save_intermediate('basebc', 'bc')
 
   # Optimize, if asked to
-  if llvm_opts > 0 and not LEAVE_INPUTS_RAW:
-    if DEBUG: print >> sys.stderr, 'emcc: LLVM -O%d' % llvm_opts
-    shared.Building.llvm_opt(in_temp(target_basename + '.bc'), llvm_opts)
-    if DEBUG: save_intermediate('opt', 'bc')
-    # Do LTO in a separate pass to work around LLVM bug XXX (see failure e.g. in cubescript)
-    if llvm_lto and shared.Building.can_use_unsafe_opts() and shared.Building.can_build_standalone():
-      lto_opts = []
-      if not shared.Building.can_inline(): lto_opts.append('-disable-inlining')
-      lto_opts.append('-std-link-opts')
-      if DEBUG: print >> sys.stderr, 'emcc: LLVM LTO:', lto_opts
-      shared.Building.llvm_opt(in_temp(target_basename + '.bc'), lto_opts)
-      if DEBUG: save_intermediate('lto', 'bc')
-  else:
-    # If possible, remove dead functions etc., this potentially saves a lot in the size of the generated code (and the time to compile it)
-    if not LEAVE_INPUTS_RAW and shared.Building.can_build_standalone():
-      if DEBUG: print >> sys.stderr, 'emcc: LLVM dead globals elimination'
-      shared.Building.llvm_opt(in_temp(target_basename + '.bc'), ['-internalize', '-globaldce'])
-      if DEBUG: save_intermediate('dce', 'bc')
+  if not LEAVE_INPUTS_RAW:
+    link_opts = [] if keep_debug else ['-strip-debug']
+    if llvm_opts > 0:
+      shared.Building.llvm_opt(in_temp(target_basename + '.bc'), llvm_opts)
+      if DEBUG: save_intermediate('opt', 'bc')
+      # Do LTO in a separate pass to work around LLVM bug XXX (see failure e.g. in cubescript)
+    if shared.Building.can_build_standalone():
+      # If we can LTO, do it before dce, since it opens up dce opportunities
+      if llvm_lto and shared.Building.can_use_unsafe_opts():
+        if not shared.Building.can_inline(): link_opts.append('-disable-inlining')
+        # do not internalize in std-link-opts - it ignores internalize-public-api-list - and add a manual internalize
+        link_opts += ['-disable-internalize'] + shared.Building.get_safe_internalize() + ['-std-link-opts']
+      else:
+        # At minimum remove dead functions etc., this potentially saves a lot in the size of the generated code (and the time to compile it)
+        link_opts += shared.Building.get_safe_internalize() + ['-globaldce']
+      shared.Building.llvm_opt(in_temp(target_basename + '.bc'), link_opts)
+      if DEBUG: save_intermediate('linktime', 'bc')
+
+    # Optimization and lto can add new intrinsics like memcpy that were not present before. We
+    # are now *after* linking in libc, so we missed our chance to get memcpy - check and add it now
+    # if necessary
+    final_symbols = shared.Building.llvm_nm(final)
+    need_memcpy = False
+    for symbol in final_symbols.undefs:
+      if symbol in MEMCPY_ALIASES:
+        need_memcpy = True
+        break
+    has_memcpy = False
+    for symbol in final_symbols.defs:
+      if symbol in MEMCPY_ALIASES:
+        has_memcpy = True
+        break
+    if need_memcpy and not has_memcpy:
+      if DEBUG: print >> sys.stderr, 'memcpy intrinsic added in optimizations, linking in optimized memcpy'
+      memcpy = in_temp('memcpy.bc')
+      force_cxx = os.environ.get('EMMAKEN_CXX')
+      if force_cxx is not None: del os.environ['EMMAKEN_CXX'] # memcpy must be compiled as C
+      execute([shared.PYTHON, shared.EMCC, shared.path_from_root('system', 'lib', 'libc', 'musl', 'memcpy.c'), '-o', memcpy], stdout=stdout, stderr=stderr)
+      if force_cxx is not None: os.environ['EMMAKEN_CXX'] = force_cxx
+      shared.Building.llvm_opt(memcpy, llvm_opts) # optimize it just like normal code; no point in lto though
+      next = final + '.postrinsics.bc'
+      shared.Building.link([final, memcpy], next)
+      final = next
+      if shared.Settings.ASM_JS: # export it so other library functions etc. can use it
+        if '_memcpy' not in shared.Settings.EXPORTED_FUNCTIONS:
+          shared.Settings.EXPORTED_FUNCTIONS.append('_memcpy')
+      if DEBUG: save_intermediate('postrinsics', 'bc')
 
   # Prepare .ll for Emscripten
   if not LEAVE_INPUTS_RAW:
@@ -1022,13 +1128,14 @@ try:
 
   if AUTODEBUG:
     if DEBUG: print >> sys.stderr, 'emcc: autodebug'
-    execute(shared.ENV_PREFIX + ['python', shared.AUTODEBUGGER, final, final + '.ad.ll'])
+    execute([shared.PYTHON, shared.AUTODEBUGGER, final, final + '.ad.ll'])
     final += '.ad.ll'
     if DEBUG: save_intermediate('autodebug', 'll')
 
   # Emscripten
   if DEBUG: print >> sys.stderr, 'emcc: LLVM => JS'
   extra_args = [] if not js_libraries else ['--libraries', ','.join(map(os.path.abspath, js_libraries))]
+  if jcache: extra_args.append('--jcache')
   final = shared.Building.emscripten(final, append_ext=False, extra_args=extra_args)
   if DEBUG: save_intermediate('original')
 
@@ -1044,7 +1151,7 @@ try:
       file_args += embed_files
     if Compression.on:
       file_args += ['--compress', Compression.encoder, Compression.decoder, Compression.js_name]
-    code = execute(shared.ENV_PREFIX + ['python', shared.FILE_PACKAGER, unsuffixed(target) + '.data'] + file_args, stdout=PIPE)[0]
+    code = execute([shared.PYTHON, shared.FILE_PACKAGER, unsuffixed(target) + '.data'] + file_args, stdout=PIPE)[0]
     src = open(final).read().replace('// {{PRE_RUN_ADDITIONS}}', '// {{PRE_RUN_ADDITIONS}}\n' + code)
     final += '.files.js'
     open(final, 'w').write(src)
@@ -1078,37 +1185,54 @@ try:
     execute(shlex.split(js_transform, posix=posix) + [os.path.abspath(final)])
     if DEBUG: save_intermediate('transformed')
 
+  if shared.Settings.ASM_JS: # XXX temporary wrapping for testing purposes
+    print >> sys.stderr, 'emcc: ASM_JS mode is highly experimental, and will not work on most codebases yet. It is NOT recommended that you try this yet.' # XXX TODO: 0.0 instead of +0 for local var defs
+    unwrapped = open(final).read()
+    final += '.asmwrap.js'
+    open(final, 'w').write('''
+(function() { // prevent new Function from seeing the global scope
+%s
+}).apply(null, arguments);
+''' % unwrapped)
+    if DEBUG: save_intermediate('asmwrap')
+
   # It is useful to run several js optimizer passes together, to save on unneeded unparsing/reparsing
   js_optimizer_queue = []
   def flush_js_optimizer_queue():
     global final, js_optimizer_queue
-    if len(js_optimizer_queue) > 0:
-      if not DEBUG:
-        final = shared.Building.js_optimizer(final, js_optimizer_queue)
+    if len(js_optimizer_queue) > 0 and not(len(js_optimizer_queue) == 1 and js_optimizer_queue[0] == 'last'):
+      if DEBUG < 2:
+        if shared.Settings.ASM_JS:
+          js_optimizer_queue = ['asm'] + js_optimizer_queue
+        if DEBUG: print >> sys.stderr, 'emcc: applying js optimization passes:', js_optimizer_queue
+        final = shared.Building.js_optimizer(final, js_optimizer_queue, jcache)
+        if DEBUG: save_intermediate('js_opts')
       else:
         for name in js_optimizer_queue:
-          print >> sys.stderr, 'emcc: applying js optimization pass:', name
-          final = shared.Building.js_optimizer(final, [name])
+          passes = [name]
+          if shared.Settings.ASM_JS:
+            passes = ['asm'] + passes
+          print >> sys.stderr, 'emcc: applying js optimization pass:', passes
+          final = shared.Building.js_optimizer(final, passes, jcache)
           save_intermediate(name)
       js_optimizer_queue = []
 
   if opt_level >= 1:
     if DEBUG: print >> sys.stderr, 'emcc: running pre-closure post-opts'
 
-    if DEBUG:
+    if DEBUG >= 2:
       # Clean up the syntax a bit
-      final = shared.Building.js_optimizer(final, [])
+      final = shared.Building.js_optimizer(final, [], jcache)
       if DEBUG: save_intermediate('pretty')
 
-    if shared.Settings.RELOOP:
-      js_optimizer_queue += ['hoistMultiples', 'loopOptimizer']
-
     def get_eliminate():
-      return 'eliminate' if not shared.Settings.ALLOW_MEMORY_GROWTH else 'eliminateMemSafe'
+      if shared.Settings.ALLOW_MEMORY_GROWTH:
+        return 'eliminateMemSafe'
+      else:
+        return 'eliminate'
 
-    js_optimizer_queue += [get_eliminate()]
+    js_optimizer_queue += [get_eliminate(), 'simplifyExpressionsPre']
 
-    js_optimizer_queue += ['simplifyExpressionsPre']
     if shared.Settings.RELOOP:
       js_optimizer_queue += ['optimizeShiftsAggressive', get_eliminate()] # aggressive shifts optimization requires loops, it breaks on switches
 
@@ -1118,6 +1242,8 @@ try:
     if DEBUG: print >> sys.stderr, 'emcc: running closure'
     final = shared.Building.closure_compiler(final)
     if DEBUG: save_intermediate('closure')
+  elif shared.Settings.ASM_JS and shared.Settings.RELOOP:
+    js_optimizer_queue += ['registerize'] # we can't use closure in asm, but this does much of the same
 
   if opt_level >= 1:
     if DEBUG: print >> sys.stderr, 'emcc: running post-closure post-opts'
@@ -1125,6 +1251,8 @@ try:
 
   if minify_whitespace:
     js_optimizer_queue += ['compress']
+
+  js_optimizer_queue += ['last']
 
   flush_js_optimizer_queue()
 
@@ -1206,6 +1334,8 @@ try:
     else:
         # copy final JS to output
         shutil.move(final, target)
+
+  if DEBUG: print >> sys.stderr, 'emcc: total time: %.2f seconds' % (time.time() - start_time)
 
 finally:
   if not TEMP_DIR:
