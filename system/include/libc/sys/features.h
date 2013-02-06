@@ -98,6 +98,7 @@ extern "C" {
 #ifdef __CYGWIN__
 
 #if !defined(__STRICT_ANSI__) || defined(__cplusplus) || __STDC_VERSION__ >= 199901L
+#warning hello
 #define _POSIX_VERSION				200112L
 #define _POSIX2_VERSION				200112L
 #define _XOPEN_VERSION				   600
