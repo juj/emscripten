@@ -30,7 +30,9 @@ namespace emscripten {
 
             void _embind_register_integer(
                 TypeID integerType,
-                const char* name);
+                const char* name,
+                int minRange,
+                int maxRange);
 
             void _embind_register_float(
                 TypeID floatType,

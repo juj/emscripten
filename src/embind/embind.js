@@ -59,14 +59,21 @@ function __embind_register_bool(boolType, name, trueValue, falseValue) {
     };
 }
 
-function __embind_register_integer(primitiveType, name) {
+// When converting a number from JS to C++ side, the valid range of the number is
+// [minRange, maxRange], inclusive.
+function __embind_register_integer(primitiveType, name, minRange, maxRange) {
     name = Pointer_stringify(name);
     validateType(primitiveType, name);
     typeRegistry[primitiveType] = {
         name: name,
+        minRange: minRange,
+        maxRange: maxRange,
         toWireType: function(destructors, value) {
             if (typeof value !== "number") {
                 throw new TypeError('Cannot convert "' + _embind_repr(value) + '" to ' + name);
+            }
+            if (value < minRange || value > maxRange) {
+                throw new TypeError('Passing a number "' + _embind_repr(value) + '" from JS side to C/C++ side to an argument of type "' + name + '", which is outside the valid range [' + minRange + ', ' + maxRange + ']!');
             }
             return value | 0;
         },
