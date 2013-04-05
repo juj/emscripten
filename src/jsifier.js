@@ -10,6 +10,7 @@ var UNDERSCORE_OPENPARENS = set('_', '(');
 var RELOOP_IGNORED_LASTS = set('return', 'unreachable', 'resume');
 
 var addedLibraryItems = {};
+var asmLibraryFunctions = [];
 
 // JSifier
 function JSify(data, functionsOnly, givenFunctions) {
@@ -76,7 +77,7 @@ function JSify(data, functionsOnly, givenFunctions) {
         assert(!BUILD_AS_SHARED_LIB, 'Cannot have both INCLUDE_FULL_LIBRARY and BUILD_AS_SHARED_LIB set.')
         libFuncsToInclude = [];
         for (var key in LibraryManager.library) {
-          if (!key.match(/__(deps|postset|inline)$/)) {
+          if (!key.match(/__(deps|postset|inline|asm|sig)$/)) {
             libFuncsToInclude.push(key);
           }
         }
@@ -230,12 +231,11 @@ function JSify(data, functionsOnly, givenFunctions) {
     if (value.intertype in PARSABLE_LLVM_FUNCTIONS) {
       return [finalizeLLVMFunctionCall(value)];
     } else if (Runtime.isNumberType(type) || pointingLevels(type) >= 1) {
-      return makeGlobalUse(indexizeFunctions(parseNumerical(value.value), type));
+      return [makeGlobalUse(indexizeFunctions(parseNumerical(value.value), type))];
     } else if (value.intertype === 'emptystruct') {
       return makeEmptyStruct(type);
     } else if (value.intertype === 'string') {
-      return JSON.stringify(parseLLVMString(value.text)) +
-             ' /* ' + value.text.substr(0, 20).replace(/[*<>]/g, '_') + ' */'; // make string safe for inclusion in comment
+      return parseLLVMString(value.text);
     } else {
       return alignStruct(handleSegments(value.contents), type);
     }
@@ -243,9 +243,7 @@ function JSify(data, functionsOnly, givenFunctions) {
 
   function parseConst(value, type, ident) {
     var constant = makeConst(value, type);
-    if (typeof constant === 'object') {
-      constant = flatten(constant).map(function(x) { return parseNumerical(x) })
-    }
+    constant = flatten(constant).map(function(x) { return parseNumerical(x) })
     return constant;
   }
 
@@ -253,6 +251,7 @@ function JSify(data, functionsOnly, givenFunctions) {
   substrate.addActor('GlobalVariable', {
     processItem: function(item) {
       function needsPostSet(value) {
+        if (typeof value !== 'string') return false;
         return value[0] in UNDERSCORE_OPENPARENS || value.substr(0, 14) === 'CHECK_OVERFLOW'
                                                  || value.substr(0, 6) === 'GLOBAL';
       }
@@ -265,106 +264,82 @@ function JSify(data, functionsOnly, givenFunctions) {
                     item.ctors.map(function(ctor) { return '  { func: function() { ' + ctor + '() } }' }).join(',\n') +
                   '\n]);\n';
         return ret;
-      } else {
-        var constant = null;
-        var allocator = (BUILD_AS_SHARED_LIB && !item.external) ? 'ALLOC_NORMAL' : 'ALLOC_STATIC';
-        var index = null;
-        if (item.external && BUILD_AS_SHARED_LIB) {
-          // External variables in shared libraries should not be declared as
-          // they would shadow similarly-named globals in the parent.
-          item.JS = '';
-        } else {
-        	item.JS = makeGlobalDef(item.ident);
-        }
-
-        if (item.external && !ASM_JS) { // ASM_JS considers externs to be globals
-          // Import external global variables from the library if available.
-          var shortident = item.ident.slice(1);
-          if (LibraryManager.library[shortident] &&
-              LibraryManager.library[shortident].length &&
-              !BUILD_AS_SHARED_LIB) {
-            if (addedLibraryItems[shortident]) return ret;
-            var val = LibraryManager.library[shortident];
-            var padding;
-            if (Runtime.isNumberType(item.type) || isPointerType(item.type)) {
-              padding = [item.type].concat(zeros(Runtime.getNativeFieldSize(item.type)-1));
-            } else {
-              padding = makeEmptyStruct(item.type);
-            }
-            var padded = val.concat(padding.slice(val.length));
-            var js = item.ident + '=' + makePointer(JSON.stringify(padded), null, allocator, item.type, index) + ';'
-            if (LibraryManager.library[shortident + '__postset']) {
-              js += '\n' + LibraryManager.library[shortident + '__postset'];
-            }
-            ret.push({
-              intertype: 'GlobalVariablePostSet',
-              JS: js
-            });
-          }
-          return ret;
-        } else {
-          if (!NAMED_GLOBALS && isIndexableGlobal(item.ident)) {
-            index = makeGlobalUse(item.ident); // index !== null indicates we are indexing this
-            allocator = 'ALLOC_NONE';
-          }
-          if (item.external) {
-            assert(ASM_JS);
-            if (Runtime.isNumberType(item.type) || isPointerType(item.type)) {
-              constant = zeros(Runtime.getNativeFieldSize(item.type));
-            } else {
-              constant = makeEmptyStruct(item.type);
-            }
-            constant = JSON.stringify(constant);
-          } else {
-            constant = parseConst(item.value, item.type, item.ident);
-          }
-          if (typeof constant === 'string' && constant[0] != '[') {
-            constant = [constant]; // A single item. We may need a postset for it.
-          }
-          if (typeof constant === 'object') {
-            // This is a flattened object. We need to find its idents, so they can be assigned to later
-            constant.forEach(function(value, i) {
-              if (needsPostSet(value)) { // ident, or expression containing an ident
-                ret.push({
-                  intertype: 'GlobalVariablePostSet',
-                  JS: makeSetValue(makeGlobalUse(item.ident), i, value, 'i32', false, true) + ';' // ignore=true, since e.g. rtti and statics cause lots of safe_heap errors
-                });
-                constant[i] = '0';
-              }
-            });
-            constant = '[' + constant.join(', ') + ']';
-          }
-          // NOTE: This is the only place that could potentially create static
-          //       allocations in a shared library.
-          constant = makePointer(constant, null, allocator, item.type, index);
-          var js;
-
-        	js = (index !== null ? '' : item.ident + '=') + constant + ';'; // \n Module.print("' + item.ident + ' :" + ' + makeGlobalUse(item.ident) + ');';
-
-          // Special case: class vtables. We make sure they are null-terminated, to allow easy runtime operations
-          if (item.ident.substr(0, 5) == '__ZTV') {
-            if (index !== null) {
-              index = getFastValue(index, '+', Runtime.alignMemory(calcAllocatedSize(Variables.globals[item.ident].type)));
-            }
-            js += '\n' + makePointer('[0]', null, allocator, ['void*'], index) + ';';
-          }
-          if (!ASM_JS && (EXPORT_ALL || (item.ident in EXPORTED_GLOBALS))) {
-            js += '\nModule["' + item.ident + '"] = ' + item.ident + ';';
-          }
-          if (BUILD_AS_SHARED_LIB == 2 && !item.private_) {
-            // TODO: make the assert conditional on ASSERTIONS
-            js += 'if (globalScope) { assert(!globalScope["' + item.ident + '"]); globalScope["' + item.ident + '"] = ' + item.ident + ' }';
-          }
-          if (item.external && !NAMED_GLOBALS) {
-            assert(ASM_JS);
-            js = 'var ' + item.ident + ' = ' + js; // force an explicit naming, even if unnamed globals, for asm forwarding
-          }
-          return ret.concat({
-            intertype: 'GlobalVariable',
-            JS: js,
-          });
-        }
       }
+
+      var constant = null;
+      var allocator = (BUILD_AS_SHARED_LIB && !item.external) ? 'ALLOC_NORMAL' : 'ALLOC_STATIC';
+      var index = null;
+      if (item.external && BUILD_AS_SHARED_LIB) {
+        // External variables in shared libraries should not be declared as
+        // they would shadow similarly-named globals in the parent.
+        item.JS = '';
+      } else {
+      	item.JS = makeGlobalDef(item.ident);
+      }
+
+      if (!NAMED_GLOBALS && isIndexableGlobal(item.ident)) {
+        index = makeGlobalUse(item.ident); // index !== null indicates we are indexing this
+        allocator = 'ALLOC_NONE';
+      }
+      if (item.external) {
+        if (Runtime.isNumberType(item.type) || isPointerType(item.type)) {
+          constant = zeros(Runtime.getNativeFieldSize(item.type));
+        } else {
+          constant = makeEmptyStruct(item.type);
+        }
+      } else {
+        constant = parseConst(item.value, item.type, item.ident);
+      }
+      assert(typeof constant === 'object');//, [typeof constant, JSON.stringify(constant), item.external]);
+
+      // This is a flattened object. We need to find its idents, so they can be assigned to later
+      constant.forEach(function(value, i) {
+        if (needsPostSet(value)) { // ident, or expression containing an ident
+          ret.push({
+            intertype: 'GlobalVariablePostSet',
+            JS: makeSetValue(makeGlobalUse(item.ident), i, value, 'i32', false, true) + ';' // ignore=true, since e.g. rtti and statics cause lots of safe_heap errors
+          });
+          constant[i] = '0';
+        }
+      });
+
+      if (item.external) {
+        // External variables in shared libraries should not be declared as
+        // they would shadow similarly-named globals in the parent, so do nothing here.
+        if (BUILD_AS_SHARED_LIB) return ret;
+        // Library items need us to emit something, but everything else requires nothing.
+        if (!LibraryManager.library[item.ident.slice(1)]) return ret;
+      }
+
+      // ensure alignment
+      constant = constant.concat(zeros(Runtime.alignMemory(constant.length) - constant.length));
+
+      // Special case: class vtables. We make sure they are null-terminated, to allow easy runtime operations
+      if (item.ident.substr(0, 5) == '__ZTV') {
+        constant = constant.concat(zeros(Runtime.alignMemory(QUANTUM_SIZE)));
+      }
+
+      // NOTE: This is the only place that could potentially create static
+      //       allocations in a shared library.
+      constant = makePointer(constant, null, allocator, item.type, index);
+
+      var js = (index !== null ? '' : item.ident + '=') + constant;
+      if (js) js += ';';
+
+      if (!ASM_JS && (EXPORT_ALL || (item.ident in EXPORTED_GLOBALS))) {
+        js += '\nModule["' + item.ident + '"] = ' + item.ident + ';';
+      }
+      if (BUILD_AS_SHARED_LIB == 2 && !item.private_) {
+        // TODO: make the assert conditional on ASSERTIONS
+        js += 'if (globalScope) { assert(!globalScope["' + item.ident + '"]); globalScope["' + item.ident + '"] = ' + item.ident + ' }';
+      }
+      if (item.external && !NAMED_GLOBALS) {
+        js = 'var ' + item.ident + ' = ' + js; // force an explicit naming, even if unnamed globals, for asm forwarding
+      }
+      return ret.concat({
+        intertype: 'GlobalVariable',
+        JS: js,
+      });
     }
   });
 
@@ -375,6 +350,7 @@ function JSify(data, functionsOnly, givenFunctions) {
       var ret = [item];
       item.JS = 'var ' + item.ident + ';';
       // Set the actual value in a postset, since it may be a global variable. We also order by dependencies there
+      Variables.globals[item.ident].targetIdent = item.value.ident;
       var value = Variables.globals[item.ident].resolvedAlias = finalizeLLVMParameter(item.value);
       var fix = '';
       if (BUILD_AS_SHARED_LIB == 2 && !item.private_) {
@@ -395,6 +371,20 @@ function JSify(data, functionsOnly, givenFunctions) {
       return ret;
     }
   });
+
+  function processLibraryFunction(snippet, ident) {
+    snippet = snippet.toString();
+    assert(snippet.indexOf('XXX missing C define') == -1,
+           'Trying to include a library function with missing C defines: ' + ident + ' | ' + snippet);
+
+    // name the function; overwrite if it's already named
+    snippet = snippet.replace(/function(?:\s+([^(]+))?\s*\(/, 'function _' + ident + '(');
+    if (LIBRARY_DEBUG) {
+      snippet = snippet.replace('{', '{ var ret = (function() { if (Runtime.debug) Module.printErr("[library call:' + ident + ': " + Array.prototype.slice.call(arguments).map(Runtime.prettyPrint) + "]"); ');
+      snippet = snippet.substr(0, snippet.length-1) + '}).apply(this, arguments); if (Runtime.debug && typeof ret !== "undefined") Module.printErr("  [     return:" + Runtime.prettyPrint(ret)); return ret; \n}';
+    }
+    return snippet;
+  }
 
   // functionStub
   substrate.addActor('FunctionStub', {
@@ -426,23 +416,14 @@ function JSify(data, functionsOnly, givenFunctions) {
           }
           // In asm, we need to know about library functions. If there is a target, though, then no
           // need to consider this a library function - we will call directly to it anyhow
-          if (ASM_JS && !redirectedIdent && (typeof target == 'function' || /Math\..+/.exec(snippet))) {
+          if (ASM_JS && !redirectedIdent && (typeof target == 'function' || /Math\.\w+/.exec(snippet))) {
             Functions.libraryFunctions[ident] = 1;
           }
         } else if (typeof snippet === 'object') {
           snippet = stringifyWithFunctions(snippet);
         } else if (typeof snippet === 'function') {
           isFunction = true;
-          snippet = snippet.toString();
-          assert(snippet.indexOf('XXX missing C define') == -1,
-                 'Trying to include a library function with missing C defines: ' + ident + ' | ' + snippet);
-
-          // name the function; overwrite if it's already named
-          snippet = snippet.replace(/function(?:\s+([^(]+))?\s*\(/, 'function _' + ident + '(');
-          if (LIBRARY_DEBUG) {
-            snippet = snippet.replace('{', '{ var ret = (function() { if (Runtime.debug) Module.print("[library call:' + ident + ': " + Array.prototype.slice.call(arguments).map(Runtime.prettyPrint) + "]"); ');
-            snippet = snippet.substr(0, snippet.length-1) + '}).apply(this, arguments); if (Runtime.debug && typeof ret !== "undefined") Module.print("  [     return:" + Runtime.prettyPrint(ret)); return ret; }';
-          }
+          snippet = processLibraryFunction(snippet, ident);
           if (ASM_JS) Functions.libraryFunctions[ident] = 1;
         }
 
@@ -477,13 +458,24 @@ function JSify(data, functionsOnly, givenFunctions) {
         } else {
           ident = '_' + ident;
         }
-        var text = (deps ? '\n' + deps.map(addFromLibrary).filter(function(x) { return x != '' }).join('\n') : '');
-        // redirected idents just need a var, but no value assigned to them - it would be unused
-        text += isFunction ? snippet : ('var ' + ident + (redirectedIdent ? '' : '=' + snippet) + ';');
-        if (EXPORT_ALL || (ident in EXPORTED_FUNCTIONS)) {
-          text += '\nModule["' + ident + '"] = ' + ident + ';';
+        var depsText = (deps ? '\n' + deps.map(addFromLibrary).filter(function(x) { return x != '' }).join('\n') : '');
+        var contentText = isFunction ? snippet : ('var ' + ident + '=' + snippet + ';');
+        if (ASM_JS) {
+          var sig = LibraryManager.library[ident.substr(1) + '__sig'];
+          if (isFunction && sig && LibraryManager.library[ident.substr(1) + '__asm']) {
+            // asm library function, add it as generated code alongside the generated code
+            Functions.implementedFunctions[ident] = sig;
+            asmLibraryFunctions.push(contentText);
+            contentText = ' ';
+            EXPORTED_FUNCTIONS[ident] = 1;
+            delete Functions.libraryFunctions[ident.substr(1)];
+          }
         }
-        return text;
+        if ((!ASM_JS || phase == 'pre') &&
+            (EXPORT_ALL || (ident in EXPORTED_FUNCTIONS))) {
+          contentText += '\nModule["' + ident + '"] = ' + ident + ';';
+        }
+        return depsText + contentText;
       }
 
       var ret = [item];
@@ -494,10 +486,14 @@ function JSify(data, functionsOnly, givenFunctions) {
         item.JS = '';
       } else if (LibraryManager.library.hasOwnProperty(shortident)) {
         item.JS = addFromLibrary(shortident);
-      } else {
-        item.JS = 'var ' + item.ident + '; // stub for ' + item.ident;
-        if (WARN_ON_UNDEFINED_SYMBOLS) {
-          warn('Unresolved symbol: ' + item.ident);
+      } else if (!LibraryManager.library.hasOwnProperty(shortident + '__inline')) {
+        if (!(item.ident in DEAD_FUNCTIONS) && !UNRESOLVED_AS_DEAD) {
+          item.JS = 'var ' + item.ident + '; // stub for ' + item.ident;
+          if (ASM_JS) {
+            error('Unresolved symbol: ' + item.ident + ', this must be corrected for asm.js validation to succeed. Consider adding it to DEAD_FUNCTIONS.');
+          } else if (WARN_ON_UNDEFINED_SYMBOLS) {
+            warn('Unresolved symbol: ' + item.ident);
+          }
         }
       }
       return ret;
@@ -588,6 +584,10 @@ function JSify(data, functionsOnly, givenFunctions) {
       
       func.JS += 'function ' + func.ident + '(' + paramIdents.join(', ') + ') {\n';
 
+      if (PGO) {
+        func.JS += '  PGOMonitor.called["' + func.ident + '"] = 1;\n';
+      }
+
       if (ASM_JS) {
         // spell out argument types
         func.params.forEach(function(param) {
@@ -606,25 +606,17 @@ function JSify(data, functionsOnly, givenFunctions) {
           }
           for (i = 0; i < chunks.length; i++) {
             func.JS += '  var ' + chunks[i].map(function(v) {
-              if (!isIllegalType(v.type) || v.ident.indexOf('$', 1) > 0) { // not illegal, or a broken up illegal
-                return v.ident + ' = ' + asmInitializer(v.type); //, func.variables[v.ident].impl);
+              var type = getImplementationType(v);
+              if (!isIllegalType(type) || v.ident.indexOf('$', 1) > 0) { // not illegal, or a broken up illegal
+                return v.ident + ' = ' + asmInitializer(type); //, func.variables[v.ident].impl);
               } else {
-                return range(Math.ceil(getBits(v.type)/32)).map(function(i) {
+                return range(Math.ceil(getBits(type)/32)).map(function(i) {
                   return v.ident + '$' + i + '= 0';
                 }).join(',');
               }
             }).join(', ') + ';\n';
           }
         }
-      }
-
-      if (PROFILE) {
-        func.JS += '  if (PROFILING) { '
-                +      'var __parentProfilingNode__ = PROFILING_NODE; PROFILING_NODE = PROFILING_NODE.children["' + func.ident + '"]; '
-                +      'if (!PROFILING_NODE) __parentProfilingNode__.children["' + func.ident + '"] = PROFILING_NODE = { time: 0, children: {}, calls: 0 };'
-                +      'PROFILING_NODE.calls++; '
-                +      'var __profilingStartTime__ = Date.now() '
-                +    '}\n';
       }
 
       if (true) { // TODO: optimize away when not needed
@@ -709,6 +701,7 @@ function JSify(data, functionsOnly, givenFunctions) {
               ret += indent + 'label = ' + getLabelId(block.entries[0]) + '; ' + (SHOW_LABELS ? '/* ' + getOriginalLabelId(block.entries[0]) + ' */' : '') + '\n';
             } // otherwise, should have been set before!
             if (func.setjmpTable) {
+              assert(!ASM_JS, 'asm.js mode does not support setjmp yet');
               var setjmpTable = {};
               ret += indent + 'var mySetjmpIds = {};\n';
               ret += indent + 'var setjmpTable = {';
@@ -722,12 +715,13 @@ function JSify(data, functionsOnly, givenFunctions) {
             if (func.setjmpTable) {
               ret += 'try { ';
             }
-            ret += 'switch(label) {\n';
+            ret += 'switch(' + asmCoercion('label', 'i32') + ') {\n';
             ret += block.labels.map(function(label) {
               return indent + '  case ' + getLabelId(label.ident) + ': ' + (SHOW_LABELS ? '// ' + getOriginalLabelId(label.ident) : '') + '\n'
                             + getLabelLines(label, indent + '    ');
-            }).join('\n');
-            ret += '\n' + indent + '  default: assert(0, "bad label: " + label);\n' + indent + '}';
+            }).join('\n') + '\n';
+            if (ASSERTIONS) ret += indent + '  default: assert(0' + (ASM_JS ? '' : ', "bad label: " + label') + ');\n';
+            ret += indent + '}\n';
             if (func.setjmpTable) {
               ret += ' } catch(e) { if (!e.longjmp || !(e.id in mySetjmpIds)) throw(e); setjmpTable[setjmpLabels[e.id]](e.value) }';
             }
@@ -785,10 +779,10 @@ function JSify(data, functionsOnly, givenFunctions) {
       func.JS += walkBlock(func.block, '  ');
       // Finalize function
       if (LABEL_DEBUG && functionNameFilterTest(func.ident)) func.JS += "  INDENT = INDENT.substr(0, INDENT.length-2);\n";
-      // Add an unneeded return, needed for strict mode to not throw warnings in some cases.
-      // If we are not relooping, then switches make it unimportant to have this (and, we lack hasReturn anyhow)
-      if (RELOOP && func.lines.length > 0 && func.labels.filter(function(label) { return label.hasReturn }).length > 0) {
-        func.JS += '  return' + (func.returnType !== 'void' ? ' null' : '') + ';\n';
+      // Ensure a return in a function with a type that returns, even if it lacks a return (e.g., if it aborts())
+      if (RELOOP && func.lines.length > 0 && func.returnType != 'void') {
+        var returns = func.labels.filter(function(label) { return label.lines[label.lines.length-1].intertype == 'return' }).length;
+        if (returns == 0) func.JS += '  return ' + asmCoercion('0', func.returnType);
       }
       func.JS += '}\n';
       
@@ -909,7 +903,11 @@ function JSify(data, functionsOnly, givenFunctions) {
       case VAR_NATIVIZED:
         if (isNumber(item.ident)) {
           // Direct write to a memory address; this may be an intentional segfault, if not, it is a bug in the source
-          return 'throw "fault on write to ' + item.ident + '";';
+          if (ASM_JS) {
+            return 'abort(' + item.ident + ')';
+          } else {
+            return 'throw "fault on write to ' + item.ident + '";';
+          }
         }
         return item.ident + '=' + value + ';'; // We have the actual value here
         break;
@@ -1092,7 +1090,7 @@ function JSify(data, functionsOnly, givenFunctions) {
       var value;
       if (useIfs) {
         value = targetLabels[targetLabel].map(function(value) {
-          return makeComparison(signedIdent, makeSignOp(value, item.type, 're'), item.type)
+          return makeComparison(signedIdent, '==', makeSignOp(value, item.type, 're'), item.type)
         }).join(' | ');
         ret += 'if (' + value + ') {\n';
       } else {
@@ -1131,41 +1129,51 @@ function JSify(data, functionsOnly, givenFunctions) {
   });
   makeFuncLineActor('return', function(item) {
     var ret = RuntimeGenerator.stackExit(item.funcData.initialStack, item.funcData.otherStackAllocations) + ';\n';
-    if (PROFILE) {
-      ret += 'if (PROFILING) { '
-          +    'PROFILING_NODE.time += Date.now() - __profilingStartTime__; '
-          +    'PROFILING_NODE = __parentProfilingNode__ '
-          +  '}\n';
-    }
     if (LABEL_DEBUG && functionNameFilterTest(item.funcData.ident)) {
       ret += "Module.print(INDENT + 'Exiting: " + item.funcData.ident + "');\n"
           +  "INDENT = INDENT.substr(0, INDENT.length-2);\n";
     }
     ret += 'return';
-    if (item.value) {
-      ret += ' ' + asmCoercion(finalizeLLVMParameter(item.value), item.type);
+    var value = item.value ? finalizeLLVMParameter(item.value) : null;
+    if (!value && item.funcData.returnType != 'void') value = '0'; // no-value returns must become value returns if function returns
+    if (value) {
+      ret += ' ' + asmCoercion(value, item.type);
     }
     return ret + ';';
   });
   makeFuncLineActor('resume', function(item) {
+    if (item.ident == 0) {
+      // No exception to resume, so we can just bail.
+      // This is related to issue #917 and http://llvm.org/PR15518
+      return (EXCEPTION_DEBUG ? 'Module.print("no exception to resume")' : '') + ';';
+    }
     // If there is no current exception, set this one as it (during a resume, the current exception can be wiped out)
     var ptr = makeStructuralAccess(item.ident, 0);
     return (EXCEPTION_DEBUG ? 'Module.print("Resuming exception");' : '') + 
       'if (' + makeGetValue('_llvm_eh_exception.buf', 0, 'void*') + ' == 0) { ' + makeSetValue('_llvm_eh_exception.buf', 0, ptr, 'void*') + ' } ' + 
-      makeThrow('ptr') + ';';
+      makeThrow(ptr) + ';';
   });
   makeFuncLineActor('invoke', function(item) {
     // Wrapping in a function lets us easily return values if we are
     // in an assignment
     var phiSets = calcPhiSets(item);
     var call_ = makeFunctionCall(item.ident, item.params, item.funcData, item.type);
-    var ret = '(function() { try { __THREW__ = 0; return '
-            + call_ + ' '
-            + '} catch(e) { '
-            + 'if (typeof e != "number") throw e; '
-            + 'if (ABORT) throw e; __THREW__ = 1; '
-            + (EXCEPTION_DEBUG ? 'Module.print("Exception: " + e + ", currently at: " + (new Error().stack)); ' : '')
-            + 'return null } })();';
+  
+    var ret;
+
+    if (DISABLE_EXCEPTION_CATCHING == 2  && !(item.funcData.ident in EXCEPTION_CATCHING_WHITELIST)) {
+      ret = call_ + ';';
+    } else {
+      ret = '(function() { try { __THREW__ = 0; return '
+          + call_ + ' '
+          + '} catch(e) { '
+          + 'if (typeof e != "number") throw e; '
+          + 'if (ABORT) throw e; __THREW__ = 1; '
+          + (EXCEPTION_DEBUG ? 'Module.print("Exception: " + e + ", currently at: " + (new Error().stack)); ' : '')
+          + 'return null } })();';
+    }
+
+
     if (item.assignTo) {
       ret = 'var ' + item.assignTo + ' = ' + ret;
       if (USE_TYPED_ARRAYS == 2 && isIllegalType(item.type)) {
@@ -1190,10 +1198,13 @@ function JSify(data, functionsOnly, givenFunctions) {
     switch (item.op) {
       case 'add': return '(tempValue=' + makeGetValue(param1, 0, type) + ',' + makeSetValue(param1, 0, 'tempValue+' + param2, type, null, null, null, null, ',') + ',tempValue)';
       case 'sub': return '(tempValue=' + makeGetValue(param1, 0, type) + ',' + makeSetValue(param1, 0, 'tempValue-' + param2, type, null, null, null, null, ',') + ',tempValue)';
+      case 'or': return '(tempValue=' + makeGetValue(param1, 0, type) + ',' + makeSetValue(param1, 0, 'tempValue|' + param2, type, null, null, null, null, ',') + ',tempValue)';
+      case 'and': return '(tempValue=' + makeGetValue(param1, 0, type) + ',' + makeSetValue(param1, 0, 'tempValue&' + param2, type, null, null, null, null, ',') + ',tempValue)';
+      case 'xor': return '(tempValue=' + makeGetValue(param1, 0, type) + ',' + makeSetValue(param1, 0, 'tempValue^' + param2, type, null, null, null, null, ',') + ',tempValue)';
       case 'xchg': return '(tempValue=' + makeGetValue(param1, 0, type) + ',' + makeSetValue(param1, 0, param2, type, null, null, null, null, ',') + ',tempValue)';
       case 'cmpxchg': {
         var param3 = finalizeLLVMParameter(item.params[2]);
-        return '(tempValue=' + makeGetValue(param1, 0, type) + ',(' + makeGetValue(param1, 0, type) + '==' + param2 + ' ? ' + makeSetValue(param1, 0, param3, type, null, null, null, null, ',') + ' : 0),tempValue)';
+        return '(tempValue=' + makeGetValue(param1, 0, type) + ',(' + makeGetValue(param1, 0, type) + '==(' + param2 + '|0) ? ' + makeSetValue(param1, 0, param3, type, null, null, null, null, ',') + ' : 0),tempValue)';
       }
       default: throw 'unhandled atomic op: ' + item.op;
     }
@@ -1212,6 +1223,15 @@ function JSify(data, functionsOnly, givenFunctions) {
     var impl = item.ident ? getVarImpl(item.funcData, item.ident) : VAR_EMULATED;
     switch (impl) {
       case VAR_NATIVIZED: {
+        if (isNumber(item.ident)) {
+          item.assignTo = null;
+          // Direct read from a memory address; this may be an intentional segfault, if not, it is a bug in the source
+          if (ASM_JS) {
+            return 'abort(' + item.ident + ')';
+          } else {
+            return 'throw "fault on read from ' + item.ident + '";';
+          }
+        }
         return value; // We have the actual value here
       }
       case VAR_EMULATED: return makeGetValue(value, 0, item.type, 0, item.unsigned, 0, item.align);
@@ -1235,14 +1255,19 @@ function JSify(data, functionsOnly, givenFunctions) {
   makeFuncLineActor('insertvalue', function(item) {
     assert(item.indexes.length == 1); // TODO: see extractvalue
     var ret = '(', ident;
-    if (item.ident === 'undef') {
+    if (item.ident === '0') {
       item.ident = 'tempValue';
       ret += item.ident + ' = [' + makeEmptyStruct(item.type) + '], ';
     }
     return ret + item.ident + '.f' + item.indexes[0][0].text + ' = ' + finalizeLLVMParameter(item.value) + ', ' + item.ident + ')';
   });
   makeFuncLineActor('indirectbr', function(item) {
-    return makeBranch(finalizeLLVMParameter(item.value), item.currLabelId, true);
+    var phiSets = calcPhiSets(item);
+    var js = 'var ibr = ' + finalizeLLVMParameter(item.value) + ';\n';
+    for (var targetLabel in phiSets) {
+      js += 'if (' + makeComparison('ibr', '==', targetLabel, 'i32') + ') { ' + getPhiSetsForLabel(phiSets, targetLabel) + ' }\n';
+    }
+    return js + makeBranch('ibr', item.currLabelId, true);
   });
   makeFuncLineActor('alloca', function(item) {
     if (typeof item.allocatedIndex === 'number') {
@@ -1270,23 +1295,27 @@ function JSify(data, functionsOnly, givenFunctions) {
     // We cannot compile assembly. See comment in intertyper.js:'Call'
     assert(ident != 'asm', 'Inline assembly cannot be compiled to JavaScript!');
 
+    ident = Variables.resolveAliasToIdent(ident);
     var shortident = ident.slice(1);
-    var callIdent = LibraryManager.getRootIdent(shortident);
+    var simpleIdent = shortident;
+    var callIdent = LibraryManager.getRootIdent(simpleIdent);
     if (callIdent) {
-      shortident = callIdent; // ident may not be in library, if all there is is ident__inline, but in this case it is
+      simpleIdent = callIdent; // ident may not be in library, if all there is is ident__inline, but in this case it is
       if (callIdent.indexOf('.') < 0) {
         callIdent = '_' + callIdent; // Not Math.*, so add the normal prefix
       }
     } else {
       callIdent = ident;
     }
+    if (callIdent == '0') return 'abort(-2)';
+
     var args = [];
     var argsTypes = [];
     var varargs = [];
     var varargsTypes = [];
     var varargsByVals = {};
     var ignoreFunctionIndexizing = [];
-    var useJSArgs = (shortident + '__jsargs') in LibraryManager.library;
+    var useJSArgs = (simpleIdent + '__jsargs') in LibraryManager.library;
     var hasVarArgs = isVarArgsFunctionType(type);
     var normalArgs = (hasVarArgs && !useJSArgs) ? countNormalArgs(type) : -1;
     var byPointer = getVarData(funcData, ident);
@@ -1314,7 +1343,7 @@ function JSify(data, functionsOnly, givenFunctions) {
 
     args = args.map(function(arg, i) { return indexizeFunctions(arg, argsTypes[i]) });
     if (ASM_JS) {
-      if (shortident in Functions.libraryFunctions) {
+      if (shortident in Functions.libraryFunctions || simpleIdent in Functions.libraryFunctions) {
         args = args.map(function(arg, i) { return asmCoercion(arg, argsTypes[i]) });
       } else {
         args = args.map(function(arg, i) { return asmEnsureFloat(arg, argsTypes[i]) });
@@ -1358,28 +1387,52 @@ function JSify(data, functionsOnly, givenFunctions) {
     var argsText = args.join(', ');
 
     // Inline if either we inline whenever we can (and we can), or if there is no noninlined version
-    var inline = LibraryManager.library[shortident + '__inline'];
-    var nonInlined = shortident in LibraryManager.library;
+    var inline = LibraryManager.library[simpleIdent + '__inline'];
+    var nonInlined = simpleIdent in LibraryManager.library;
     if (inline && (INLINE_LIBRARY_FUNCS || !nonInlined)) {
       return inline.apply(null, args); // Warning: inlining does not prevent recalculation of the arguments. They should be simple identifiers
     }
 
+    if (ASM_JS) {
+      // remove unneeded arguments, which the asm sig can show us. this lets us alias memset with llvm.memset, we just
+      // drop the final 2 args so things validate properly in asm
+      var libsig = LibraryManager.library[simpleIdent + '__sig'];
+      if (libsig) {
+        assert(!hasVarArgs);
+        while (libsig.length - 1 < args.length) {
+          args.pop();
+          argsTypes.pop();
+        }
+      }
+    }
+
     var returnType;
-    if (byPointer || ASM_JS) returnType = type.split(' ')[0];
+    if (byPointer || ASM_JS) {
+      returnType = getReturnType(type);
+    }
+
+    if (callIdent in DEAD_FUNCTIONS) {
+      var ret = 'abort(' + DEAD_FUNCTIONS[callIdent] + ')';
+      if (ASM_JS) ret = asmCoercion(ret, returnType);
+      return ret;
+    }
 
     if (byPointer) {
-      var sig = Functions.getSignature(returnType, argsTypes);
+      var sig = Functions.getSignature(returnType, argsTypes, hasVarArgs);
       if (ASM_JS) {
         assert(returnType.search(/\("'\[,/) == -1); // XXX need isFunctionType(type, out)
         callIdent = '(' + callIdent + ')&{{{ FTM_' + sig + ' }}}'; // the function table mask is set in emscripten.py
+      } else if (SAFE_DYNCALLS) {
+        assert(!ASM_JS, 'cannot emit safe dyncalls in asm');
+        callIdent = '(tempInt=' + callIdent + ',tempInt < 0 || tempInt >= FUNCTION_TABLE.length-1 || !FUNCTION_TABLE[tempInt] ? abort("dyncall error: ' + sig + ' " + FUNCTION_TABLE_NAMES[tempInt]) : tempInt)';
       }
       callIdent = Functions.getTable(sig) + '[' + callIdent + ']';
     }
 
     var ret = callIdent + '(' + args.join(', ') + ')';
-    if (ASM_JS) { // TODO: do only when needed (library functions and Math.*?) XXX && shortident in Functions.libraryFunctions) {
+    if (ASM_JS) { // TODO: do only when needed (library functions and Math.*?) XXX && simpleIdent in Functions.libraryFunctions) {
       ret = asmCoercion(ret, returnType);
-      if (shortident == 'abort' && funcData.returnType != 'void') {
+      if (simpleIdent == 'abort' && funcData.returnType != 'void') {
         ret += '; return 0'; // special case: abort() can happen without return, breaking the return type of asm functions. ensure a return
       }
     }
@@ -1393,7 +1446,7 @@ function JSify(data, functionsOnly, givenFunctions) {
 
   makeFuncLineActor('unreachable', function(item) {
     if (ASSERTIONS) {
-      return 'throw "Reached an unreachable!"';
+      return ASM_JS ? 'abort()' : 'throw "Reached an unreachable!"';
     } else {
       return ';';
     }
@@ -1445,8 +1498,36 @@ function JSify(data, functionsOnly, givenFunctions) {
           print('assert(STATICTOP < TOTAL_MEMORY);\n');
         }
       }
-      var generated = itemsDict.function.concat(itemsDict.type).concat(itemsDict.GlobalVariableStub).concat(itemsDict.GlobalVariable).concat(itemsDict.GlobalVariablePostSet);
-      if (!DEBUG_MEMORY) print(generated.map(function(item) { return item.JS }).join('\n'));
+      var generated = itemsDict.function.concat(itemsDict.type).concat(itemsDict.GlobalVariableStub).concat(itemsDict.GlobalVariable);
+      print(generated.map(function(item) { return item.JS }).join('\n'));
+
+      if (phase == 'pre') {
+        if (memoryInitialization.length > 0) {
+          // apply postsets directly into the big memory initialization
+          itemsDict.GlobalVariablePostSet = itemsDict.GlobalVariablePostSet.filter(function(item) {
+            var m;
+            if (m = /^HEAP([\dFU]+)\[([()>\d]+)\] *= *([()|\d{}\w_' ]+);?$/.exec(item.JS)) {
+              var type = getTypeFromHeap(m[1]);
+              var bytes = Runtime.getNativeTypeSize(type);
+              var target = eval(m[2]) << log2(bytes);
+              var value = m[3];
+              try {
+                value = eval(value);
+              } catch(e) {
+                // possibly function table {{{ FT_* }}} etc.
+                if (value.indexOf('{{ ') < 0) return true;
+              }
+              writeInt8s(memoryInitialization, target - TOTAL_STACK, value, type);
+              return false;
+            }
+            return true;
+          });
+          // write out the singleton big memory initialization value
+          print('/* memory initializer */ ' + makePointer(memoryInitialization, null, 'ALLOC_NONE', 'i8', 'TOTAL_STACK', true)); // we assert on TOTAL_STACK == GLOBAL_BASE
+        }
+      }
+
+      print(itemsDict.GlobalVariablePostSet.map(function(item) { return item.JS }).join('\n'));
       return;
     }
 
@@ -1468,7 +1549,6 @@ function JSify(data, functionsOnly, givenFunctions) {
           }
         });
       }
-
       JSify(globalsData, true, Functions);
       globalsData = null;
       data.unparsedGlobalss = null;
@@ -1477,12 +1557,24 @@ function JSify(data, functionsOnly, givenFunctions) {
       generated.forEach(function(item) { print(indentify(item.JS || '', 2)); });
 
       legalizedI64s = legalizedI64sDefault;
+
+      if (asmLibraryFunctions.length > 0) {
+        print('// ASM_LIBRARY FUNCTIONS');
+        function fix(f) { // fix indenting to not confuse js optimizer
+          f = f.substr(f.indexOf('f')); // remove initial spaces before 'function'
+          f = f.substr(0, f.lastIndexOf('\n')+1); // remove spaces and last }  XXX assumes function has multiple lines
+          return f + '}'; // add unindented } to match function
+        }
+        print(asmLibraryFunctions.map(fix).join('\n'));
+      }
     } else {
       if (singlePhase) {
         assert(data.unparsedGlobalss[0].lines.length == 0, dump([phase, data.unparsedGlobalss]));
         assert(itemsDict.functionStub.length == 0, dump([phase, itemsDict.functionStub]));
       }
     }
+
+    if (abortExecution) throw 'Aborting compilation due to previous warnings';
 
     if (phase == 'pre' || phase == 'funcs') {
       PassManager.serialize();
@@ -1493,10 +1585,23 @@ function JSify(data, functionsOnly, givenFunctions) {
     // rest of the output that we started to print out earlier (see comment on the
     // "Final shape that will be created").
     if (PRECISE_I64_MATH && Types.preciseI64MathUsed) {
+      if (!INCLUDE_FULL_LIBRARY) {
+        ['i64Add', 'bitshift64Shl', 'bitshift64Lshr', 'bitshift64Ashr'].forEach(function(func) {
+          print(processLibraryFunction(LibraryManager.library[func], func)); // must be first to be close to generated code
+          Functions.implementedFunctions['_' + func] = LibraryManager.library[func + '__sig'];
+        });
+      }
+      print('// EMSCRIPTEN_END_FUNCS\n');
       print(read('long.js'));
     } else {
+      print('// EMSCRIPTEN_END_FUNCS\n');
       print('// Warning: printing of i64 values may be slightly rounded! No deep i64 math used, so precise i64 code not included');
       print('var i64Math = null;');
+    }
+
+    if (CORRUPTION_CHECK) {
+      assert(!ASM_JS); // cannot monkeypatch asm!
+      print(processMacros(read('corruptionCheck.js')));
     }
     if (HEADLESS) {
       print('if (!ENVIRONMENT_IS_WEB) {');
@@ -1523,10 +1628,18 @@ function JSify(data, functionsOnly, givenFunctions) {
 
     var shellParts = read(shellFile).split('{{BODY}}');
     print(shellParts[1]);
-    // Print out some useful metadata (for additional optimizations later, like the eliminator)
-    print('// EMSCRIPTEN_GENERATED_FUNCTIONS: ' + JSON.stringify(keys(Functions.implementedFunctions).filter(function(func) {
-      return IGNORED_FUNCTIONS.indexOf(func.ident) < 0;
-    })) + '\n');
+    // Print out some useful metadata
+    if (EMIT_GENERATED_FUNCTIONS || PGO) {
+      var generatedFunctions = JSON.stringify(keys(Functions.implementedFunctions).filter(function(func) {
+        return IGNORED_FUNCTIONS.indexOf(func.ident) < 0;
+      }));
+      if (PGO) {
+        print('PGOMonitor.allGenerated = ' + generatedFunctions + ';\nremoveRunDependency("pgo");\n');
+      }
+      if (EMIT_GENERATED_FUNCTIONS) {
+        print('// EMSCRIPTEN_GENERATED_FUNCTIONS: ' + generatedFunctions + '\n');
+      }
+    }
 
     PassManager.serialize();
 

@@ -17,18 +17,33 @@ Module.callMain = function callMain(args) {
   argv.push(0);
   argv = allocate(argv, 'i32', ALLOC_STATIC);
 
-#if CATCH_EXIT_CODE
+#if BENCHMARK
+  var start = Date.now();
+#endif
+
+  var ret;
+
   var initialStackTop = STACKTOP;
   try {
-    return Module['_main'](argc, argv, 0);
+    ret = Module['_main'](argc, argv, 0);
   }
-  catch(e) { if (e.name == "ExitStatus") return e.status; throw e; }
-  finally {
+  catch(e) {
+    if (e.name == 'ExitStatus') {
+      return e.status;
+    } else if (e == 'SimulateInfiniteLoop') {
+      Module['noExitRuntime'] = true;
+    } else {
+      throw e;
+    }
+  } finally {
     STACKTOP = initialStackTop;
   }
-#else
-  return Module['_main'](argc, argv, 0);
+
+#if BENCHMARK
+  Module.realPrint('main() took ' + (Date.now() - start) + ' milliseconds');
 #endif
+
+  return ret;
 }
 
 {{GLOBAL_VARS}}
@@ -109,10 +124,7 @@ if (Module['noInitialRun']) {
 }
 
 if (shouldRunNow) {
-  var ret = run();
-#if CATCH_EXIT_CODE
-  Module.print('Exit Status: ' + ret);
-#endif
+  run();
 }
 
 // {{POST_RUN_ADDITIONS}}

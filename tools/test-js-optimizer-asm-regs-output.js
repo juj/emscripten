@@ -18,17 +18,8 @@ function _doit(i1, i2, i3) {
   STACKTOP = i1;
   return 0 | 0;
 }
-function rett() {
-  if (f()) {
-    g();
-    return 5;
-  }
-  return 0;
-}
-function ret2t() {
-  if (f()) {
-    g();
-    return;
-  }
+function stackRestore(i1) {
+  i1 = i1 | 0;
+  STACKTOP = i1;
 }
 

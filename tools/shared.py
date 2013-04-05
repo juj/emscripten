@@ -1,7 +1,14 @@
-import shutil, time, os, sys, json, tempfile, copy, shlex, atexit, subprocess, hashlib, cPickle
+import shutil, time, os, sys, json, tempfile, copy, shlex, atexit, subprocess, hashlib, cPickle, re
 from subprocess import Popen, PIPE, STDOUT
 from tempfile import mkstemp
-from . import jsrun, cache, tempfiles
+import jsrun, cache, tempfiles
+
+def listify(x):
+  if type(x) is not list: return [x]
+  return x
+
+# Temp file utilities
+from tempfiles import try_delete
 
 # On Windows python suffers from a particularly nasty bug if python is spawning new processes while python itself is spawned from some other non-console process.
 # Use a custom replacement for Popen on Windows to avoid the "WindowsError: [Error 6] The handle is invalid" errors when emcc is driven through cmake or mingw32-make. 
@@ -29,7 +36,10 @@ class WindowsPopen:
         self.stderr_ = PIPE
   
     # Call the process with fixed streams.
-    self.process = subprocess.Popen(args, bufsize, executable, self.stdin_, self.stdout_, self.stderr_, preexec_fn, close_fds, shell, cwd, env, universal_newlines, startupinfo, creationflags)
+    try:
+      self.process = subprocess.Popen(args, bufsize, executable, self.stdin_, self.stdout_, self.stderr_, preexec_fn, close_fds, shell, cwd, env, universal_newlines, startupinfo, creationflags)
+    except Exception, e:
+      print >> sys.stderr, 'subprocess.Popen(args=%s) failed! Exception %s' % (' '.join(args), str(e))
 
   def communicate(self, input=None):
     output = self.process.communicate(input)
@@ -156,7 +166,8 @@ EXPECTED_NODE_VERSION = (0,6,8)
 
 def check_node_version():
   try:
-    actual = Popen([NODE_JS, '--version'], stdout=PIPE).communicate()[0].strip()
+    node = listify(NODE_JS)
+    actual = Popen(node + ['--version'], stdout=PIPE).communicate()[0].strip()
     version = tuple(map(int, actual.replace('v', '').split('.')))
     if version >= EXPECTED_NODE_VERSION:
       return True
@@ -173,7 +184,7 @@ def check_node_version():
 # we re-check sanity when the settings are changed)
 # We also re-check sanity and clear the cache when the version changes
 
-EMSCRIPTEN_VERSION = '1.2.3'
+EMSCRIPTEN_VERSION = '1.3.6'
 
 def check_sanity(force=False):
   try:
@@ -246,6 +257,7 @@ def check_sanity(force=False):
 # Tools/paths
 
 LLVM_ADD_VERSION = os.getenv('LLVM_ADD_VERSION')
+CLANG_ADD_VERSION = os.getenv('CLANG_ADD_VERSION')
 
 # Some distributions ship with multiple llvm versions so they add
 # the version to the binaries, cope with that
@@ -255,8 +267,16 @@ def build_llvm_tool_path(tool):
   else:
     return os.path.join(LLVM_ROOT, tool)
 
-CLANG_CC=os.path.expanduser(os.path.join(LLVM_ROOT, 'clang'))
-CLANG_CPP=os.path.expanduser(os.path.join(LLVM_ROOT, 'clang++'))
+# Some distributions ship with multiple clang versions so they add
+# the version to the binaries, cope with that
+def build_clang_tool_path(tool):
+  if CLANG_ADD_VERSION:
+    return os.path.join(LLVM_ROOT, tool + "-" + CLANG_ADD_VERSION)
+  else:
+    return os.path.join(LLVM_ROOT, tool)
+
+CLANG_CC=os.path.expanduser(build_clang_tool_path('clang'))
+CLANG_CPP=os.path.expanduser(build_clang_tool_path('clang++'))
 CLANG=CLANG_CPP
 LLVM_LINK=build_llvm_tool_path('llvm-link')
 LLVM_AR=build_llvm_tool_path('llvm-ar')
@@ -266,7 +286,6 @@ LLVM_DIS=os.path.expanduser(build_llvm_tool_path('llvm-dis'))
 LLVM_NM=os.path.expanduser(build_llvm_tool_path('llvm-nm'))
 LLVM_INTERPRETER=os.path.expanduser(build_llvm_tool_path('lli'))
 LLVM_COMPILER=os.path.expanduser(build_llvm_tool_path('llc'))
-LLVM_EXTRACT=os.path.expanduser(build_llvm_tool_path('llvm-extract'))
 
 EMSCRIPTEN = path_from_root('emscripten.py')
 DEMANGLER = path_from_root('third_party', 'demangler.py')
@@ -288,6 +307,9 @@ FILE_PACKAGER = path_from_root('tools', 'file_packager.py')
 class Configuration:
   def __init__(self, environ):
     self.DEBUG = environ.get('EMCC_DEBUG')
+    if self.DEBUG == "0":
+      self.DEBUG = None
+    self.DEBUG_CACHE = self.DEBUG and "cache" in self.DEBUG
     self.EMSCRIPTEN_TEMP_DIR = None
 
     try:
@@ -296,13 +318,13 @@ class Configuration:
       print >> sys.stderr, 'TEMP_DIR not defined in ~/.emscripten, using /tmp'
       self.TEMP_DIR = '/tmp'
 
-    CANONICAL_TEMP_DIR = os.path.join(self.TEMP_DIR, 'emscripten_temp')
+    self.CANONICAL_TEMP_DIR = os.path.join(self.TEMP_DIR, 'emscripten_temp')
 
     if self.DEBUG:
       try:
-        self.EMSCRIPTEN_TEMP_DIR = CANONICAL_TEMP_DIR
-        if not os.path.exists(EMSCRIPTEN_TEMP_DIR):
-          os.makedirs(EMSCRIPTEN_TEMP_DIR)
+        self.EMSCRIPTEN_TEMP_DIR = self.CANONICAL_TEMP_DIR
+        if not os.path.exists(self.EMSCRIPTEN_TEMP_DIR):
+          os.makedirs(self.EMSCRIPTEN_TEMP_DIR)
       except Exception, e:
         print >> sys.stderr, e, 'Could not create canonical temp dir. Check definition of TEMP_DIR in ~/.emscripten'
 
@@ -318,6 +340,8 @@ class Configuration:
 configuration = Configuration(environ=os.environ)
 DEBUG = configuration.DEBUG
 EMSCRIPTEN_TEMP_DIR = configuration.EMSCRIPTEN_TEMP_DIR
+DEBUG_CACHE = configuration.DEBUG_CACHE
+CANONICAL_TEMP_DIR = configuration.CANONICAL_TEMP_DIR
 
 if not EMSCRIPTEN_TEMP_DIR:
   EMSCRIPTEN_TEMP_DIR = tempfile.mkdtemp(prefix='emscripten_temp_', dir=configuration.TEMP_DIR)
@@ -360,35 +384,38 @@ try:
 except:
   COMPILER_OPTS = []
 # Force a simple, standard target as much as possible: target 32-bit linux, and disable various flags that hint at other platforms
+# -fno-ms-compatibility is passed, since on Windows, Clang enables a 'MS compatibility mode' by default, that disables char16_t and char32_t 
+#                       to be MSVC header -compatible. This would cause build errors in libcxx file __config.
+# -fno-delayed-template-parsing is needed on Windows due to http://llvm.org/PR15651
 COMPILER_OPTS = COMPILER_OPTS + ['-m32', '-U__i386__', '-U__x86_64__', '-U__i386', '-U__x86_64', '-Ui386', '-Ux86_64', '-U__SSE__', '-U__SSE2__', '-U__MMX__',
                                  '-UX87_DOUBLE_ROUNDING', '-UHAVE_GCC_ASM_FOR_X87', '-DEMSCRIPTEN', '-U__STRICT_ANSI__', '-U__CYGWIN__',
-                                 '-D__STDC__', '-Xclang', '-triple=i386-pc-linux-gnu', '-D__IEEE_LITTLE_ENDIAN', '-fno-math-errno']
-
+                                 '-D__STDC__', '-Xclang', '-triple=i386-pc-linux-gnu', '-D__IEEE_LITTLE_ENDIAN', '-fno-math-errno', 
+                                 '-fno-ms-compatibility', '-fno-delayed-template-parsing']
 
 USE_EMSDK = not os.environ.get('EMMAKEN_NO_SDK')
 
 if USE_EMSDK:
   # Disable system C and C++ include directories, and add our own (using -idirafter so they are last, like system dirs, which
   # allows projects to override them)
-  # Note that -nostdinc++ is not needed, since -nostdinc implies that!
-  EMSDK_OPTS = ['-nostdinc', '-Xclang', '-nobuiltininc', '-Xclang', '-nostdsysteminc',
+  EMSDK_OPTS = ['-nostdinc', '-nostdinc++', '-Xclang', '-nobuiltininc', '-Xclang', '-nostdsysteminc',
     '-Xclang', '-isystem' + path_from_root('system', 'local', 'include'),
+    '-Xclang', '-isystem' + path_from_root('system', 'include', 'libcxx'),
     '-Xclang', '-isystem' + path_from_root('system', 'include'),
     '-Xclang', '-isystem' + path_from_root('system', 'include', 'emscripten'),
     '-Xclang', '-isystem' + path_from_root('system', 'include', 'bsd'), # posix stuff
     '-Xclang', '-isystem' + path_from_root('system', 'include', 'libc'),
-    '-Xclang', '-isystem' + path_from_root('system', 'include', 'libcxx'),
-    '-Xclang', '-isystem' + path_from_root('system', 'lib', 'libcxxabi', 'include'),
     '-Xclang', '-isystem' + path_from_root('system', 'include', 'gfx'),
     '-Xclang', '-isystem' + path_from_root('system', 'include', 'net'),
     '-Xclang', '-isystem' + path_from_root('system', 'include', 'SDL'),
   ] + [
-    '-U__APPLE__', '-U__linux__',
-    '-D_LIBCPP_HAS_NO_DELETED_FUNCTIONS' # otherwise libc++ has errors with --std=c++11
+    '-U__APPLE__', '-U__linux__'
   ]
   COMPILER_OPTS += EMSDK_OPTS
 else:
   EMSDK_OPTS = []
+
+#print >> sys.stderr, 'SDK opts', ' '.join(EMSDK_OPTS)
+#print >> sys.stderr, 'Compiler opts', ' '.join(COMPILER_OPTS)
 
 # Engine tweaks
 
@@ -411,9 +438,6 @@ if not WINDOWS:
     ENV_PREFIX = ['env']
   except:
     pass
-
-# Temp file utilities
-from .tempfiles import try_delete
 
 # Utilities
 
@@ -521,7 +545,7 @@ class Settings:
         ret = []
         for key, value in Settings.__dict__.iteritems():
           if key == key.upper(): # this is a hack. all of our settings are ALL_CAPS, python internals are not
-            jsoned = json.dumps(value)
+            jsoned = json.dumps(value, sort_keys=True)
             ret += ['-s', key + '=' + jsoned]
         return ret
 
@@ -530,15 +554,13 @@ class Settings:
         if opt_level >= 1:
           Settings.ASSERTIONS = 0
           Settings.DISABLE_EXCEPTION_CATCHING = 1
+          Settings.EMIT_GENERATED_FUNCTIONS = 1
         if opt_level >= 2:
           Settings.RELOOP = 1
         if opt_level >= 3:
-          Settings.INLINING_LIMIT = 0
+          # Aside from these, -O3 also runs closure compiler and llvm lto
           Settings.DOUBLE_MODE = 0
           Settings.PRECISE_I64_MATH = 0
-          Settings.CORRECT_SIGNS = 0
-          Settings.CORRECT_OVERFLOWS = 0
-          Settings.CORRECT_ROUNDINGS = 0
           if noisy: print >> sys.stderr, 'Warning: Applying some potentially unsafe optimizations! (Use -O2 if this fails.)'
 
     global Settings
@@ -555,8 +577,14 @@ class Building:
   COMPILER_TEST_OPTS = [] # For use of the test runner
 
   @staticmethod
-  def get_building_env():
+  def get_building_env(native=False):
     env = os.environ.copy()
+    if native:
+      env['CC'] = CLANG_CC
+      env['CXX'] = CLANG_CPP
+      env['LD'] = CLANG
+      env['CFLAGS'] = '-O2 -fno-math-errno'
+      return env
     env['CC'] = EMCC if not WINDOWS else 'python %r' % EMCC
     env['CXX'] = EMXX if not WINDOWS else 'python %r' % EMXX
     env['AR'] = EMAR if not WINDOWS else 'python %r' % EMAR
@@ -626,6 +654,9 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)''' % { 'winfix': '' if not WINDOWS e
   def make(args, stdout=None, stderr=None, env=None):
     if env is None:
       env = Building.get_building_env()
+    if not args:
+      print >> sys.stderr, 'Error: Executable to run not specified.'
+      sys.exit(1)
     #args += ['VERBOSE=1']
     try:
       Popen(args, stdout=stdout, stderr=stderr, env=env).communicate()
@@ -634,14 +665,14 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)''' % { 'winfix': '' if not WINDOWS e
       raise
 
   @staticmethod
-  def build_library(name, build_dir, output_dir, generated_libs, configure=['sh', './configure'], configure_args=[], make=['make'], make_args=['-j', '2'], cache=None, cache_name=None, copy_project=False, env_init={}, source_dir=None):
+  def build_library(name, build_dir, output_dir, generated_libs, configure=['sh', './configure'], configure_args=[], make=['make'], make_args=['-j', '2'], cache=None, cache_name=None, copy_project=False, env_init={}, source_dir=None, native=False):
     ''' Build a library into a .bc file. We build the .bc file once and cache it for all our tests. (We cache in
         memory since the test directory is destroyed and recreated for each test. Note that we cache separately
         for different compilers).
         This cache is just during the test runner. There is a different concept of caching as well, see |Cache|. '''
 
     if type(generated_libs) is not list: generated_libs = [generated_libs]
-    if source_dir is None: source_dir = path_from_root('tests', name)
+    if source_dir is None: source_dir = path_from_root('tests', name.replace('_native', ''))
 
     temp_dir = build_dir
     if copy_project:
@@ -662,7 +693,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)''' % { 'winfix': '' if not WINDOWS e
     #    os.unlink(lib) # make sure compilation completed successfully
     #  except:
     #    pass
-    env = Building.get_building_env()
+    env = Building.get_building_env(native)
     for k, v in env_init.iteritems():
       env[k] = v
     if configure: # Useful in debugging sometimes to comment this out (and the lines below up to and including the |link| call)
@@ -698,23 +729,22 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)''' % { 'winfix': '' if not WINDOWS e
     return generated_libs
 
   @staticmethod
-  def remove_symbol(filename, symbol):
-    Popen([LLVM_EXTRACT, filename, '-delete', '-glob=' + symbol, '-o', filename], stderr=PIPE).communicate()
-    Popen([LLVM_EXTRACT, filename, '-delete', '-func=' + symbol, '-o', filename], stderr=PIPE).communicate()
-
-  @staticmethod
   def link(files, target):
     actual_files = []
     unresolved_symbols = set(['main']) # tracking unresolveds is necessary for .a linking, see below. (and main is always a necessary symbol)
     resolved_symbols = set()
     temp_dirs = []
     files = map(os.path.abspath, files)
+    has_ar = False
+    for f in files:
+      has_ar = has_ar or Building.is_ar(f)
     for f in files:
       if not Building.is_ar(f):
         if Building.is_bitcode(f):
-          new_symbols = Building.llvm_nm(f)
-          resolved_symbols = resolved_symbols.union(new_symbols.defs)
-          unresolved_symbols = unresolved_symbols.union(new_symbols.undefs.difference(resolved_symbols)).difference(new_symbols.defs)
+          if has_ar:
+            new_symbols = Building.llvm_nm(f)
+            resolved_symbols = resolved_symbols.union(new_symbols.defs)
+            unresolved_symbols = unresolved_symbols.union(new_symbols.undefs.difference(resolved_symbols)).difference(new_symbols.defs)
           actual_files.append(f)
       else:
         # Extract object files from ar archives, and link according to gnu ld semantics
@@ -767,7 +797,37 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)''' % { 'winfix': '' if not WINDOWS e
     # Finish link
     actual_files = unique_ordered(actual_files) # tolerate people trying to link a.so a.so etc.
     if DEBUG: print >>sys.stderr, 'emcc: llvm-linking:', actual_files
-    output = Popen([LLVM_LINK] + actual_files + ['-o', target], stdout=PIPE).communicate()[0]
+
+    # check for too-long command line
+    link_cmd = [LLVM_LINK] + actual_files + ['-o', target]
+    # 8k is a bit of an arbitrary limit, but a reasonable one
+    # for max command line size before we use a respose file
+    response_file = None
+    if WINDOWS and len(' '.join(link_cmd)) > 8192:
+      if DEBUG: print >>sys.stderr, 'using response file for llvm-link'
+      [response_fd, response_file] = mkstemp(suffix='.response', dir=TEMP_DIR)
+
+      link_cmd = [LLVM_LINK, "@" + response_file]
+
+      response_fh = os.fdopen(response_fd, 'w')
+      for arg in actual_files:
+        # we can't put things with spaces in the response file
+        if " " in arg:
+          link_cmd.append(arg)
+        else:
+          response_fh.write(arg + "\n")
+      response_fh.close()
+      link_cmd.append("-o")
+      link_cmd.append(target)
+
+      if len(' '.join(link_cmd)) > 8192:
+        print >>sys.stderr, 'emcc: warning: link command line is very long, even with response file -- use paths with no spaces'
+
+    output = Popen(link_cmd, stdout=PIPE).communicate()[0]
+
+    if response_file:
+      os.unlink(response_file)
+
     assert os.path.exists(target) and (output is None or 'Could not open input file' not in output), 'Linking error: ' + output
     for temp_dir in temp_dirs:
       try_delete(temp_dir)
@@ -789,6 +849,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)''' % { 'winfix': '' if not WINDOWS e
   def llvm_opt(filename, opts):
     if type(opts) is int:
       opts = Building.pick_llvm_opts(opts)
+    #opts += ['-debug-pass=Arguments']
     if DEBUG: print >> sys.stderr, 'emcc: LLVM opts:', opts
     output = Popen([LLVM_OPT, filename] + opts + ['-o=' + filename + '.opt.bc'], stdout=PIPE).communicate()[0]
     assert os.path.exists(filename + '.opt.bc'), 'Failed to run llvm optimizations: ' + output
@@ -825,8 +886,14 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)''' % { 'winfix': '' if not WINDOWS e
     assert os.path.exists(output_filename), 'Could not create bc file: ' + output
     return output_filename
 
+  nm_cache = {} # cache results of nm - it can be slow to run
+
   @staticmethod
   def llvm_nm(filename, stdout=PIPE, stderr=None):
+    if filename in Building.nm_cache:
+      #if DEBUG: print >> sys.stderr, 'loading nm results for %s from cache' % filename
+      return Building.nm_cache[filename]
+
     # LLVM binary ==> list of symbols
     output = Popen([LLVM_NM, filename], stdout=stdout, stderr=stderr).communicate()[0]
     class ret:
@@ -847,6 +914,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)''' % { 'winfix': '' if not WINDOWS e
     ret.defs = set(ret.defs)
     ret.undefs = set(ret.undefs)
     ret.commons = set(ret.commons)
+    Building.nm_cache[filename] = ret
     return ret
 
   @staticmethod
@@ -855,14 +923,14 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)''' % { 'winfix': '' if not WINDOWS e
       output_filename = filename + '.o'
     try_delete(output_filename)
     Popen([PYTHON, EMCC, filename] + args + ['-o', output_filename], stdout=stdout, stderr=stderr, env=env).communicate()
-    assert os.path.exists(output_filename), 'emcc could not create output file'
+    assert os.path.exists(output_filename), 'emcc could not create output file: ' + output_filename
 
   @staticmethod
   def emar(action, output_filename, filenames, stdout=None, stderr=None, env=None):
     try_delete(output_filename)
     Popen([PYTHON, EMAR, action, output_filename] + filenames, stdout=stdout, stderr=stderr, env=env).communicate()
     if 'c' in action:
-      assert os.path.exists(output_filename), 'emar could not create output file'
+      assert os.path.exists(output_filename), 'emar could not create output file: ' + output_filename
 
   @staticmethod
   def emscripten(filename, append_ext=True, extra_args=[]):
@@ -1003,7 +1071,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)''' % { 'winfix': '' if not WINDOWS e
 
   @staticmethod
   def js_optimizer(filename, passes, jcache):
-    return js_optimizer.run(filename, passes, NODE_JS, jcache)
+    return js_optimizer.run(filename, passes, listify(NODE_JS), jcache)
 
   @staticmethod
   def closure_compiler(filename):
@@ -1043,29 +1111,11 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)''' % { 'winfix': '' if not WINDOWS e
       Building._is_ar_cache[filename] = sigcheck
       return sigcheck
     except Exception, e:
-      print >> sys.stderr, 'shared.Building.is_ar failed to test whether file \'%s\' is a llvm archive file! Failed on exception: %s' % (filename, e)
+      if DEBUG: print >> sys.stderr, 'shared.Building.is_ar failed to test whether file \'%s\' is a llvm archive file! Failed on exception: %s' % (filename, e)
       return False
 
   @staticmethod
   def is_bitcode(filename):
-    # checks if a file contains LLVM bitcode
-    # if the file doesn't exist or doesn't have valid symbols, it isn't bitcode
-    try:
-      defs = Building.llvm_nm(filename, stderr=PIPE)
-      # If no symbols found, it might just be an empty bitcode file, try to dis it
-      if len(defs.defs) + len(defs.undefs) + len(defs.commons) == 0:
-        # llvm-nm 3.0 has a bug when reading symbols from ar files
-        # so try to see if we're dealing with an ar file, in which
-        # case we should try to dis it.
-        if not Building.is_ar(filename):
-          test_ll = os.path.join(EMSCRIPTEN_TEMP_DIR, 'test.ll')
-          Building.llvm_dis(filename, test_ll)
-          assert os.path.exists(test_ll)
-          try_delete(test_ll)
-    except Exception, e:
-      print >> sys.stderr, 'shared.Building.is_bitcode failed to test whether file \'%s\' is a llvm bitcode file! Failed on exception: %s' % (filename, e)
-      return False
-
     # look for magic signature
     b = open(filename, 'r').read(4)
     if b[0] == 'B' and b[1] == 'C':
@@ -1091,6 +1141,9 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)''' % { 'winfix': '' if not WINDOWS e
       print >> sys.stderr, '======================================='
       print >> sys.stderr, 'bootstrapping relooper...'
       os.chdir(path_from_root('src'))
+
+      emcc_debug = os.environ.get('EMCC_DEBUG')
+      if emcc_debug: del os.environ['EMCC_DEBUG']
 
       def make(opt_level):
         raw = relooper + '.raw.js'
@@ -1120,12 +1173,39 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)''' % { 'winfix': '' if not WINDOWS e
       ok = True
     finally:
       os.chdir(curr)
+      if emcc_debug: os.environ['EMCC_DEBUG'] = emcc_debug
       if not ok:
         print >> sys.stderr, 'bootstrapping relooper failed. You may need to manually create relooper.js by compiling it, see src/relooper/emscripten'
         1/0
 
+  @staticmethod
+  def preprocess(infile, outfile):
+    '''
+      Preprocess source C/C++ in some special ways that emscripten needs. Returns
+      a filename (potentially the same one if nothing was changed).
+
+      Currently this only does emscripten_jcache_printf(..) rewriting.
+    '''
+    src = open(infile).read() # stack warning on jcacheprintf! in docs # add jcache printf test separatrely, for content of printf
+    if 'emscripten_jcache_printf' not in src: return infile
+    def fix(m):
+      text = m.groups(0)[0]
+      assert text.count('(') == 1 and text.count(')') == 1, 'must have simple expressions in emscripten_jcache_printf calls, no parens'
+      assert text.count('"') == 2, 'must have simple expressions in emscripten_jcache_printf calls, no strings as varargs parameters'
+      start = text.index('(')
+      end = text.rindex(')')
+      args = text[start+1:end].split(',')
+      args = map(lambda x: x.strip(), args)
+      if args[0][0] == '"':
+        # flatten out
+        args = map(lambda x: str(ord(x)), args[0][1:len(args[0])-1]) + ['0'] + args[1:]
+      return 'emscripten_jcache_printf_(' + ','.join(args) + ')'
+    src = re.sub(r'(emscripten_jcache_printf\([^)]+\))', lambda m: fix(m), src)
+    open(outfile, 'w').write(src)
+    return outfile
+
 # compatibility with existing emcc, etc. scripts
-Cache = cache.Cache()
+Cache = cache.Cache(debug=DEBUG_CACHE)
 JCache = cache.JCache(Cache)
 chunkify = cache.chunkify
 

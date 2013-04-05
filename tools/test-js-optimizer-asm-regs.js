@@ -20,19 +20,9 @@ function _doit($x, $y$0, $y$1) {
   STACKTOP = __stackBase__;
   return 0 | 0;
 }
-function rett() {
-  if (f()) {
-    g();
-    return 5;
-  }
-  // missing final return, need to add it
+function stackRestore(top) {
+  top = top|0;
+  STACKTOP = top;
 }
-function ret2t() {
-  if (f()) {
-    g();
-    return;
-  }
-  // missing final return, but no need
-}
-// EMSCRIPTEN_GENERATED_FUNCTIONS: ["asm", "_doit", "rett", "ret2t"]
+// EMSCRIPTEN_GENERATED_FUNCTIONS: ["asm", "_doit", "stackRestore"]
 

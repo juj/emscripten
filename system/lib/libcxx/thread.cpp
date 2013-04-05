@@ -13,8 +13,8 @@
 #include "future"
 #include "limits"
 #include <sys/types.h>
-#if !_WIN32
-#if !__sun__ && !__linux__
+#if !defined(_WIN32)
+#if !defined(__sun__) && !defined(__linux__)
 #include <sys/sysctl.h>
 #else
 #include <unistd.h>
@@ -65,11 +65,15 @@ thread::hardware_concurrency() _NOEXCEPT
     std::size_t s = sizeof(n);
     sysctl(mib, 2, &n, &s, 0, 0);
     return n;
-#elif defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L) && defined(_SC_NPROCESSORS_ONLN)
+#elif (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L) && defined(_SC_NPROCESSORS_ONLN)) || defined(EMSCRIPTEN)
     long result = sysconf(_SC_NPROCESSORS_ONLN);
-    if (result < 0 || result > UINT_MAX)
-        result = 0;
-    return result;
+    // sysconf returns -1 if the name is invalid, the option does not exist or
+    // does not have a definite limit.
+    // if sysconf returns some other negative number, we have no idea
+    // what is going on. Default to something safe.
+    if (result < 0)
+        return 0;
+    return static_cast<unsigned>(result);
 #else  // defined(CTL_HW) && defined(HW_NCPU)
     // TODO: grovel through /proc or check cpuid on x86 and similar
     // instructions on other architectures.

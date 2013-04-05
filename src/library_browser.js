@@ -3,7 +3,7 @@
 // Utilities for browser environments
 
 mergeInto(LibraryManager.library, {
-  $Browser__postset: 'Module["requestFullScreen"] = function() { Browser.requestFullScreen() };\n' + // exports
+  $Browser__postset: 'Module["requestFullScreen"] = function(lockPointer, resizeCanvas) { Browser.requestFullScreen(lockPointer, resizeCanvas) };\n' + // exports
                      'Module["requestAnimationFrame"] = function(func) { Browser.requestAnimationFrame(func) };\n' +
                      'Module["pauseMainLoop"] = function() { Browser.mainLoop.pause() };\n' +
                      'Module["resumeMainLoop"] = function() { Browser.mainLoop.resume() };\n',
@@ -40,13 +40,14 @@ mergeInto(LibraryManager.library, {
         }
       }
     },
+    isFullScreen: false,
     pointerLock: false,
     moduleContextCreatedCallbacks: [],
     workers: [],
 
-    ensureObjects: function() {
-      if (Browser.ensured) return;
-      Browser.ensured = true;
+    init: function() {
+      if (Browser.initted) return;
+      Browser.initted = true;
       try {
         new Blob();
         Browser.hasBlobConstructor = true;
@@ -68,20 +69,20 @@ mergeInto(LibraryManager.library, {
       function getMimetype(name) {
         return {
           'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
           'png': 'image/png',
           'bmp': 'image/bmp',
           'ogg': 'audio/ogg',
           'wav': 'audio/wav',
           'mp3': 'audio/mpeg'
-        }[name.substr(-3)];
-        return ret;
+        }[name.substr(name.lastIndexOf('.')+1)];
       }
 
       if (!Module["preloadPlugins"]) Module["preloadPlugins"] = [];
 
       var imagePlugin = {};
       imagePlugin['canHandle'] = function(name) {
-        return name.substr(-4) in { '.jpg': 1, '.png': 1, '.bmp': 1 };
+        return !Module.noImageDecoding && /\.(jpg|jpeg|png|bmp)$/.exec(name);
       };
       imagePlugin['handle'] = function(byteArray, name, onload, onerror) {
         var b = null;
@@ -98,7 +99,9 @@ mergeInto(LibraryManager.library, {
           b = bb.getBlob();
         }
         var url = Browser.URLObject.createObjectURL(b);
+#if ASSERTIONS
         assert(typeof url == 'string', 'createObjectURL must return a url as a string');
+#endif
         var img = new Image();
         img.onload = function() {
           assert(img.complete, 'Image ' + name + ' could not be decoded');
@@ -121,7 +124,7 @@ mergeInto(LibraryManager.library, {
 
       var audioPlugin = {};
       audioPlugin['canHandle'] = function(name) {
-        return name.substr(-4) in { '.ogg': 1, '.wav': 1, '.mp3': 1 };
+        return !Module.noAudioDecoding && name.substr(-4) in { '.ogg': 1, '.wav': 1, '.mp3': 1 };
       };
       audioPlugin['handle'] = function(byteArray, name, onload, onerror) {
         var done = false;
@@ -144,7 +147,9 @@ mergeInto(LibraryManager.library, {
             return fail();
           }
           var url = Browser.URLObject.createObjectURL(b); // XXX we never revoke this!
+#if ASSERTIONS
           assert(typeof url == 'string', 'createObjectURL must return a url as a string');
+#endif
           var audio = new Audio();
           audio.addEventListener('canplaythrough', function() { finish(audio) }, false); // use addEventListener due to chromium bug 124926
           audio.onerror = function(event) {
@@ -187,6 +192,36 @@ mergeInto(LibraryManager.library, {
         }
       };
       Module['preloadPlugins'].push(audioPlugin);
+
+      // Canvas event setup
+
+      var canvas = Module['canvas'];
+      canvas.requestPointerLock = canvas['requestPointerLock'] ||
+                                  canvas['mozRequestPointerLock'] ||
+                                  canvas['webkitRequestPointerLock'];
+      canvas.exitPointerLock = document['exitPointerLock'] ||
+                               document['mozExitPointerLock'] ||
+                               document['webkitExitPointerLock'];
+      canvas.exitPointerLock = canvas.exitPointerLock.bind(document);
+
+      function pointerLockChange() {
+        Browser.pointerLock = document['pointerLockElement'] === canvas ||
+                              document['mozPointerLockElement'] === canvas ||
+                              document['webkitPointerLockElement'] === canvas;
+      }
+
+      document.addEventListener('pointerlockchange', pointerLockChange, false);
+      document.addEventListener('mozpointerlockchange', pointerLockChange, false);
+      document.addEventListener('webkitpointerlockchange', pointerLockChange, false);
+
+      if (Module['elementPointerLock']) {
+        canvas.addEventListener("click", function(ev) {
+          if (!Browser.pointerLock && canvas.requestPointerLock) {
+            canvas.requestPointerLock();
+            ev.preventDefault();
+          }
+        }, false);
+      }
     },
 
     createContext: function(canvas, useWebGL, setInModule) {
@@ -196,8 +231,18 @@ mergeInto(LibraryManager.library, {
         return null;
       }
 #endif
+      var ctx;
       try {
-        var ctx = canvas.getContext(useWebGL ? 'experimental-webgl' : '2d');
+        if (useWebGL) {
+          ctx = canvas.getContext('experimental-webgl', {
+#if GL_TESTING
+            preserveDrawingBuffer: true,
+#endif
+            alpha: false
+          });
+        } else {
+          ctx = canvas.getContext('2d');
+        }
         if (!ctx) throw ':(';
       } catch (e) {
         Module.print('Could not create canvas - ' + e);
@@ -255,39 +300,47 @@ mergeInto(LibraryManager.library, {
         Module.ctx = ctx;
         Module.useWebGL = useWebGL;
         Browser.moduleContextCreatedCallbacks.forEach(function(callback) { callback() });
+        Browser.init();
       }
       return ctx;
     },
 
-    requestFullScreen: function() {
+    destroyContext: function(canvas, useWebGL, setInModule) {},
+
+    fullScreenHandlersInstalled: false,
+    lockPointer: undefined,
+    resizeCanvas: undefined,
+    requestFullScreen: function(lockPointer, resizeCanvas) {
+      this.lockPointer = lockPointer;
+      this.resizeCanvas = resizeCanvas;
+      if (typeof this.lockPointer === 'undefined') this.lockPointer = true;
+      if (typeof this.resizeCanvas === 'undefined') this.resizeCanvas = false;
+
       var canvas = Module['canvas'];
       function fullScreenChange() {
-        var isFullScreen = false;
+        Browser.isFullScreen = false;
         if ((document['webkitFullScreenElement'] || document['webkitFullscreenElement'] ||
              document['mozFullScreenElement'] || document['mozFullscreenElement'] ||
              document['fullScreenElement'] || document['fullscreenElement']) === canvas) {
-          canvas.requestPointerLock = canvas['requestPointerLock'] ||
-                                      canvas['mozRequestPointerLock'] ||
-                                      canvas['webkitRequestPointerLock'];
-          canvas.requestPointerLock();
-          isFullScreen = true;
+          canvas.cancelFullScreen = document['cancelFullScreen'] ||
+                                    document['mozCancelFullScreen'] ||
+                                    document['webkitCancelFullScreen'];
+          canvas.cancelFullScreen = canvas.cancelFullScreen.bind(document);
+          if (Browser.lockPointer) canvas.requestPointerLock();
+          Browser.isFullScreen = true;
+          if (Browser.resizeCanvas) Browser.setFullScreenCanvasSize();
+        } else if (Browser.resizeCanvas){
+          Browser.setWindowedCanvasSize();
         }
-        if (Module['onFullScreen']) Module['onFullScreen'](isFullScreen);
+        if (Module['onFullScreen']) Module['onFullScreen'](Browser.isFullScreen);
       }
 
-      document.addEventListener('fullscreenchange', fullScreenChange, false);
-      document.addEventListener('mozfullscreenchange', fullScreenChange, false);
-      document.addEventListener('webkitfullscreenchange', fullScreenChange, false);
-
-      function pointerLockChange() {
-        Browser.pointerLock = document['pointerLockElement'] === canvas ||
-                              document['mozPointerLockElement'] === canvas ||
-                              document['webkitPointerLockElement'] === canvas;
+      if (!this.fullScreenHandlersInstalled) {
+        this.fullScreenHandlersInstalled = true;
+        document.addEventListener('fullscreenchange', fullScreenChange, false);
+        document.addEventListener('mozfullscreenchange', fullScreenChange, false);
+        document.addEventListener('webkitfullscreenchange', fullScreenChange, false);
       }
-
-      document.addEventListener('pointerlockchange', pointerLockChange, false);
-      document.addEventListener('mozpointerlockchange', pointerLockChange, false);
-      document.addEventListener('webkitpointerlockchange', pointerLockChange, false);
 
       canvas.requestFullScreen = canvas['requestFullScreen'] ||
                                  canvas['mozRequestFullScreen'] ||
@@ -365,7 +418,32 @@ mergeInto(LibraryManager.library, {
       canvas.width = width;
       canvas.height = height;
       if (!noUpdates) Browser.updateResizeListeners();
+    },
+
+    windowedWidth: 0,
+    windowedHeight: 0,
+    setFullScreenCanvasSize: function() {
+      var canvas = Module['canvas'];
+      this.windowedWidth = canvas.width;
+      this.windowedHeight = canvas.height;
+      canvas.width = screen.width;
+      canvas.height = screen.height;
+      var flags = {{{ makeGetValue('SDL.screen+Runtime.QUANTUM_SIZE*0', '0', 'i32', 0, 1) }}};
+      flags = flags | 0x00800000; // set SDL_FULLSCREEN flag
+      {{{ makeSetValue('SDL.screen+Runtime.QUANTUM_SIZE*0', '0', 'flags', 'i32') }}}
+      Browser.updateResizeListeners();
+    },
+    
+    setWindowedCanvasSize: function() {
+      var canvas = Module['canvas'];
+      canvas.width = this.windowedWidth;
+      canvas.height = this.windowedHeight;
+      var flags = {{{ makeGetValue('SDL.screen+Runtime.QUANTUM_SIZE*0', '0', 'i32', 0, 1) }}};
+      flags = flags & ~0x00800000; // clear SDL_FULLSCREEN flag
+      {{{ makeSetValue('SDL.screen+Runtime.QUANTUM_SIZE*0', '0', 'flags', 'i32') }}}
+      Browser.updateResizeListeners();
     }
+    
   },
 
   emscripten_async_wget: function(url, file, onload, onerror) {
@@ -389,10 +467,10 @@ mergeInto(LibraryManager.library, {
     Browser.asyncLoad(Pointer_stringify(url), function(byteArray) {
       var buffer = _malloc(byteArray.length);
       HEAPU8.set(byteArray, buffer);
-      FUNCTION_TABLE[onload](arg, buffer, byteArray.length);
+      Runtime.dynCall('viii', onload, [arg, buffer, byteArray.length]);
       _free(buffer);
     }, function() {
-      if (onerror) FUNCTION_TABLE[onerror](arg);
+      if (onerror) Runtime.dynCall('vi', onerror, [arg]);
     }, true /* no need for run dependency, this is async but will not do any prepare etc. step */ );
   },
 
@@ -411,21 +489,21 @@ mergeInto(LibraryManager.library, {
     http.onload = function(e) {
       if (http.status == 200) {
         FS.createDataFile( _file.substr(0, index), _file.substr(index + 1), new Uint8Array(http.response), true, true);
-        if (onload) FUNCTION_TABLE[onload](arg, file);
+        if (onload) Runtime.dynCall('vii', onload, [arg, file]);
       } else {
-        if (onerror) FUNCTION_TABLE[onerror](arg, http.status);
+        if (onerror) Runtime.dynCall('vii', onerror, [arg, http.status]);
       }
     };
       
     // ERROR
     http.onerror = function(e) {
-      if (onerror) FUNCTION_TABLE[onerror](arg, http.status);
+      if (onerror) Runtime.dynCall('vii', onerror, [arg, http.status]);
     };
 	
     // PROGRESS
     http.onprogress = function(e) {
       var percentComplete = (e.position / e.totalSize)*100;
-      if (onprogress) FUNCTION_TABLE[onprogress](arg, percentComplete);
+      if (onprogress) Runtime.dynCall('vii', onprogress, [arg, percentComplete]);
     };
 	  
     // Useful because the browser can limit the number of redirection
@@ -558,7 +636,7 @@ mergeInto(LibraryManager.library, {
     Browser.mainLoop.scheduler();
 
     if (simulateInfiniteLoop) {
-      throw 'emscripten_set_main_loop simulating infinite loop by throwing so we get right into the JS event loop';
+      throw 'SimulateInfiniteLoop';
     }
   },
 

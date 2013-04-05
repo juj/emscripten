@@ -381,6 +381,12 @@ var LibraryGLUT = {
     return 1;
   },
 
+  glutDestroyWindow__deps: ['$Browser'],
+  glutDestroyWindow: function(name) {
+    Module.ctx = Browser.destroyContext(Module['canvas'], true, true);
+    return 1;
+  },
+
   glutReshapeWindow__deps: ['$GLUT', 'glutPostRedisplay'],
   glutReshapeWindow: function(width, height) {
     GLUT.cancelFullScreen();
@@ -427,7 +433,7 @@ var LibraryGLUT = {
   glutMainLoop: function() {
     _glutReshapeWindow(Module['canvas'].width, Module['canvas'].height);
     _glutPostRedisplay();
-    throw 'GLUT mainloop called, simulating infinite loop by throwing so we get right into the JS event loop';
+    throw 'SimulateInfiniteLoop';
   },
 
 };

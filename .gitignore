@@ -2,7 +2,6 @@
 *.pyc
 *~
 *.bc
-*.o
 src/relooper*.js
 
 # Ignore generated files 
