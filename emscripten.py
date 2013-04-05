@@ -711,7 +711,7 @@ WARNING: You should normally never use this! Use emcc instead.
     DEBUG_CACHE = get_configuration().DEBUG_CACHE
   else:
     DEBUG = keywords.verbose
-    DEBUG_CACHE = keywords.verbose
+    DEBUG_CACHE = False # keywords.verbose # FIX ME SOME DAY
 
   cache = cache_module.Cache()
   temp_files.run_and_clean(lambda: main(
