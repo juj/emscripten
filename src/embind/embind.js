@@ -739,9 +739,15 @@ var genericPointerToWireType = function(destructors, handle) {
             return 0;
         }
     }
+
     if (!(handle instanceof this.registeredClass.constructor)) {
         throwBindingError('Expected null or instance of ' + this.name + ', got ' + _embind_repr(handle));
     }
+
+    if (!handle.$$.ptr) {
+        throwBindingError('Cannot pass deleted object');
+    }
+
     // TODO: this is not strictly true
     // We could support BY_EMVAL conversions from raw pointers to smart pointers
     // because the smart pointer can hold a reference to the handle
