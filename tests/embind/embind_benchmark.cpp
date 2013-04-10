@@ -7,6 +7,11 @@ int counter = 0;
 extern "C"
 {
 
+int __attribute__((noinline)) get_counter()
+{
+    return counter;
+}
+
 void __attribute__((noinline)) increment_counter()
 {
     ++counter;
@@ -43,6 +48,7 @@ EMSCRIPTEN_BINDINGS(benchmark)
 {
     using namespace emscripten;
     
+    function("get_counter", &get_counter);
     function("increment_counter", &increment_counter);
     function("returns_input", &returns_input);
     function("sum_int", &sum_int);

@@ -367,10 +367,64 @@ function runDestructors(destructors) {
     }
 }
 
+function isPrimitiveSignature(argTypes) {
+    var primitiveTypes = [ 'void', 'char', 'short', 'int', 'long', 'bool', 'float', 'double' ];
+    for(i in argTypes) {
+         Module.print(argTypes[i].name);
+        for(j in argTypes[i]) {
+            Module.print(argTypes[i][j]);
+        }
+        if (primitiveTypes.indexOf(argTypes[i].name) === -1) {
+            Module.print(argTypes[i].name + " is not a primitive type!");
+            return false;
+        }
+    }
+    return true;
+}
+
 function makeInvoker(name, argCount, argTypes, invoker, fn) {
     if (!FUNCTION_TABLE[fn]) {
         throwBindingError('function '+name+' is not defined');
     }
+    // Functions with signature "void function()" do not need an invoker that marshalls between wire types.
+    if (argCount == 1 && argTypes[0].name == "void") {
+        return FUNCTION_TABLE[fn];
+    }
+
+    // Functions with only primitive types in signatures do not need an invoker if we omit type checks (unsafe opts).
+//    if (/* UNSAFE_OPTS_ENABLED && */ isPrimitiveSignature(argTypes)) {
+//        return FUNCTION_TABLE[fn];
+//    }
+
+    if (argCount <= 10) {
+        // needs wire conversions? If so, we must route through C++ invoker function. Otherwise, we can call the target function directly.
+        var nw = true;//!isPrimitiveSignature(argTypes);
+
+        var dtors = nw ? "destructors" : "null";
+        var invokerFnBody = 
+            "return function "+makeLegalFunctionName(name)+"() { " +
+                (nw?"var destructors = [];":"");
+
+        var argsList = "";
+        for(i = 0; i < argCount-1; ++i) {
+            invokerFnBody += "var arg"+i+" = argType"+i+".toWireType("+dtors+", arguments["+i+"]);";
+            argsList += (i!=0||nw?",":"") + "arg"+i;
+        }
+
+        invokerFnBody += 
+                "var rv = " + (nw?"invoker(fn"+argsList+");":"fn("+argsList+");") +
+                (nw?"runDestructors(destructors);":"") +
+                "return retType.fromWireType(rv);" +
+            "}";
+
+        if (!nw) {
+            fn = FUNCTION_TABLE[fn];
+        }
+
+        return new Function("invoker", "fn", "runDestructors", "retType", "argType0", "argType1", "argType2", "argType3", "argType4", "argType5", "argType6", "argType7", "argType8", invokerFnBody)
+                            (invoker, fn, runDestructors, argTypes[0], argTypes[1], argTypes[2], argTypes[3], argTypes[4], argTypes[5], argTypes[6], argTypes[7], argTypes[8], argTypes[9]);
+    }
+
     return createNamedFunction(makeLegalFunctionName(name), function() {
         if (arguments.length !== argCount - 1) {
             throwBindingError('function ' + name + ' called with ' + arguments.length + ' arguments, expected ' + (argCount - 1));

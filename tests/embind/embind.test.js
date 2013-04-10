@@ -58,6 +58,7 @@ module({
     BaseFixture.extend("access to base class members", function() {
         test("method name in derived class silently overrides inherited name", function() {
             var derived = new cm.Derived();
+            Module.print("derived name: " + derived.getClassName());
             assert.equal("Derived", derived.getClassName());
             derived.delete();
         });
