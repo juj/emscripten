@@ -268,6 +268,7 @@ function __embind_register_bool(rawType, name, trueValue, falseValue) {
         toWireType: function(destructors, o) {
             return o ? trueValue : falseValue;
         },
+        destructorFunction: null, // This type does not need a destructor
     });
 }
 
@@ -296,6 +297,7 @@ function __embind_register_integer(primitiveType, name, minRange, maxRange) {
             }
             return value | 0;
         },
+        destructorFunction: null, // This type does not need a destructor
     });
 }
 
@@ -314,6 +316,7 @@ function __embind_register_float(rawType, name) {
             }
             return value;
         },
+        destructorFunction: null, // This type does not need a destructor
     });
 }
 
@@ -338,9 +341,12 @@ function __embind_register_cstring(rawType, name) {
             for (var i = 0; i < length; ++i) {
                 HEAPU8[ptr + 4 + i] = value.charCodeAt(i);
             }
-            destructors.push(_free, ptr);
+            if (destructors !== null) {
+                destructors.push(_free, ptr);
+            }
             return ptr;
         },
+        destructorFunction: _free,
     });
 }
 
@@ -356,6 +362,7 @@ function __embind_register_emval(rawType, name) {
         toWireType: function(destructors, value) {
             return __emval_register(value);
         },
+        destructorFunction: null, // This type does not need a destructor
     });
 }
 
@@ -526,9 +533,12 @@ function __embind_finalize_tuple(rawTupleType) {
                 for (var i = 0; i < elementsLength; ++i) {
                     elements[i].write(ptr, o[i]);
                 }
-                destructors.push(rawDestructor, ptr);
+                if (destructors !== null) {
+                    destructors.push(rawDestructor, ptr);
+                 }
                 return ptr;
             },
+            destructorFunction: rawDestructor,
         }];
     });
 }
@@ -624,9 +634,12 @@ function __embind_finalize_struct(structType) {
                 for (fieldName in fields) {
                     fields[fieldName].write(ptr, o[fieldName]);
                 }
-                destructors.push(rawDestructor, ptr);
+                if (destructors !== null) {
+                    destructors.push(rawDestructor, ptr);
+                }
                 return ptr;
             },
+            destructorFunction: rawDestructor,
         }];
     });
 }
@@ -715,9 +728,9 @@ nonConstNoSmartPtrRawPointerToWireType = function(destructors, handle) {
         }
         return 0;
     }
-//    if (!(handle instanceof this.registeredClass.constructor)) {
-//        throwBindingError('Expected null or instance of ' + this.name + ', got ' + _embind_repr(handle));
-//    }
+    if (!(handle instanceof this.registeredClass.constructor)) {
+        throwBindingError('Expected null or instance of ' + this.name + ', got ' + _embind_repr(handle));
+    }
     if (handle.$$.ptrType.isConst) {
         throwBindingError('Cannot convert argument of type ' + handle.$$.ptrType.name + ' to parameter type ' + this.name);
     }
@@ -733,9 +746,9 @@ constNoSmartPtrRawPointerToWireType = function(destructors, handle) {
         }
         return 0;
     }
-//    if (!(handle instanceof this.registeredClass.constructor)) {
-//        throwBindingError('Expected null or instance of ' + this.name + ', got ' + _embind_repr(handle));
-//    }
+    if (!(handle instanceof this.registeredClass.constructor)) {
+        throwBindingError('Expected null or instance of ' + this.name + ', got ' + _embind_repr(handle));
+    }
     var handleClass = handle.$$.ptrType.registeredClass;
     var ptr = upcastPointer(handle.$$.ptr, handleClass, this.registeredClass);
     return ptr;
@@ -772,9 +785,11 @@ function RegisteredPointer(
 
     if (!isSmartPointer && registeredClass.baseClass === undefined) {
         if (isConst) {
-            this.toWireType = constNoInheritanceNoSmartPtrRawPointerToWireType;
+            this.toWireType = constNoSmartPtrRawPointerToWireType;
+            this.destructorFunction = null;
         } else {
-            this.toWireType = nonConstNoInheritanceNoSmartPtrRawPointerToWireType;
+            this.toWireType = nonConstNoSmartPtrRawPointerToWireType;
+            this.destructorFunction = null;
         }
     } else {
         this.toWireType = genericPointerToWireType;
@@ -1164,44 +1179,76 @@ function __embind_register_class_function(
         }
 
         whenDependentTypesAreResolved([], rawArgTypes, function(argTypes) {
+        
+            var argsList = "";
+            for(i = 0; i < argCount-2; ++i) {
+                argsList += (i!=0?", ":"")+"arg"+i;
+            }
+
             var invokerFnBody =
-                "return function "+makeLegalFunctionName(humanName)+"() {\n" +
+                "return function "+makeLegalFunctionName(humanName)+"("+argsList+") {\n" +
                 "if (arguments.length !== "+(argCount - 2)+") {\n" +
                     "throwBindingError('function "+humanName+" called with ' + arguments.length + ' arguments, expected "+(argCount - 2)+" args!');\n" +
                 "}\n" +
-                "validateThis(this, classType, '"+humanName+"');\n" +
-                "var destructors = [];\n";
+                "validateThis(this, classType, '"+humanName+"');\n";
 
-            var argsList = "";
+            // Determine if we need to use a dynamic stack to store the destructors for the function parameters.
+            // TODO: Remove this completely once all function invokers are being dynamically generated.
+            var needsDestructorStack = false;
+            
+            for(i = 1; i < argTypes.length; ++i) { // Skip return value at index 0 - it's not deleted here.
+                if (argTypes[i].destructorFunction === undefined) { // The type does not define a destructor function - must use dynamic stack
+                    needsDestructorStack = true;
+                    break;
+                }
+            }
+
+            if (needsDestructorStack) {
+                invokerFnBody +=
+                    "var destructors = [];\n";
+            }
+
+            var dtorStack = needsDestructorStack ? "destructors" : "null";
             var args1 = ["throwBindingError", "validateThis", "classType", "invoker", "fn", "runDestructors", "retType", "classParam"];
             var args2 = [throwBindingError, validateThis, classType, rawInvoker, context, runDestructors, argTypes[0], argTypes[1]];
 
             for(i = 0; i < argCount-2; ++i) {
-                invokerFnBody += "var arg"+i+" = argType"+i+".toWireType(destructors, arguments["+i+"]);\n";
+                invokerFnBody += "var arg"+i+" = argType"+i+".toWireType("+dtorStack+", arg"+i+"); // "+argTypes[i+2].name+"\n";
                 argsList += ", arg"+i;
                 args1.push("argType"+i);
                 args2.push(argTypes[i+2]);
             }
 
             invokerFnBody +=
-                    "var thisWired = classParam.toWireType(destructors, this);\n"
+                    "var thisWired = classParam.toWireType("+dtorStack+", this);\n"
 
-            if (argTypes[0].name !== "void") {
-                invokerFnBody +=
-                    "var rv = invoker(fn, thisWired"+argsList+");\n" +
-                    "runDestructors(destructors);\n" +
-                    "return retType.fromWireType(rv);\n" +
-                "}\n";
+            var returns = (argTypes[0].name !== "void");
+
+            invokerFnBody +=
+                (returns?"var rv = ":"") + "invoker(fn, thisWired"+(argCount-2>0?", ":"")+argsList+");\n";
+            
+            if (needsDestructorStack) {
+                invokerFnBody += "runDestructors(destructors);\n";
             } else {
-                invokerFnBody +=
-                    "invoker(fn, thisWired"+argsList+");\n" +
-                    "runDestructors(destructors);\n" +
-                "}\n";
+                for(i = 1; i < argTypes.length; ++i) { // Skip return value at index 0 - it's not deleted here.
+                    var paramName = (i == 1 ? "thisWired" : ("argType"+(i-2)));
+                    if (argTypes[i].destructorFunction !== null) {
+                        invokerFnBody += paramName+"_dtor("+paramName+"); // "+argTypes[i].name+"\n";
+                        args1.push(paramName+"_dtor");
+                        args2.push(argTypes[i].destructorFunction);
+                    }
+                }
             }
+            
+            if (returns) {
+                invokerFnBody += "return retType.fromWireType(rv);\n";
+            }
+            invokerFnBody += "}\n";
 
             args1.push(invokerFnBody);
 
             var memberFunction = new_(Function, args1).apply(null, args2);
+            //Module.print(memberFunction);
 
             // Replace the initial unbound-handler-stub function with the appropriate member function, now that all types
             // are resolved. If multiple overloads are registered for this function, the function goes into an overload table.
@@ -1377,6 +1424,7 @@ function __embind_register_enum(
         toWireType: function(destructors, c) {
             return c.value;
         },
+        destructorFunction: null,
     });
     exposePublicSymbol(name, constructor);
 }
@@ -1416,9 +1464,12 @@ function __embind_register_interface(
         toWireType: function(destructors, o) {
             var handle = __emval_register(o);
             var ptr = this.rawConstructor(handle);
-            destructors.push(this.rawDestructor, ptr);
+            if (destructors !== null) {
+                destructors.push(this.rawDestructor, ptr);
+            }
             return ptr;
         },
+        destructorFunction: rawDestructor,
     });
 }
 
