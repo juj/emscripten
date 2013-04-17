@@ -737,8 +737,11 @@ var genericPointerToWireType = function(destructors, handle) {
         }
     }
 
-    if (!handle.$$ || !handle.$$.ptr) {
-        throwBindingError('Cannot pass deleted or null object');
+    if (!handle.$$) {
+        throwBindingError('Cannot pass "' + _embind_repr(handle) + '" as a ' + this.name);
+    }
+    if (!handle.$$.ptr) {
+        throwBindingError('Cannot pass deleted object as a pointer of type ' + this.name);
     }
 
     // TODO: this is not strictly true
@@ -798,8 +801,11 @@ var nonConstNoSmartPtrRawPointerToWireType = function(destructors, handle) {
         return 0;
     }
 
-    if (!handle.$$ || !handle.$$.ptr) {
-        throwBindingError('Cannot pass deleted or null object');
+    if (!handle.$$) {
+        throwBindingError('Cannot pass "' + _embind_repr(handle) + '" as a ' + this.name);
+    }
+    if (!handle.$$.ptr) {
+        throwBindingError('Cannot pass deleted object as a pointer of type ' + this.name);
     }
     if (handle.$$.ptrType.isConst) {
         throwBindingError('Cannot convert argument of type ' + handle.$$.ptrType.name + ' to parameter type ' + this.name);
@@ -817,8 +823,11 @@ var constNoSmartPtrRawPointerToWireType = function(destructors, handle) {
         return 0;
     }
 
-   if (!handle.$$ || !handle.$$.ptr) {
-        throwBindingError('Cannot pass deleted or null object');
+    if (!handle.$$) {
+        throwBindingError('Cannot pass "' + _embind_repr(handle) + '" as a ' + this.name);
+    }
+    if (!handle.$$.ptr) {
+        throwBindingError('Cannot pass deleted object as a pointer of type ' + this.name);
     }
     var handleClass = handle.$$.ptrType.registeredClass;
     var ptr = upcastPointer(handle.$$.ptr, handleClass, this.registeredClass);
