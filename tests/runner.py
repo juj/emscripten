@@ -3554,6 +3554,22 @@ def process(filename):
 
         self.do_run(src, 'Inline JS is very cool\n3.64')
 
+    def test_malloc_free(self):
+        src = r'''
+          #include <stdio.h>
+          #include <stdlib.h>
+          
+          int main()
+          {
+            void *ptr = malloc(0); // Allocating 0 bytes is valid and shouldn't crash.
+            free(ptr); // Freeing that allocation is ok as well.
+            
+            free(0); // Freeing 0 is always ok and shouldn't crash either.
+            printf("Success!\n");
+          }
+        '''
+        self.do_run(src, 'Success!\n')
+
     def test_memorygrowth(self):
       if Settings.USE_TYPED_ARRAYS == 0: return self.skip('memory growth is only supported with typed arrays')
       if Settings.ASM_JS: return self.skip('asm does not support memory growth yet')
