@@ -19,7 +19,7 @@ def path_from_root(*pathelems):
   """Returns the absolute path for which the given path elements are
   relative to the emscripten root.
   """
-  return os.path.relpath(os.path.join(__rootpath__, *pathelems), os.getcwd())
+  return os.path.join(__rootpath__, *pathelems)
 
 def get_configuration():
   if hasattr(get_configuration, 'configuration'):
@@ -44,7 +44,7 @@ MIN_CHUNK_SIZE = 1024*1024
 MAX_CHUNK_SIZE = float(os.environ.get('EMSCRIPT_MAX_CHUNK_SIZE') or 'inf') # configuring this is just for debugging purposes
 
 def process_funcs((i, funcs, meta, settings_file, compiler, forwarded_file, libraries, compiler_engine, temp_files, DEBUG)):
-  funcs_file = os.path.relpath(temp_files.get('.func_%d.ll' % i).name, os.getcwd())
+  funcs_file = temp_files.get('.func_%d.ll' % i).name
   f = open(funcs_file, 'w')
   f.write(funcs)
   funcs = None
@@ -55,7 +55,8 @@ def process_funcs((i, funcs, meta, settings_file, compiler, forwarded_file, libr
     compiler,
     engine=compiler_engine,
     args=[settings_file, funcs_file, 'funcs', forwarded_file] + libraries,
-    stdout=subprocess.PIPE)
+    stdout=subprocess.PIPE,
+    cwd=path_from_root('src'))
   tempfiles.try_delete(funcs_file)
   if DEBUG: print >> sys.stderr, '.'
   return out
@@ -135,7 +136,7 @@ def emscript(infile, settings, outfile, libraries=[], compiler_engine=None,
   #  print >> sys.stderr, '=========================\n'
 
   # Save settings to a file to work around v8 issue 1579
-  settings_file = os.path.relpath(temp_files.get('.txt').name, os.getcwd())
+  settings_file = temp_files.get('.txt').name
   def save_settings():
     global settings_text
     settings_text = json.dumps(settings, sort_keys=True)
@@ -146,7 +147,7 @@ def emscript(infile, settings, outfile, libraries=[], compiler_engine=None,
 
   # Phase 1 - pre
   if DEBUG: t = time.time()
-  pre_file = os.path.relpath(temp_files.get('.pre.ll').name, os.getcwd())
+  pre_file = temp_files.get('.pre.ll').name
   pre_input = ''.join(pre) + '\n' + meta
   out = None
   if jcache:
@@ -170,13 +171,14 @@ def emscript(infile, settings, outfile, libraries=[], compiler_engine=None,
     if out and DEBUG: print >> sys.stderr, '  loading pre from jcache'
   if not out:
     open(pre_file, 'w').write(pre_input)
-    out = jsrun.run_js(compiler, compiler_engine, [settings_file, pre_file, 'pre'] + libraries, stdout=subprocess.PIPE)
+    out = jsrun.run_js(compiler, compiler_engine, [settings_file, pre_file, 'pre'] + libraries, stdout=subprocess.PIPE,
+                       cwd=path_from_root('src'))
     assert '//FORWARDED_DATA:' in out, 'Did not receive forwarded data in pre output - process failed?'
     if jcache:
       if DEBUG: print >> sys.stderr, '  saving pre to jcache'
       jcache.set(shortkey, keys, out)
   pre, forwarded_data = out.split('//FORWARDED_DATA:')
-  forwarded_file = os.path.relpath(temp_files.get('.json').name, os.getcwd())
+  forwarded_file = temp_files.get('.json').name
   open(forwarded_file, 'w').write(forwarded_data)
   if DEBUG: print >> sys.stderr, '  emscript: phase 1 took %s seconds' % (time.time() - t)
 
@@ -331,15 +333,16 @@ def emscript(infile, settings, outfile, libraries=[], compiler_engine=None,
 
   # forward
   forwarded_data = json.dumps(forwarded_json)
-  forwarded_file = os.path.relpath(temp_files.get('.2.json').name, os.getcwd())
+  forwarded_file = temp_files.get('.2.json').name
   open(forwarded_file, 'w').write(indexize(forwarded_data))
   if DEBUG: print >> sys.stderr, '  emscript: phase 2c took %s seconds' % (time.time() - t)
 
   # Phase 3 - post
   if DEBUG: t = time.time()
-  post_file = os.path.relpath(temp_files.get('.post.ll').name, os.getcwd())
+  post_file = temp_files.get('.post.ll').name
   open(post_file, 'w').write('\n') # no input, just processing of forwarded data
-  out = jsrun.run_js(compiler, compiler_engine, [settings_file, post_file, 'post', forwarded_file] + libraries, stdout=subprocess.PIPE)
+  out = jsrun.run_js(compiler, compiler_engine, [settings_file, post_file, 'post', forwarded_file] + libraries, stdout=subprocess.PIPE,
+                     cwd=path_from_root('src'))
   post, last_forwarded_data = out.split('//FORWARDED_DATA:') # if this fails, perhaps the process failed prior to printing forwarded data?
   last_forwarded_json = json.loads(last_forwarded_data)
 
@@ -753,25 +756,22 @@ WARNING: You should normally never use this! Use emcc instead.
 
   if len(positional) != 1:
     raise RuntimeError('Must provide exactly one positional argument.')
-  keywords.infile = positional[0]
+  keywords.infile = os.path.abspath(positional[0])
   if isinstance(keywords.outfile, basestring):
     keywords.outfile = open(keywords.outfile, 'w')
 
   if keywords.relooper:
-    relooper = keywords.relooper
+    relooper = os.path.abspath(keywords.relooper)
   else:
     relooper = None # use the cache
 
   if keywords.temp_dir is None:
     temp_files = get_configuration().get_temp_files()
-    cache = cache_module.Cache()
-    temp_dir = get_configuration().TEMP_DIR
   else:
-    temp_dir = keywords.temp_dir
+    temp_dir = os.path.abspath(keywords.temp_dir)
     if not os.path.exists(temp_dir):
       os.makedirs(temp_dir)
     temp_files = tempfiles.TempFiles(temp_dir)
-    cache = cache_module.Cache(os.path.join(temp_dir, 'cache'))
 
   if keywords.compiler is None:
     from tools import shared
@@ -782,9 +782,9 @@ WARNING: You should normally never use this! Use emcc instead.
     DEBUG_CACHE = get_configuration().DEBUG_CACHE
   else:
     DEBUG = keywords.verbose
-    DEBUG_CACHE = False # keywords.verbose # FIX ME SOME DAY
+    DEBUG_CACHE = keywords.verbose
 
-  cache = cache_module.Cache(dirname=os.path.join(temp_dir, 'cache'))
+  cache = cache_module.Cache()
   temp_files.run_and_clean(lambda: main(
     keywords,
     compiler_engine=keywords.compiler,

@@ -83,8 +83,8 @@ class WindowsPopen:
       pass # Mute all exceptions in dtor, particularly if we didn't use a response file, self.response_filename doesn't exist.
 
 # Install our replacement Popen handler if we are running on Windows to avoid python spawn process function.
-if os.name == 'nt':
-  Popen = WindowsPopen
+#if os.name == 'nt':
+#  Popen = WindowsPopen
 
 __rootpath__ = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 def path_from_root(*pathelems):

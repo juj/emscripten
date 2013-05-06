@@ -253,22 +253,24 @@ function _call_through_interface2() {
     var N = 1000000;
     var total = 0;
     var obj = Module['Interface'].implement({
+//        increment: 2,
         call_with_typed_array: function(ta) {
-            total += ta.length;
+            total += ta.length;// + this.increment;
         },
         call_with_memory_view: function(ta) {
-            total += ta.length;
+            total += ta.length;// + this.increment;
         },
     });
+//    obj.increment = 2;
 
     var start = _emscripten_get_now();
     Module['callInterface2'](N, obj);
     var elapsed = _emscripten_get_now() - start;
-    Module.print("C++ -> JS typed array instantiation " + N + " iters: " + elapsed + " msecs.");
+    Module.print("C++ -> JS typed array instantiation " + N + " iters: " + elapsed + " msecs. total: " + total);
 
     var start = _emscripten_get_now();
     Module['callInterface3'](N, obj);
     var elapsed = _emscripten_get_now() - start;
-    Module.print("C++ -> JS memory_view instantiation" + N + " iters: " + elapsed + " msecs.");
+    Module.print("C++ -> JS memory_view instantiation " + N + " iters: " + elapsed + " msecs. total: " + total);
     obj.delete();
 }
