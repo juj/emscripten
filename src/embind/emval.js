@@ -175,9 +175,8 @@ function __emval_set_property(handle, key, value) {
 function __emval_as(handle, returnType) {
     requireHandle(handle);
     returnType = requireRegisteredType(returnType, 'emval::as');
-    var destructors = [];
     // caller owns destructing
-    return returnType.toWireType(destructors, _emval_handle_array[handle].value);
+    return returnType.toWireType(null, _emval_handle_array[handle].value);
 }
 
 function parseParameters(argCount, argTypes, argWireTypes) {
