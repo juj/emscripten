@@ -437,6 +437,9 @@ void emscripten_jcache_printf_(...); /* internal use */
 /* If specified, the pathnames of the file information in the call 
  * stack will be omitted. */
 #define EM_LOG_NO_PATHS 64
+/* If specified, prints out the actual values of the parameters the 
+ * functions were invoked with. */
+#define EM_LOG_FUNC_PARAMS 128
 
 /*
  * Prints out a message to the console, optionally with the 
