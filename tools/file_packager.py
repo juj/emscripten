@@ -357,7 +357,7 @@ if has_preloaded:
           } else {
             Module.printErr('Preloading file ' + that.name + ' failed');
           }
-        }, false, true); // canOwn this data in the filesystem, it is a slide into the heap that will never change
+        }, false, /*canOwn=*/false); // canOwn this data in the filesystem, it is a slide into the heap that will never change
         this.requests[this.name] = null;
       },
     };
@@ -416,9 +416,9 @@ if has_preloaded:
   # Get the big archive and split it up
   use_data = '''
       // copy the entire loaded file into a spot in the heap. Files will refer to slices in that. They cannot be freed though.
-      var ptr = Module['_malloc'](byteArray.length);
-      Module['HEAPU8'].set(byteArray, ptr);
-      DataRequest.prototype.byteArray = Module['HEAPU8'].subarray(ptr, ptr+byteArray.length);
+      //var ptr = Module['_malloc'](byteArray.length);
+      //Module['HEAPU8'].set(byteArray, ptr);
+      DataRequest.prototype.byteArray = byteArray;//Module['HEAPU8'].subarray(ptr, ptr+byteArray.length);
 '''
   for file_ in data_files:
     if file_['mode'] == 'preload':
