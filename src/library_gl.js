@@ -1983,7 +1983,10 @@ var LibraryGL = {
           }
         }
 #endif
-        GL.currProgram = program;
+        if (GL.currProgram != program) {
+          GL.currentRenderer = null; // This changes the FFP emulation shader program, need to recompute that.
+          GL.currProgram = program;
+        }
         glUseProgram(program);
       }
 
@@ -2590,7 +2593,10 @@ var LibraryGL = {
           this.key1 = this.computeKey1();
           this.key2 = this.computeKey2();
         }
-
+        this.invalidateKey = function() {
+          this.key0 = -1; // The key of this texture unit must be recomputed when rendering the next time.
+          GL.immediate.currentRenderer = null; // The currently used renderer must be re-evaluated at next render.
+        }
         this.traverseState = function(keyView) {
           if (this.key0 == -1) {
             this.recomputeKey();
@@ -2958,16 +2964,28 @@ var LibraryGL = {
           var cur = getCurTexUnit();
           switch (cap) {
             case GL_TEXTURE_1D:
-              cur.enabled_tex1D = true;
+              if (!cur.enabled_tex1D) {
+                GL.immediate.currentRenderer = null; // Renderer state changed, and must be recreated or looked up again.
+                cur.enabled_tex1D = true;
+              }
               break;
             case GL_TEXTURE_2D:
-              cur.enabled_tex2D = true;
+              if (!cur.enabled_tex2D) {
+                GL.immediate.currentRenderer = null;
+                cur.enabled_tex2D = true;
+              }
               break;
             case GL_TEXTURE_3D:
-              cur.enabled_tex3D = true;
+              if (!cur.enabled_tex3D) {
+                GL.immediate.currentRenderer = null;
+                cur.enabled_tex3D = true;
+              }
               break;
             case GL_TEXTURE_CUBE_MAP:
-              cur.enabled_texCube = true;
+              if (!cur.enabled_texCube) {
+                GL.immediate.currentRenderer = null;
+                cur.enabled_texCube = true;
+              }
               break;
           }
         },
@@ -2976,16 +2994,28 @@ var LibraryGL = {
           var cur = getCurTexUnit();
           switch (cap) {
             case GL_TEXTURE_1D:
-              cur.enabled_tex1D = false;
+              if (cur.enabled_tex1D) {
+                GL.immediate.currentRenderer = null; // Renderer state changed, and must be recreated or looked up again.
+                cur.enabled_tex1D = false;
+              }
               break;
             case GL_TEXTURE_2D:
-              cur.enabled_tex2D = false;
+              if (cur.enabled_tex2D) {
+                GL.immediate.currentRenderer = null;
+                cur.enabled_tex2D = false;
+              }
               break;
             case GL_TEXTURE_3D:
-              cur.enabled_tex3D = false;
+              if (cur.enabled_tex3D) {
+                GL.immediate.currentRenderer = null;
+                cur.enabled_tex3D = false;
+              }
               break;
             case GL_TEXTURE_CUBE_MAP:
-              cur.enabled_texCube = false;
+              if (cur.enabled_texCube) {
+                GL.immediate.currentRenderer = null;
+                cur.enabled_texCube = false;
+              }
               break;
           }
         },
@@ -2998,13 +3028,13 @@ var LibraryGL = {
           switch (pname) {
             case GL_RGB_SCALE:
               if (env.colorScale != param) {
-                env.key0 = -1; // Invalidate the cached key for this texture unit.
+                env.invalidateKey(); // We changed FFP emulation renderer state.
                 env.colorScale = param;
               }
               break;
             case GL_ALPHA_SCALE:
               if (env.alphaScale != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.alphaScale = param;
               }
               break;
@@ -3022,109 +3052,109 @@ var LibraryGL = {
           switch (pname) {
             case GL_TEXTURE_ENV_MODE:
               if (env.mode != param) {
-                env.key0 = -1; // Invalidate the cached key for this texture unit.
+                env.invalidateKey(); // We changed FFP emulation renderer state.
                 env.mode = param;
               }
               break;
 
             case GL_COMBINE_RGB:
               if (env.colorCombiner != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.colorCombiner = param;
               }
               break;
             case GL_COMBINE_ALPHA:
               if (env.alphaCombiner != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.alphaCombiner = param;
               }
               break;
 
             case GL_SRC0_RGB:
               if (env.colorSrc[0] != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.colorSrc[0] = param;
               }
               break;
             case GL_SRC1_RGB:
               if (env.colorSrc[1] != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.colorSrc[1] = param;
               }
               break;
             case GL_SRC2_RGB:
               if (env.colorSrc[2] != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.colorSrc[2] = param;
               }
               break;
 
             case GL_SRC0_ALPHA:
               if (env.alphaSrc[0] != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.alphaSrc[0] = param;
               }
               break;
             case GL_SRC1_ALPHA:
               if (env.alphaSrc[1] != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.alphaSrc[1] = param;
               }
               break;
             case GL_SRC2_ALPHA:
               if (env.alphaSrc[2] != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.alphaSrc[2] = param;
               }
               break;
 
             case GL_OPERAND0_RGB:
               if (env.colorOp[0] != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.colorOp[0] = param;
               }
               break;
             case GL_OPERAND1_RGB:
               if (env.colorOp[1] != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.colorOp[1] = param;
               }
               break;
             case GL_OPERAND2_RGB:
               if (env.colorOp[2] != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.colorOp[2] = param;
               }
               break;
 
             case GL_OPERAND0_ALPHA:
               if (env.alphaOp[0] != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.alphaOp[0] = param;
               }
               break;
             case GL_OPERAND1_ALPHA:
               if (env.alphaOp[1] != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.alphaOp[1] = param;
               }
               break;
             case GL_OPERAND2_ALPHA:
               if (env.alphaOp[2] != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.alphaOp[2] = param;
               }
               break;
 
             case GL_RGB_SCALE:
               if (env.colorScale != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.colorScale = param;
               }
               break;
             case GL_ALPHA_SCALE:
               if (env.alphaScale != param) {
-                env.key0 = -1;
+                env.invalidateKey();
                 env.alphaScale = param;
               }
               break;
@@ -3143,7 +3173,7 @@ var LibraryGL = {
               for (var i = 0; i < 4; i++) {
                 var param = {{{ makeGetValue('params', 'i*4', 'float') }}};
                 if (env.envColor[i] != param) {
-                  env.key0 = -1; // Invalidate the cached key for this texture unit.
+                  env.invalidateKey(); // We changed FFP emulation renderer state.
                   env.envColor[i] = param;
                 }
               }
@@ -3192,6 +3222,7 @@ var LibraryGL = {
     enabledClientAttributes: [0, 0],
     clientAttributes: [], // raw data, including possible unneeded ones
     liveClientAttributes: [], // the ones actually alive in the current computation, sorted
+    currentRenderer: null, // Caches the currently active FFP emulation renderer, so that it does not have to be re-looked up unless relevant state changes.
     modifiedClientAttributes: false,
     clientActiveTexture: 0,
     clientColor: null,
@@ -3248,6 +3279,11 @@ var LibraryGL = {
     },
 
     getRenderer: function() {
+      // If no FFP state has changed that would have forced to re-evaluate which FFP emulation shader to use,
+      // we have the currently used renderer in cache, and can immediately return that.
+      if (this.currentRenderer) {
+        return this.currentRenderer;
+      }
       // return a renderer object given the liveClientAttributes
       // we maintain a cache of renderers, optimized to not generate garbage
       var attributes = GL.immediate.liveClientAttributes;
@@ -3286,13 +3322,18 @@ var LibraryGL = {
       }
 
       // If we don't already have it, create it.
-      if (!keyView.get()) {
+      var renderer = keyView.get();
+      if (!renderer) {
 #if GL_DEBUG
         Module.printErr('generating renderer for ' + JSON.stringify(attributes));
 #endif
-        keyView.set(this.createRenderer());
+        renderer = this.createRenderer();
+        this.currentRenderer = renderer;
+        keyView.set(renderer);
+        return renderer;
       }
-      return keyView.get();
+      this.currentRenderer = renderer; // Cache the currently used renderer, so later lookups without state changes can get this fast.
+      return renderer;
     },
 
     createRenderer: function(renderer) {
@@ -4225,10 +4266,12 @@ var LibraryGL = {
     if (disable && GL.immediate.enabledClientAttributes[attrib]) {
       GL.immediate.enabledClientAttributes[attrib] = false;
       GL.immediate.totalEnabledClientAttributes--;
+      this.currentRenderer = null; // Will need to change current renderer, since the set of active vertex pointers changed.
       if (GLEmulation.currentVao) delete GLEmulation.currentVao.enabledClientStates[cap];
     } else if (!disable && !GL.immediate.enabledClientAttributes[attrib]) {
       GL.immediate.enabledClientAttributes[attrib] = true;
       GL.immediate.totalEnabledClientAttributes++;
+      this.currentRenderer = null; // Will need to change current renderer, since the set of active vertex pointers changed.
       if (GLEmulation.currentVao) GLEmulation.currentVao.enabledClientStates[cap] = 1;
     }
     GL.immediate.modifiedClientAttributes = true;
