@@ -1249,20 +1249,28 @@ function JSify(data, functionsOnly, givenFunctions) {
         ret = '(__THREW__ = 0,' +  call_ + ');';
       }
     } else {
-      ret = '(function() { try { __THREW__ = 0; return '
+      ret = (item.assignTo ? '%DECLARE% ' : '') // %DECLARE% is a statement of form 'var $5;'
+          + 'try { __THREW__ = 0; '
+          + (item.assignTo ? '%ASSIGN% ' : '') // %ASSIGN% is an expression of form '$5 = '
           + call_ + ' '
           + '} catch(e) { '
-          + 'if (typeof e != "number") throw e; '
-          + 'if (ABORT) throw e; __THREW__ = 1; '
+          + 'if (typeof e != "number" || ABORT) throw e; '
+          + '__THREW__ = 1; '
           + (EXCEPTION_DEBUG ? 'Module.print("Exception: " + e + ", currently at: " + (new Error().stack)); ' : '')
-          + 'return null } })();';
+          + '};';
     }
     ret = makeVarArgsCleanup(ret);
 
     if (item.assignTo) {
       var illegal = USE_TYPED_ARRAYS == 2 && isIllegalType(item.type);
       var assignTo = illegal ? item.assignTo + '$r' : item.assignTo;
-      ret = makeVarDef(assignTo) + '=' + ret;
+      var varDef = makeVarDef(assignTo);
+      if (ret.indexOf('%DECLARE%') != -1) {
+        ret = ret.replace('%DECLARE%', varDef + ';');
+        ret = ret.replace('%ASSIGN%', varDef.replace('var ', '') + ' =');
+      }
+      else
+        ret = varDef + '=' + ret;
       if (ASM_JS) addVariable(assignTo, item.type);
       if (illegal) {
         var bits = getBits(item.type);
