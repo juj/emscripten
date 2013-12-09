@@ -2525,7 +2525,7 @@ var LibraryGL = {
             return "float";
         }
 
-        return Abort_NoSupport("Unsupported combiner op: 0x" + op.toString(16));
+        return Abort_noSupport("Unsupported combiner op: 0x" + op.toString(16));
       }
 
       function getCurTexUnit() {
@@ -2852,7 +2852,7 @@ var LibraryGL = {
           }
         }
 
-        return Abort_NoSupport("Unsupported TexEnv mode: 0x" + this.mode.toString(16));
+        return Abort_noSupport("Unsupported TexEnv mode: 0x" + this.mode.toString(16));
       }
 
       CTexEnv.prototype.genCombinerLines = function CTexEnv_getCombinerLines(isColor, outputVar,
