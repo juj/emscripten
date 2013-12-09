@@ -3583,7 +3583,8 @@ var LibraryGL = {
             Module.ctx.bindAttribLocation(this.program, GL.immediate.VERTEX, 'a_position');
             Module.ctx.bindAttribLocation(this.program, GL.immediate.COLOR, 'a_color');
             Module.ctx.bindAttribLocation(this.program, GL.immediate.NORMAL, 'a_normal');
-            for (var i = 0; i < GL.immediate.MAX_TEXTURES; i++) {
+            var maxVertexAttribs = Module.ctx.getParameter(Module.ctx.MAX_VERTEX_ATTRIBS);
+            for (var i = 0; i < GL.immediate.MAX_TEXTURES && GL.immediate.TEXTURE0 + i < maxVertexAttribs; i++) {
               Module.ctx.bindAttribLocation(this.program, GL.immediate.TEXTURE0 + i, 'a_texCoord'+i);
               Module.ctx.bindAttribLocation(this.program, GL.immediate.TEXTURE0 + i, aTexCoordPrefix+i);
             }
