@@ -1715,6 +1715,7 @@ var LibraryGL = {
       {{{ makeSetValue('arrays', 'i*4', 'id', 'i32') }}};
     }
   },
+  glGenVertexArraysOES: 'glGenVertexArrays',
   
   glDeleteVertexArrays__sig: 'vii',
   glDeleteVertexArrays: function(n, vaos) {
@@ -1727,6 +1728,7 @@ var LibraryGL = {
       GL.vaos[id] = null;
     }
   },
+  glDeleteVertexArraysOES: 'glDeleteVertexArrays',
   
   glBindVertexArray__sig: 'vi',
   glBindVertexArray: function(vao) {
@@ -1735,6 +1737,7 @@ var LibraryGL = {
 #endif
     GL.vaoExt.bindVertexArrayOES(GL.vaos[vao]);
   },
+  glBindVertexArrayOES: 'glBindVertexArray',
 
   glIsVertexArray__sig: 'ii',
   glIsVertexArray: function(array) {
@@ -1745,6 +1748,7 @@ var LibraryGL = {
     if (!vao) return 0;
     return GL.vaoExt.isVertexArrayOES(vao);
   },
+  glIsVertexArrayOES: 'glIsVertexArray',
 
 #if LEGACY_GL_EMULATION
 
