@@ -4216,7 +4216,7 @@ var LibraryGL = {
       var minStride = 0x7FFFFFFF;
       var maxStride = 0;
       var attributes = GLImmediate.liveClientAttributes;
-      attributs.length = 0;
+      attributes.length = 0;
       for (var i = 0; i < 3+GLImmediate.MAX_TEXTURES; i++) {
         if (GLImmediate.enabledClientAttributes[i]) {
           var attr = GLImmediate.clientAttributes[i];
