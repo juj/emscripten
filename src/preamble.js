@@ -890,7 +890,12 @@ function enlargeMemory() {
   assert(TOTAL_MEMORY <= Math.pow(2, 30)); // 2^30==1GB is a practical maximum - 2^31 is already close to possible negative numbers etc.
 #if USE_TYPED_ARRAYS == 2
   var oldHEAP8 = HEAP8;
-  var buffer = new ArrayBuffer(TOTAL_MEMORY);
+  var buffer;
+  try {
+    var buffer = new ArrayBuffer(TOTAL_MEMORY);
+  } catch(e) {
+    abort('Error: Failed to allocate ' + TOTAL_MEMORY + ' bytes for application HEAP memory array, reason: ' + e);
+  }
   Module['HEAP8'] = HEAP8 = new Int8Array(buffer);
   Module['HEAP16'] = HEAP16 = new Int16Array(buffer);
   Module['HEAP32'] = HEAP32 = new Int32Array(buffer);
