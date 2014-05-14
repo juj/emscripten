@@ -213,6 +213,7 @@ def calculate(temp_files, in_temp, stdout, stderr):
         'tre-mem.c',
        ]],
        ['stdio', [
+        '__string_read.c',
         'fwprintf.c',
         'swprintf.c',
         'vfwprintf.c',
@@ -221,6 +222,9 @@ def calculate(temp_files, in_temp, stdout, stderr):
         'wprintf.c',
         'fputwc.c',
         'fputws.c',
+        'sscanf.c',
+        'vfscanf.c',
+        'vsscanf.c',
        ]],
        ['stdlib', [
          'atoll.c',
