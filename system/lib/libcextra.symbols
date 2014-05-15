@@ -22,6 +22,8 @@
          T __wcscoll_l
          T __wcsxfrm_l
          W __wctype_l
+         T asctime
+         T asctime_r
          T asprintf
          T atoll
          T bcmp
@@ -30,6 +32,8 @@
          T bsearch
          T btowc
          T clock
+         T ctime
+         T ctime_r
          T difftime
          T ecvt
          T err
@@ -106,6 +110,8 @@
          T mempcpy
          W memrchr
          T mktime
+         W nl_langinfo
+         W nl_langinfo_l
          C optarg
          D opterr
          D optind
@@ -151,6 +157,7 @@
          T tgamma
          T tgammaf
          T tgammal
+         T timegm
          T towctrans
          T towctrans_l
          T towlower

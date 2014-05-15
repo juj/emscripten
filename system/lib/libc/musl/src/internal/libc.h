@@ -44,10 +44,18 @@ extern struct __libc *__libc_loc(void) __attribute__((const));
 
 #endif
 
+#ifdef __EMSCRIPTEN__
+/// XXX Emscripten: locking operations are no-ops on the Emscripten platform at the moment.
+#define __lock(x) ((void)0)
+#define __unlock(x) ((void)0)
+#else
 
 /* Designed to avoid any overhead in non-threaded processes */
 void __lock(volatile int *) ATTR_LIBC_VISIBILITY;
 void __unlock(volatile int *) ATTR_LIBC_VISIBILITY;
+
+#endif
+
 int __lockfile(FILE *) ATTR_LIBC_VISIBILITY;
 void __unlockfile(FILE *) ATTR_LIBC_VISIBILITY;
 #define LOCK(x) (libc.threads_minus_1 ? (__lock(x),1) : ((void)(x),1))

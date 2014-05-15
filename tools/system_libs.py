@@ -146,6 +146,7 @@ def calculate(temp_files, in_temp, stdout, stderr):
         'iswspace_l.c',
         'iswupper_l.c',
         'iswxdigit_l.c',
+        'langinfo.c',
         'strcoll.c',
         'strcasecmp_l.c',
         'strfmon.c',
@@ -309,13 +310,22 @@ def calculate(temp_files, in_temp, stdout, stderr):
          'wmemset.c',
        ]],
        ['time', [
+         '__asctime.c',
+         '__month_to_secs.c',
          '__secs_to_tm.c',
+         '__tm_to_secs.c',
          '__tz.c',
+         '__year_to_secs.c',
+         'asctime.c',
+         'asctime_r.c',
          'clock.c',
+         'ctime.c',
+         'ctime_r.c',
          'difftime.c',
          'gmtime_r.c',
          'gmtime.c',
          'mktime.c',
+         'timegm.c',
        ]]
     ]
     libcextra_files = []
