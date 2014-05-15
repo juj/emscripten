@@ -81,6 +81,9 @@ def calculate(temp_files, in_temp, stdout, stderr):
        'strcmp.c',
        'strncasecmp.c',
        'strncmp.c',
+      ]],
+      ['time', [
+       'time.c',
       ]]
     ]
     for directory, sources in musl_files:
@@ -294,6 +297,14 @@ def calculate(temp_files, in_temp, stdout, stderr):
          'wmemcpy.c',
          'wmemmove.c',
          'wmemset.c',
+       ]],
+       ['time', [
+         '__secs_to_tm.c',
+         '__tz.c',
+         'clock.c',
+         'difftime.c',
+         'gmtime_r.c',
+         'gmtime.c',
        ]]
     ]
     libcextra_files = []

@@ -89,4 +89,5 @@
          T strtof_l
          T strtold
          T strtold_l
+         T time
          W valloc
