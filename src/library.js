@@ -5165,24 +5165,6 @@ LibraryManager.library = {
   // Statically allocated time strings.
   __tm_formatted: 'allocate({{{ C_STRUCTS.tm.__size__ }}}, "i8", ALLOC_STATIC)',
 
-  mktime__deps: ['tzset'],
-  mktime: function(tmPtr) {
-    _tzset();
-    var year = {{{ makeGetValue('tmPtr', C_STRUCTS.tm.tm_year, 'i32') }}};
-    var timestamp = new Date(year >= 1900 ? year : year + 1900,
-                             {{{ makeGetValue('tmPtr', C_STRUCTS.tm.tm_mon, 'i32') }}},
-                             {{{ makeGetValue('tmPtr', C_STRUCTS.tm.tm_mday, 'i32') }}},
-                             {{{ makeGetValue('tmPtr', C_STRUCTS.tm.tm_hour, 'i32') }}},
-                             {{{ makeGetValue('tmPtr', C_STRUCTS.tm.tm_min, 'i32') }}},
-                             {{{ makeGetValue('tmPtr', C_STRUCTS.tm.tm_sec, 'i32') }}},
-                             0).getTime() / 1000;
-    {{{ makeSetValue('tmPtr', C_STRUCTS.tm.tm_wday, 'new Date(timestamp).getDay()', 'i32') }}};
-    var yday = Math.round((timestamp - (new Date(year, 0, 1)).getTime()) / (1000 * 60 * 60 * 24));
-    {{{ makeSetValue('tmPtr', C_STRUCTS.tm.tm_yday, 'yday', 'i32') }}};
-    return timestamp;
-  },
-  timelocal: 'mktime',
-
   timegm__deps: ['mktime'],
   timegm: function(tmPtr) {
     _tzset();

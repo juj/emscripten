@@ -315,6 +315,7 @@ def calculate(temp_files, in_temp, stdout, stderr):
          'difftime.c',
          'gmtime_r.c',
          'gmtime.c',
+         'mktime.c',
        ]]
     ]
     libcextra_files = []

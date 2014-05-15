@@ -105,6 +105,7 @@
          T memmem
          T mempcpy
          W memrchr
+         T mktime
          C optarg
          D opterr
          D optind
