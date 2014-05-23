@@ -73,6 +73,9 @@ Module['callMain'] = Module.callMain = function callMain(args) {
 #endif
 
     var ret = Module['_main'](argc, argv, 0);
+#if ASSERTIONS
+    if (initialStackTop != STACKTOP) abort('main() leaked ' + (STACKTOP - initialStackTop) + ' bytes of stack space!');
+#endif
 
 #if BENCHMARK
     Module.realPrint('main() took ' + (Date.now() - start) + ' milliseconds');

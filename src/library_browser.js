@@ -940,6 +940,10 @@ mergeInto(LibraryManager.library, {
         return;
       }
 
+#if ASSERTIONS
+      var initialStackTop = STACKTOP;
+#endif
+
       // Signal GL rendering layer that processing of a new frame is about to start. This helps it optimize
       // VBO double-buffering and reduce GPU stalls.
 #if FULL_ES2
@@ -976,6 +980,9 @@ mergeInto(LibraryManager.library, {
       if (Module['postMainLoop']) {
         Module['postMainLoop']();
       }
+#if ASSERTIONS
+      if (initialStackTop != STACKTOP) abort('emscripten_set_main_loop() callback leaked ' + (STACKTOP - initialStackTop) + ' bytes of stack space!');
+#endif
 
       if (Browser.mainLoop.shouldPause) {
         // catch pauses from the main loop itself
