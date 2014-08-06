@@ -325,6 +325,18 @@ var LibraryOpenAL = {
           this._refDistance = val;
           if (this.panner) this.panner.refDistance = val;
         },
+        get minGain() {
+          return this._minGain || 0.0;
+        },
+        set minGain(val) {
+          this._minGain = val;
+        },
+        get maxGain() {
+          return this._maxGain || 1.0;
+        },
+        set maxGain(val) {
+          this._maxGain = val;
+        },
         get maxDistance() {
           return this._maxDistance || 10000;
         },
@@ -500,10 +512,12 @@ var LibraryOpenAL = {
     case 0x100A /* AL_GAIN */:
       src.gain.gain.value = value;
       break;
-    // case 0x100D /* AL_MIN_GAIN */:
-    //   break;
-    // case 0x100E /* AL_MAX_GAIN */:
-    //   break;
+    case 0x100D /* AL_MIN_GAIN */:
+      src.minGain = value; // This value is the minimal gain for 3D positional audio after distance attenuation, but it is not actually used yet. TODO: add support.
+      break;
+    case 0x100E /* AL_MAX_GAIN */:
+      src.maxGain = value; // This value is the maximal gain for 3D positional audio after distance attenuation, but it is not actually used yet. TODO: add support.
+      break;
     case 0x1023 /* AL_MAX_DISTANCE */:
       src.maxDistance = value;
       break;
@@ -963,10 +977,12 @@ var LibraryOpenAL = {
     case 0x100A /* AL_GAIN */:
       {{{ makeSetValue('value', '0', 'src.gain.gain.value', 'float') }}}
       break;
-    // case 0x100D /* AL_MIN_GAIN */:
-    //   break;
-    // case 0x100E /* AL_MAX_GAIN */:
-    //   break;
+    case 0x100D /* AL_MIN_GAIN */:
+      {{{ makeSetValue('value', '0', 'src.minGain', 'float') }}}
+      break;
+    case 0x100E /* AL_MAX_GAIN */:
+      {{{ makeSetValue('value', '0', 'src.maxGain', 'float') }}}
+      break;
     case 0x1023 /* AL_MAX_DISTANCE */:
       {{{ makeSetValue('value', '0', 'src.maxDistance', 'float') }}}
       break;
