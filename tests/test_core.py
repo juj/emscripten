@@ -5105,6 +5105,15 @@ return malloc(size);
       main = main[:main.find('\n}')]
       assert main.count('\n') <= 7, ('must not emit too many postSets: %d' % main.count('\n')) + ' : ' + main
 
+  # Tests the full SSE1 API.
+  def test_sse1(self):
+    if Settings.ASM_JS: Settings.ASM_JS = 2 # does not validate
+
+    orig_args = self.emcc_args
+    for mode in [[], ['-s', 'SIMD=1']]:
+      self.emcc_args = orig_args + mode
+      self.do_run(open(path_from_root('tests', 'test_sse1.cpp'), 'r').read(), 'Success!')
+
   def test_simd(self):
     if os.environ.get('EMCC_FAST_COMPILER') == '0': return self.skip('needs fastcomp')
     if Settings.USE_TYPED_ARRAYS != 2: return self.skip('needs ta2')
