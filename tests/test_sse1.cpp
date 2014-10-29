@@ -128,6 +128,10 @@ __attribute__((noinline)) __m64 get_m2() { return always_true() ? u64castm64(0xF
 
 int main()
 {
+#if defined(__EMSCRIPTEN__) && !defined(TEST_M64)
+	fprintf(stderr, "TODO: Skipping MMX related instructions: these are not available in JS SIMD.\n");
+#endif
+
 	float *arr = get_arr(); // [4, 3, 2, 1]
 	float *uarr = get_uarr(); // [5, 4, 3, 2]
 	float *arr2 = get_arr2(); // [4, 3, 2, 1]
@@ -206,25 +210,35 @@ int main()
 	aeq(_mm_sub_ss(a, b), 8.f, 6.f, 4.f, -2.f); // Sub lowest element, preserve three highest unchanged from a.
 
 	// SSE1 Elementary Math functions:
+#ifdef __EMSCRIPTEN__
+	fprintf(stderr, "TODO: Skipping _mm_rcp_ps, _mm_rcp_ss, _mm_rsqrt_ps, _mm_rsqrt_ss, _mm_sqrt_ps, _mm_sqrt_ss on Emscripten: these hardware instructions are not available (expecting to get the exact precision that x86 gets).\n");
+#else
 	aeq(_mm_rcp_ps(a), 0.124969f, 0.166626f, 0.249939f, 0.499878f); // Compute 4-wide 1/x.
 	aeq(_mm_rcp_ss(a), 8.f, 6.f, 4.f, 0.499878f); // Compute 1/x of lowest element, pass higher elements unchanged.
 	aeq(_mm_rsqrt_ps(a), 0.353455f, 0.408203f, 0.499878f, 0.706909f); // Compute 4-wide 1/sqrt(x).
 	aeq(_mm_rsqrt_ss(a), 8.f, 6.f, 4.f, 0.706909f); // Compute 1/sqrt(x) of lowest element, pass higher elements unchanged.
 	aeq(_mm_sqrt_ps(a), 2.82843f, 2.44949f, 2.f, 1.41421f); // Compute 4-wide sqrt(x).
 	aeq(_mm_sqrt_ss(a), 8.f, 6.f, 4.f, 1.41421f); // Compute sqrt(x) of lowest element, pass higher elements unchanged.
+#endif
 
 	__m128 i1 = get_i1();
 	__m128 i2 = get_i2();
 
 	// SSE1 Logical instructions:
+#ifdef __EMSCRIPTEN__
+	fprintf(stderr, "TODO: Skipping _mm_and_ps, _mm_andnot_ps, _mm_or_ps and _mm_xor_ps: these fail due to JS polyfill NaN canonicalization.\n");
+#else
 	aeqi(_mm_and_ps(i1, i2), 0x83200100, 0x0fecc988, 0x80244021, 0x13458a88); // 4-wide binary AND
 	aeqi(_mm_andnot_ps(i1, i2), 0x388a9888, 0xf0021444, 0x7000289c, 0x00121046); // 4-wide binary (!i1) & i2
 	aeqi(_mm_or_ps(i1, i2), 0xbfefdba9, 0xffefdfed, 0xf7656bbd, 0xffffdbef); // 4-wide binary OR
 	aeqi(_mm_xor_ps(i1, i2), 0x3ccfdaa9, 0xf0031665, 0x77412b9c, 0xecba5167); // 4-wide binary XOR
+#endif
 
 	// SSE1 Compare instructions:
 	// a = [8, 6, 4, 2], b = [1, 2, 3, 4]
-#ifndef __EMSCRIPTEN__ // TODO: Currently disabled, since these fail due to https://github.com/kripken/emscripten/issues/2841
+#ifdef __EMSCRIPTEN__
+	fprintf(stderr, "TODO: Skipping comparison instructions, since these fail due to https://github.com/kripken/emscripten/issues/2841\n");
+#else
 	aeqi(_mm_cmpeq_ps(a, _mm_set_ps(8.f, 0.f, 4.f, 0.f)), 0xFFFFFFFF, 0, 0xFFFFFFFF, 0); // 4-wide cmp ==
 	aeqi(_mm_cmpeq_ss(a, _mm_set_ps(8.f, 0.f, 4.f, 2.f)), fcastu(8.f), fcastu(6.f), fcastu(4.f), 0xFFFFFFFF); // scalar cmp ==, pass three highest unchanged.
 	aeqi(_mm_cmpge_ps(a, _mm_set_ps(8.f, 7.f, 3.f, 5.f)), 0xFFFFFFFF, 0, 0xFFFFFFFF, 0); // 4-wide cmp >=
@@ -261,6 +275,9 @@ int main()
 	Assert(_mm_comilt_ss(a, b) == 1); Assert(_mm_comilt_ss(a, a) == 0); // Scalar cmp < of lowest element, return int.
 	Assert(_mm_comineq_ss(a, b) == 1); Assert(_mm_comineq_ss(a, a) == 0); // Scalar cmp != of lowest element, return int.
 
+#ifdef __EMSCRIPTEN__
+	fprintf(stderr, "TODO: Skipping _mm_ucomi*_ss: these fail due to JS polyfill NaN semantics.\n");
+#else
 	// The ucomi versions are identical to comi, except that ucomi signal a FP exception only if one of the input operands is a SNaN, whereas the comi versions signal a FP
 	// exception when one of the input operands is either a QNaN or a SNaN.
 	Assert(_mm_ucomieq_ss(a, b) == 0); Assert(_mm_ucomieq_ss(a, a) == 1); Assert(_mm_ucomieq_ss(a, nan1) == 1);
@@ -269,6 +286,7 @@ int main()
 	Assert(_mm_ucomile_ss(b, a) == 0); Assert(_mm_ucomile_ss(a, a) == 1); Assert(_mm_ucomile_ss(a, nan1) == 1);
 	Assert(_mm_ucomilt_ss(a, b) == 1); Assert(_mm_ucomilt_ss(a, a) == 0); Assert(_mm_ucomilt_ss(a, nan1) == 1);
 	Assert(_mm_ucomineq_ss(a, b) == 1); Assert(_mm_ucomineq_ss(a, a) == 0); Assert(_mm_ucomineq_ss(a, nan1) == 0);
+#endif
 
 	// SSE1 Convert instructions:
 	__m128 c = get_c(); // [1.5, 2.5, 3.5, 4.5]
@@ -280,8 +298,12 @@ int main()
 #endif
 	aeq(_mm_cvtsi32_ss(c, -16777215), 1.5f, 2.5f, 3.5f, -16777215.f); // Convert int to float, store in lowest channel of m128.
 	aeq( _mm_cvt_si2ss(c, -16777215), 1.5f, 2.5f, 3.5f, -16777215.f); // _mm_cvt_si2ss is an alias to _mm_cvtsi32_ss.
+#ifdef __EMSCRIPTEN__
+	fprintf(stderr, "TODO: Skipping _mm_cvt*: these fail due to JS polyfill not supporting IEEE round to even (banker's rounding).\n");
+#else
 	Assert(_mm_cvtss_si32(c) == 4); Assert(_mm_cvtss_si32(e) == 4); // Convert lowest channel of m128 from float to int.
 	Assert( _mm_cvt_ss2si(c) == 4); Assert( _mm_cvt_ss2si(e) == 4); // _mm_cvt_ss2si is an alias to _mm_cvtss_si32.
+#endif
 #ifdef TEST_M64
 	/*M64*/aeq(_mm_cvtpi16_ps(m1), 255.f , -32767.f, 4336.f, 14207.f); // 4-way convert int16s to floats, return in a m128.
 	/*M64*/aeq(_mm_cvtpi32_ps(a, m1), 8.f, 6.f, 16744449.f, 284178304.f); // 2-way convert int32s to floats, return in two lowest channels of m128, pass two highest unchanged.
@@ -306,7 +328,9 @@ int main()
 #endif
 	Assert(_mm_cvttss_si64(f) == -9223372036854775808ULL); // Truncating conversion from lowest channel of m128 from float to int64.
 
-#ifndef __EMSCRIPTEN__ // TODO: Not implemented.
+#ifdef __EMSCRIPTEN__
+	printf("TODO: Skipping SSE exception mask, denormals control, rounding mode, prefetch and fence instructions testing: these are not available in JS SIMD.\n");
+#else
 	// SSE1 General support:
 	unsigned int mask = _MM_GET_EXCEPTION_MASK();
 	_MM_SET_EXCEPTION_MASK(mask);

@@ -5155,7 +5155,11 @@ return malloc(size);
 
   # Tests the full SSE1 API.
   def test_sse1(self):
+    if self.is_emterpreter(): return self.skip('todo')
+    if os.environ.get('EMCC_FAST_COMPILER') == '0': return self.skip('needs fastcomp')
+    if Settings.USE_TYPED_ARRAYS != 2: return self.skip('needs ta2')
     if Settings.ASM_JS: Settings.ASM_JS = 2 # does not validate
+    Settings.PRECISE_F32 = 1 # SIMD currently requires Math.fround
 
     orig_args = self.emcc_args
     for mode in [[], ['-s', 'SIMD=1']]:
