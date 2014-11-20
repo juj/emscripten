@@ -2,7 +2,13 @@
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
+#ifdef _WIN32
+typedef unsigned int uint32_t;
+#define fmax(a,b) ((a) >= (b) ? (a) : (b))
+#define aligned_alloc _aligned_malloc
+#else
 #include <inttypes.h>
+#endif
 #include <stdlib.h>
 #include <assert.h>
 
@@ -38,6 +44,25 @@ tick_t ticks_per_sec()
 	mach_timebase_info_data_t timeBaseInfo;
 	mach_timebase_info(&timeBaseInfo);
 	return 1000000000ULL * (uint64_t)timeBaseInfo.denom / (uint64_t)timeBaseInfo.numer;
+}
+#elif defined(_WIN32)
+
+#define tick_t unsigned long long
+tick_t ticks_per_sec()
+{
+	unsigned long long l;
+	// TODO: Clang 3.3 is not able to include Windows.h and build with this.
+	//QueryPerformanceFrequency((LARGE_INTEGER*)&l);
+	l = 1;
+	return l;
+}
+tick_t tick()
+{
+	unsigned long long l;
+	// TODO: Clang 3.3 is not able to include Windows.h and build with this.
+	//QueryPerformanceCounter((LARGE_INTEGER*)&l);
+	l = time(NULL);
+	return l;
 }
 #else
 #error No tick_t
