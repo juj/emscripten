@@ -12,7 +12,7 @@
 #define aligned_alloc(align, size) malloc(size) // Hack for missing function. Works for now since Emscripten does not care about alignment.
 #endif
 
-#ifdef __UNIX__
+#ifdef __unix__
 #include <time.h>
 #include <errno.h>
 #include <string.h>
@@ -34,12 +34,12 @@ float hmax(__m128 m)
 }
 
 #ifdef __EMSCRIPTEN__
-#define tick emscripten_get_now
-#define tick_t double
+# define tick emscripten_get_now
+# define tick_t double
 tick_t ticks_per_sec() { return 1000.0; }
 #elif defined(__APPLE__)
-#define tick_t unsigned long long
-#define tick mach_absolute_time
+# define tick_t unsigned long long
+# define tick mach_absolute_time
 tick_t ticks_per_sec()
 {
 	mach_timebase_info_data_t timeBaseInfo;
@@ -47,15 +47,29 @@ tick_t ticks_per_sec()
 	return 1000000000ULL * (uint64_t)timeBaseInfo.denom / (uint64_t)timeBaseInfo.numer;
 }
 #elif defined(_POSIX_MONOTONIC_CLOCK)
+# define tick_t unsigned long long
+inline tick_t tick() {
 	timespec t;
 	clock_gettime(CLOCK_MONOTONIC, &t);
 	return (tick_t)t.tv_sec * 1000 * 1000 * 1000 + (tick_t)t.tv_nsec;
+}
+inline tick_t ticks_per_sec()
+{
+    return 1000 * 1000 * 1000;
+}
 #elif defined(_POSIX_C_SOURCE)
+# define tick_t unsigned long long
+inline tick_t tick() {
 	timeval t;
 	gettimeofday(&t, NULL);
 	return (tick_t)t.tv_sec * 1000 * 1000 + (tick_t)t.tv_usec;
+}
+inline tick_t ticks_per_sec()
+{
+    return 1000 * 1000;
+}
 #else
-#error No tick_t
+# error No tick_t
 #endif
 
 const int N = 2*1024*1024;
