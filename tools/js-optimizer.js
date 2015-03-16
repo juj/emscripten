@@ -510,6 +510,7 @@ function parseHeap(name, out) { // XXX this uses parseHeapTemp by default, which
   out.float = name[4] === 'F';
   out.bits = parseInt(name.substr(out.unsigned || out.float ? 5 : 4));
   out.type = !out.float ? ASM_INT : (out.bits === 64 ? ASM_DOUBLE : ASM_FLOAT);
+  console.error(name + ': bits ' + out.bits + ', type: ' + out.type + ', float:' + out.float);
   return true;
 }
 
