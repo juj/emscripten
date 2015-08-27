@@ -1069,6 +1069,11 @@ var LibraryBrowser = {
   },
 
   emscripten_set_main_loop_timing: function(mode, value) {
+    // EMTIMER
+    var forceNoVsync = location.search.indexOf('novsync') != -1;
+    if (forceNoVsync) mode = 2/*EM_TIMING_SETIMMEDIATE*/;
+    // EMTIMER
+
     Browser.mainLoop.timingMode = mode;
     Browser.mainLoop.timingValue = value;
 
