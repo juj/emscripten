@@ -165,7 +165,14 @@ var LibraryJSEvents = {
       
       if (eventHandler.callbackfunc) {
         eventHandler.eventListenerFunc = jsEventHandler;
-        eventHandler.target.addEventListener(eventHandler.eventTypeString, jsEventHandler, eventHandler.useCapture);
+
+        // EMTIMER
+        var programmaticallyInjectingInputStream = location.search.indexOf('playback') != -1;
+        if (!programmaticallyInjectingInputStream || (eventHandler.eventTypeString.indexOf('mouse') == -1 && eventHandler.eventTypeString.indexOf('key') == -1 && eventHandler.eventTypeString.indexOf('blur') == -1 && eventHandler.eventTypeString.indexOf('focus') == -1)) {
+          eventHandler.target.addEventListener(eventHandler.eventTypeString, jsEventHandler, eventHandler.useCapture);
+        }
+        // EMTIMER
+
         JSEvents.eventHandlers.push(eventHandler);
         JSEvents.registerRemoveEventListeners();
       } else {
