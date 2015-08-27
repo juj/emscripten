@@ -1201,7 +1201,16 @@ var LibraryBrowser = {
         Browser.mainLoop.method = ''; // just warn once per call to set main loop
       }
 
+
+      // EMTIMER
+      if (Module['referenceTestPreTick']) Module['referenceTestPreTick']();
+      // EMTIMER
+
       Browser.mainLoop.runIter(browserIterationFunc);
+      // EMTIMER
+      if (Module['referenceTestTick']) Module['referenceTestTick']();
+      // EMTIMER
+
 
 #if STACK_OVERFLOW_CHECK
       checkStackCookie();
