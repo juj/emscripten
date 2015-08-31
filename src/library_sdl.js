@@ -2369,8 +2369,6 @@ var LibrarySDL = {
         }
       };
       
-      SDL.audio.audioOutput = new Audio();
-
       // Initialize Web Audio API if we haven't done so yet. Note: Only initialize Web Audio context ever once on the web page,
       // since initializing multiple times fails on Chrome saying 'audio resources have been exhausted'.
       SDL.openAudioContext();
