@@ -224,6 +224,8 @@ var WEBSOCKET_SUBPROTOCOL = 'binary'; // A string containing a comma separated l
 
 var OPENAL_DEBUG = 0; // Print out debugging information from our OpenAL implementation.
 
+var OPENAL_AUDIOTAG_BACKEND = 1;
+
 var GL_ASSERTIONS = 0; // Adds extra checks for error situations in the GL library. Can impact performance.
 var GL_DEBUG = 0; // Print out all calls into WebGL. As with LIBRARY_DEBUG, you can set a runtime
                   // option, in this case GL.debug.

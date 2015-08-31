@@ -30,6 +30,14 @@ var LibraryOpenAL = {
     },
 #endif
 
+    currentContextTime: function() {
+#if OPENAL_AUDIOTAG_BACKEND
+      return (AL.currentContext.ctx) ? AL.currentContext.ctx.currentTime : ((performance.now() - AL.currentContext.initializationTime) / 1000.0);
+#else
+      return AL.currentContext.ctx.currentTime;
+#endif
+    },
+
     updateSources: function updateSources(context) {
       // If we are animating using the requestAnimationFrame method, then the main loop does not run when in the background.
       // To give a perfect glitch-free audio stop when switching from foreground to background, we need to avoid updating
@@ -49,7 +57,7 @@ var LibraryOpenAL = {
         return;
       }
 
-      var currentTime = AL.currentContext.ctx.currentTime;
+      var currentTime = AL.currentContextTime();
       var startTime = src.bufferPosition;
 
       for (var i = src.buffersPlayed; i < src.queue.length; i++) {
@@ -74,29 +82,45 @@ var LibraryOpenAL = {
           }
         }
         // Process all buffers that'll be played before the next tick.
-        else if (startOffset < (AL.QUEUE_LOOKAHEAD / 1000) && !entry.src) {
+        else if (startOffset < (AL.QUEUE_LOOKAHEAD / 1000) && !entry.src
+#if OPENAL_AUDIOTAG_BACKEND
+          && !entry.audioElementPlaying
+#endif
+          ) {
           // If the start offset is negative, we need to offset the actual buffer.
           var offset = Math.abs(Math.min(startOffset, 0));
 
-          entry.src = AL.currentContext.ctx.createBufferSource();
-          entry.src.buffer = entry.buffer;
-          entry.src.connect(src.gain);
-          if (typeof(entry.src.start) !== 'undefined') {
-            entry.src.start(startTime, offset);
-          } else if (typeof(entry.src.noteOn) !== 'undefined') {
-            entry.src.noteOn(startTime);
-#if OPENAL_DEBUG
-            if (offset > 0) {
-              Runtime.warnOnce('The current browser does not support AudioBufferSourceNode.start(when, offset); method, so cannot play back audio with an offset '+offset+' secs! Audio glitches will occur!');
-            }
+#if OPENAL_AUDIOTAG_BACKEND
+          if (AL.currentContext.ctx) {
 #endif
-          }
+            entry.src = AL.currentContext.ctx.createBufferSource();
+            entry.src.buffer = entry.buffer;
+            entry.src.connect(src.gain);
+            if (typeof(entry.src.start) !== 'undefined') {
+              entry.src.start(startTime, offset);
+            } else if (typeof(entry.src.noteOn) !== 'undefined') {
+              entry.src.noteOn(startTime);
 #if OPENAL_DEBUG
-          else {
-            Runtime.warnOnce('Unable to start AudioBufferSourceNode playback! Not supported by the browser?');
-          }
+              if (offset > 0) {
+                Runtime.warnOnce('The current browser does not support AudioBufferSourceNode.start(when, offset); method, so cannot play back audio with an offset '+offset+' secs! Audio glitches will occur!');
+              }
+#endif
+            }
+#if OPENAL_DEBUG
+            else {
+              Runtime.warnOnce('Unable to start AudioBufferSourceNode playback! Not supported by the browser?');
+            }
 
-          console.log('updateSource queuing buffer ' + i + ' for source ' + idx + ' at ' + startTime + ' (offset by ' + offset + ')');
+            console.log('updateSource queuing buffer ' + i + ' for source ' + idx + ' at ' + startTime + ' (offset by ' + offset + ')');
+#endif
+#if OPENAL_AUDIOTAG_BACKEND
+          } else {
+            entry.audioElementPlaying = true;
+            entry.buffer.play();
+            if (offset > 0) {
+              Runtime.warnOnce('Using <audio> tag to play sounds: the current browser does not support playing back audio with an offset '+offset+' secs!');
+            }
+          }
 #endif
         }
 
@@ -112,7 +136,7 @@ var LibraryOpenAL = {
         if (src.state !== 0x1013 /* AL_PAUSED */) {
           src.state = 0x1012 /* AL_PLAYING */;
           // Reset our position.
-          src.bufferPosition = AL.currentContext.ctx.currentTime;
+          src.bufferPosition = AL.currentContextTime();
           src.buffersPlayed = 0;
 #if OPENAL_DEBUG
           console.log('setSourceState resetting and playing source ' + idx);
@@ -120,7 +144,7 @@ var LibraryOpenAL = {
         } else {
           src.state = 0x1012 /* AL_PLAYING */;
           // Use the current offset from src.bufferPosition to resume at the correct point.
-          src.bufferPosition = AL.currentContext.ctx.currentTime - src.bufferPosition;
+          src.bufferPosition = AL.currentContextTime() - src.bufferPosition;
 #if OPENAL_DEBUG
           console.log('setSourceState resuming source ' + idx + ' at ' + src.bufferPosition.toFixed(4));
 #endif
@@ -131,7 +155,7 @@ var LibraryOpenAL = {
         if (src.state === 0x1012 /* AL_PLAYING */) {
           src.state = 0x1013 /* AL_PAUSED */;
           // Store off the current offset to restore with on resume.
-          src.bufferPosition = AL.currentContext.ctx.currentTime - src.bufferPosition;
+          src.bufferPosition = AL.currentContextTime() - src.bufferPosition;
           AL.stopSourceQueue(src);
 #if OPENAL_DEBUG
           console.log('setSourceState pausing source ' + idx + ' at ' + src.bufferPosition.toFixed(4));
@@ -164,6 +188,11 @@ var LibraryOpenAL = {
         if (entry.src) {
           entry.src.stop(0);
           entry.src = null;
+#if OPENAL_AUDIOTAG_BACKEND
+        } else if (entry.audioElementPlaying) {
+          entry.buffer.pause();
+          entry.audioElementPlaying = null;
+#endif
         }
       }
     }
@@ -213,6 +242,9 @@ var LibraryOpenAL = {
         typeof(webkitAudioContext) !== "undefined") {
       return 1; // non-null pointer -- we just simulate one device
     } else {
+#if OPENAL_AUDIOTAG_BACKEND
+      if (typeof(Audio) !== "undefined") return 1;
+#endif
       return 0;
     }
   },
@@ -254,6 +286,18 @@ var LibraryOpenAL = {
       };
       AL.contexts.push(context);
       return AL.contexts.length;
+#if OPENAL_AUDIOTAG_BACKEND
+    } else if (typeof Audio !== 'undefined') {
+      var context = {
+        err: 0,
+        src: {},
+        buf: [],
+        initializationTime: performance.now(),
+        interval: setInterval(function() { AL.updateSources(context); }, AL.QUEUE_INTERVAL),
+      };
+      AL.contexts.push(context);
+      return AL.contexts.length;
+#endif
     } else {
       return 0;
     }
@@ -339,8 +383,14 @@ var LibraryOpenAL = {
       return;
     }
     for (var i = 0; i < count; ++i) {
-      var gain = AL.currentContext.ctx.createGain();
-      gain.connect(AL.currentContext.gain);
+#if OPENAL_AUDIOTAG_BACKEND
+      if (AL.currentContext.ctx) {
+#endif
+        var gain = AL.currentContext.ctx.createGain();
+        gain.connect(AL.currentContext.gain);
+#if OPENAL_AUDIOTAG_BACKEND
+      }
+#endif
       AL.currentContext.src[AL.newSrcId] = {
         state: 0x1011 /* AL_INITIAL */,
         queue: [],
@@ -465,6 +515,12 @@ var LibraryOpenAL = {
       AL.updateSource(src);
       break;
     case 0x202 /* AL_SOURCE_RELATIVE */:
+#if OPENAL_AUDIOTAG_BACKEND
+      if (!AL.currentContext.ctx) {
+        console.log('Warning: alSourcei(AL_SOURCE_RELATIVE) not supported with <audio> backend!');
+        return;
+      }
+#endif
       if (value === 1 /* AL_TRUE */) {
         if (src.panner) {
           src.panner = null;
@@ -526,7 +582,15 @@ var LibraryOpenAL = {
 #endif
       break;
     case 0x100A /* AL_GAIN */:
-      src.gain.gain.value = value;
+#if OPENAL_AUDIOTAG_BACKEND
+      if (src.gain) {
+#endif
+        src.gain.gain.value = value;
+#if OPENAL_AUDIOTAG_BACKEND
+      } else {
+        console.log('TODO: alSourcef(AL_GAIN) for <audio> backend!');
+      }
+#endif
       break;
     // case 0x100D /* AL_MIN_GAIN */:
     //   break;
@@ -795,9 +859,52 @@ var LibraryOpenAL = {
 #endif
       return;
     }
+
+#if OPENAL_AUDIOTAG_BACKEND
+    if (!AL.currentContext.ctx) {
+      // We must wrap the raw audio data into a WAV file header so that the <audio> element will recognize
+      // the blob when passed.
+      var wavHeaderSizeBytes = 44;
+      var audioBuffer = new ArrayBuffer(wavHeaderSizeBytes + size);
+      var audioU8 = new Uint8Array(audioBuffer);
+      var audioU16 = new Uint16Array(audioBuffer);
+      var audioU32 = new Uint32Array(audioBuffer);
+      // RIFF chunk descriptor
+      audioU32[0] = 0x46464952;   // 'RIFF' Chunk ID
+      audioU32[1] = audioBuffer.byteLength - 8; // Chunk size
+      audioU32[2] = 0x45564157;   // 'WAVE'
+      // fmt subchunk
+      audioU32[3] = 0x20746d66;   // 'fmt '
+      audioU32[4] = 16;           // subchunk size
+      audioU16[5*2] = 1;          // AudioFormat (1 = PCM)
+      audioU16[5*2+1] = channels; // Number of channels (2 = stereo)
+      audioU32[6] = freq;         // Sampling rate (22050, 44100, 48000, etc.)
+      audioU32[7] = freq*channels*bytes; // Byte rate
+      audioU16[8*2] = 4;          // BlockAlign
+      audioU16[8*2+1] = bytes*8;  // Bits per sample
+      // data subchunk
+      audioU32[9] = 0x61746164;   // 'data'
+      audioU32[10] = size;        // subchunk size
+      // memcpy audio data to the new buffer.
+      audioU8.set(new Uint8Array(HEAPU8.buffer.slice(data, data + size)), wavHeaderSizeBytes);
+      var blob = new Blob([audioBuffer], {type: 'audio/wav'});
+      var url = URL.createObjectURL(blob);
+      audio = new Audio();
+      audio.src = url;
+      audio.mozAudioChannelType = 'content'; // bugzilla 910340
+      AL.currentContext.buf[buffer - 1] = audio;
+      AL.currentContext.buf[buffer - 1].sampleRate = freq;
+      AL.currentContext.buf[buffer - 1].bytesPerSample = bytes;
+      AL.currentContext.buf[buffer - 1].numberOfChannels = channels;
+      AL.currentContext.buf[buffer - 1].length = size / bytes / channels;
+      //audio.play();
+      return;
+    }
+#endif
+
     try {
       AL.currentContext.buf[buffer - 1] = AL.currentContext.ctx.createBuffer(channels, size / (bytes * channels), freq);
-      AL.currentContext.buf[buffer - 1].bytesPerSample =  bytes;
+      AL.currentContext.buf[buffer - 1].bytesPerSample = bytes;
     } catch (e) {
       AL.currentContext.err = 0xA003 /* AL_INVALID_VALUE */;
       return;
@@ -1066,7 +1173,16 @@ var LibraryOpenAL = {
     // case 0x1003 /* AL_PITCH */:
     //   break;
     case 0x100A /* AL_GAIN */:
-      {{{ makeSetValue('value', '0', 'src.gain.gain.value', 'float') }}}
+#if OPENAL_AUDIOTAG_BACKEND
+      if (src.gain) {
+#endif
+        {{{ makeSetValue('value', '0', 'src.gain.gain.value', 'float') }}}
+#if OPENAL_AUDIOTAG_BACKEND
+      } else {
+        console.log("TODO: alGetSourcef(AL_GAIN) on <audio> backend!");
+        {{{ makeSetValue('value', '0', '1', 'float') }}}        
+      }
+#endif
       break;
     // case 0x100D /* AL_MIN_GAIN */:
     //   break;
@@ -1178,7 +1294,16 @@ var LibraryOpenAL = {
     }
     switch (pname) {
     case 0x100A /* AL_GAIN */:
-      {{{ makeSetValue('value', '0', 'AL.currentContext.gain.gain', 'float') }}}
+#if OPENAL_AUDIOTAG_BACKEND
+      if (AL.currentContext.gain) {
+#endif
+        {{{ makeSetValue('value', '0', 'AL.currentContext.gain.gain', 'float') }}}
+#if OPENAL_AUDIOTAG_BACKEND
+      } else {
+        console.log("TODO: alGetListenerf(AL_GAIN)");
+        {{{ makeSetValue('value', '0', '1', 'float') }}}
+      }
+#endif
       break;
     default:
 #if OPENAL_DEBUG
@@ -1197,6 +1322,13 @@ var LibraryOpenAL = {
 #endif
       return;
     }
+#if OPENAL_AUDIOTAG_BACKEND
+    if (!AL.currentContext.ctx) {
+      console.log("TODO: alGetListenerfv(AL_POSITION/AL_VELOCITY/AL_ORIENTATION) on <audio> backend!");
+      return;
+    }
+#endif
+
     switch (pname) {
     case 0x1004 /* AL_POSITION */:
       var position = AL.currentContext.ctx.listener._position || [0,0,0];
@@ -1254,7 +1386,16 @@ var LibraryOpenAL = {
     }
     switch (param) {
     case 0x100A /* AL_GAIN */:
-      AL.currentContext.gain.value = value;
+#if OPENAL_AUDIOTAG_BACKEND
+      if (AL.currentContext.gain) {
+#endif
+        AL.currentContext.gain.value = value;
+#if OPENAL_AUDIOTAG_BACKEND
+      } else {
+        console.log("TODO: alListenerf(AL_GAIN) on <audio> backend!");
+        return;
+      }
+#endif
       break;
     default:
 #if OPENAL_DEBUG
@@ -1306,6 +1447,14 @@ var LibraryOpenAL = {
 #endif
       return;
     }
+
+#if OPENAL_AUDIOTAG_BACKEND
+    if (!AL.currentContext.ctx) {
+      console.log("TODO: alListener3f(AL_POSITION/AL_VELOCITY) on <audio> backend!");
+      return;
+    }
+#endif
+
     switch (param) {
     case 0x1004 /* AL_POSITION */:
       AL.currentContext.ctx.listener._position = [v1, v2, v3];
@@ -1331,6 +1480,14 @@ var LibraryOpenAL = {
 #endif
       return;
     }
+
+#if OPENAL_AUDIOTAG_BACKEND
+    if (!AL.currentContext.ctx) {
+      console.log("TODO: alListenerfv(AL_POSITION/AL_VELOCITY/AL_ORIENTATION) on <audio> backend!");
+      return;
+    }
+#endif
+
     switch (param) {
     case 0x1004 /* AL_POSITION */:
       var x = {{{ makeGetValue('values', '0', 'float') }}};
@@ -1451,6 +1608,9 @@ var LibraryOpenAL = {
       break;
     case 0x1004 /* ALC_DEFAULT_DEVICE_SPECIFIER */:
       if (typeof(AudioContext) !== "undefined" ||
+#if OPENAL_AUDIOTAG_BACKEND
+          typeof(Audio) !== "undefined" ||
+#endif
           typeof(webkitAudioContext) !== "undefined") {
         ret = 'Device';
       } else {
@@ -1459,6 +1619,9 @@ var LibraryOpenAL = {
       break;
     case 0x1005 /* ALC_DEVICE_SPECIFIER */:
       if (typeof(AudioContext) !== "undefined" ||
+#if OPENAL_AUDIOTAG_BACKEND
+          typeof(Audio) !== "undefined" ||
+#endif
           typeof(webkitAudioContext) !== "undefined") {
         ret = 'Device\0';
       } else {
