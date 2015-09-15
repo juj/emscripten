@@ -267,7 +267,11 @@ mergeInto(LibraryManager.library, {
     },
 
     createContext: function(canvas, useWebGL, setInModule, webGLContextAttributes) {
-      if (useWebGL && Module.ctx && canvas == Module.canvas) return Module.ctx; // no need to recreate GL context if it's already been created for this canvas.
+      if (useWebGL && Module.ctx && canvas == Module.canvas) { // no need to recreate GL context if it's already been created for this canvas...
+        /// ... but do still set the GL context as the currently active one if asked to.
+        if (setInModule && canvas.GLctxObject) GL.makeContextCurrent(canvas.GLctxObject.contextHandle);
+        return Module.ctx;
+      }
 
       var ctx;
       var contextHandle;
