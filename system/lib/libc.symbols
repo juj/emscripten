@@ -837,10 +837,10 @@
          T posix_madvise
          W posix_memalign
          T posix_openpt
-         U posix_spawn
-         U posix_spawn_file_actions_adddup2
-         U posix_spawn_file_actions_destroy
-         U posix_spawn_file_actions_init
+         T posix_spawn
+         T posix_spawn_file_actions_adddup2
+         T posix_spawn_file_actions_destroy
+         T posix_spawn_file_actions_init
          W pow10
          W pow10f
          W pow10l

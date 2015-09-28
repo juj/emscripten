@@ -27,12 +27,14 @@
 // static syscalls. we must have one non-variadic argument before the rest due to ISO C.
 
 long __syscall1(int which, ...);
+long __syscall2(int which, ...);
 long __syscall3(int which, ...);
 long __syscall4(int which, ...);
 long __syscall5(int which, ...);
 long __syscall6(int which, ...);
 long __syscall9(int which, ...);
 long __syscall10(int which, ...);
+long __syscall11(int which, ...);
 long __syscall12(int which, ...);
 long __syscall14(int which, ...);
 long __syscall15(int which, ...);
@@ -107,6 +109,8 @@ long __syscall208(int which, ...);
 long __syscall209(int which, ...);
 long __syscall211(int which, ...);
 long __syscall212(int which, ...);
+long __syscall213(int which, ...);
+long __syscall214(int which, ...);
 long __syscall218(int which, ...);
 long __syscall219(int which, ...);
 long __syscall220(int which, ...);
@@ -116,6 +120,7 @@ long __syscall265(int which, ...);
 long __syscall268(int which, ...);
 long __syscall269(int which, ...);
 long __syscall272(int which, ...);
+long __syscall284(int which, ...);
 long __syscall295(int which, ...);
 long __syscall296(int which, ...);
 long __syscall297(int which, ...);

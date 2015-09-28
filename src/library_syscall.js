@@ -211,6 +211,10 @@ var SyscallsLibrary = {
     Module['exit'](status);
     return 0;
   },
+  __syscall2: function(which, varargs) { // fork
+    ___setErrNo(ERRNO_CODES.ENOSYS);
+    return -1;
+  },
   __syscall3: function(which, varargs) { // read
     var stream = SYSCALLS.getStreamFromFD(), buf = SYSCALLS.get(), count = SYSCALLS.get();
     return FS.read(stream, {{{ makeGetSlabs('buf', 'i8', true) }}}, buf, count);
@@ -237,6 +241,10 @@ var SyscallsLibrary = {
     var path = SYSCALLS.getStr();
     FS.unlink(path);
     return 0;
+  },
+  __syscall11: function(which, varargs) { // execve
+    ___setErrNo(ERRNO_CODES.ENOSYS);
+    return -1;
   },
   __syscall12: function(which, varargs) { // chdir
     var path = SYSCALLS.getStr();
@@ -1052,6 +1060,10 @@ var SyscallsLibrary = {
   },
   __syscall272: function(which, varargs) { // fadvise64_64
     return 0; // your advice is important to us (but we can't use it)
+  },
+  __syscall284: function(which, varargs) { // waitid
+    ___setErrNo(ERRNO_CODES.ENOSYS);
+    return -1;
   },
   __syscall295: function(which, varargs) { // openat
 #if SYSCALL_DEBUG
