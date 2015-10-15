@@ -1264,6 +1264,9 @@ NumLit::NumLit(Module& m, const AstNode& n)
       if (u.u32_ == 0) {
         u.f64_ = -0;
         asmjs_type_ = AsmJSType::Double;
+      } else if (op.as<IntNode>().u32 == 0x80000000U) { // The number -2147483648 cannot be negated as a 32-bit integer.
+        u.f64_ = 2147483648;
+        asmjs_type_ = AsmJSType::Double;
       } else {
         assert(u.u32_ > INT32_MAX);
         asmjs_type_ = AsmJSType::Signed;
