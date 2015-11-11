@@ -196,6 +196,7 @@ mergeInto(LibraryManager.library, {
       };
     },
     storeRemoteEntry: function(store, path, entry, callback) {
+      console.error('DEBUG: storeRemoteEntry: ' + path);
       var req = store.put(entry, path);
       req.onsuccess = function() { callback(null); };
       req.onerror = function(e) {
@@ -219,6 +220,8 @@ mergeInto(LibraryManager.library, {
         var e = src.entries[key];
         var e2 = dst.entries[key];
         if (!e2 || e.timestamp > e2.timestamp) {
+          if (!e2) console.error('DEBUG: ' + key + ' does not exist in destination, must be created.');
+          else if (e.timestamp > e2.timestamp) console.error('DEBUG: ' + key + ' timestamp is newer, must be created. e: ' + e.timestamp + ', e2: ' + e2.timestamp);
           create.push(key);
           total++;
         }
