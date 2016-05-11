@@ -3435,7 +3435,10 @@ var LibraryGL = {
 #if GL_ASSERTIONS
     GL.validateGLObjectID(GL.programs, program, 'glLinkProgram', 'program');
 #endif
+    var t0 = performance.now();
     GLctx.linkProgram(GL.programs[program]);
+    var t1 = performance.now();
+    if (t1-t0 > 10) console.log('Shader program link step took ' + (t1-t0) + ' msecs!');
     GL.programInfos[program] = null; // uniforms no longer keep the same names after linking
     GL.populateUniformTable(program);
   },
