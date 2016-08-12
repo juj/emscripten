@@ -2,6 +2,13 @@ import subprocess, os, time, sys, tempfile
 
 EM_PROFILE_TOOLCHAIN = int(os.getenv('EM_PROFILE_TOOLCHAIN')) if os.getenv('EM_PROFILE_TOOLCHAIN') != None else 0
 
+def remove_last_occurrence_if_exists(lst, item):
+  for i in xrange(len(lst)):
+    if lst[i] == item:
+      lst.pop(i)
+      return True
+  return False
+
 if EM_PROFILE_TOOLCHAIN:
   class ToolchainProfiler:
     # Provide a running counter towards negative numbers for PIDs for which we don't know what the actual process ID is
@@ -25,9 +32,11 @@ if EM_PROFILE_TOOLCHAIN:
 
     @staticmethod
     def record_process_exit(returncode):
+      ToolchainProfiler.exit_all_blocks()
       ToolchainProfiler.logfile.write(',\n{"pid":' + ToolchainProfiler.mypid + ',"op":"exit","time":' + ToolchainProfiler.timestamp() + ',"returncode":' + str(returncode) + '}')
       ToolchainProfiler.logfile.write('\n]\n')
       ToolchainProfiler.logfile.close()
+      ToolchainProfiler.logfile = None
 
     @staticmethod
     def record_subprocess_spawn(process_pid, process_cmdline):
@@ -41,13 +50,22 @@ if EM_PROFILE_TOOLCHAIN:
     def record_subprocess_finish(process_pid, returncode):
       ToolchainProfiler.logfile.write(',\n{"pid":' + ToolchainProfiler.mypid + ',"op":"finish","targetPid":' + str(process_pid) + ',"time":' + ToolchainProfiler.timestamp() + ',"returncode":' + str(returncode) + '}')
 
+    block_stack = []
+
     @staticmethod
     def enter_block(block_name):
       ToolchainProfiler.logfile.write(',\n{"pid":' + ToolchainProfiler.mypid + ',"op":"enterBlock","name":"' + block_name + '","time":' + ToolchainProfiler.timestamp() + '}')
+      ToolchainProfiler.block_stack.append(block_name)
 
     @staticmethod
     def exit_block(block_name):
-      ToolchainProfiler.logfile.write(',\n{"pid":' + ToolchainProfiler.mypid + ',"op":"exitBlock","name":"' + block_name + '","time":' + ToolchainProfiler.timestamp() + '}')
+      if remove_last_occurrence_if_exists(ToolchainProfiler.block_stack, block_name):
+        ToolchainProfiler.logfile.write(',\n{"pid":' + ToolchainProfiler.mypid + ',"op":"exitBlock","name":"' + block_name + '","time":' + ToolchainProfiler.timestamp() + '}')
+
+    @staticmethod
+    def exit_all_blocks():
+      for b in ToolchainProfiler.block_stack[::-1]:
+        ToolchainProfiler.exit_block(b)
 
     class ProfileBlock:
       def __init__(self, block_name):
