@@ -26,7 +26,7 @@ THE SOFTWARE.
 <html>
 <head>
 <title>Swimlane using d3.js</title>
-<script type="text/javascript" src="d3.v2.js"></script>
+<script src="https://d3js.org/d3.v3.min.js"></script>
 <style>
 .chart {
 	shape-rendering: crispEdges;
@@ -92,7 +92,8 @@ function getBaseName(cmdLine) {
 		return basename;
 }
 
-var lastEndTime = 0;
+var firstStartTime = Infinity;
+var lastEndTime = -Infinity;
 
 function createSwimlaneChart(data) {
 	var itemsByPid = {};
@@ -102,6 +103,7 @@ function createSwimlaneChart(data) {
 		t0 = Math.min(t0, data[i].time)
 		lastEndTime = Math.max(lastEndTime, data[i].time);
 	}
+	firstStartTime = t0;
 
 	for(var i in data) {
 		var d = data[i];
@@ -221,7 +223,7 @@ function createSwimlaneChart(data) {
 		.range([0, width]);
 
 //	var x1 = d3.time.scale().range([0, width]);
-	var x1 = x;//d3.scale.linear().range([0, width]);
+	var x1 = d3.scale.linear().range([0, width]);
 
 	var ext = d3.extent(lanes, function(d) { return d.id; });
 	var y1 = d3.scale.linear().domain([ext[0], ext[1] + 1]).range([0, mainHeight]);
@@ -482,9 +484,9 @@ function createSwimlaneChart(data) {
 			.attr('x1', x1(now) + 0.5)
 			.attr('x2', x1(now) + 0.5);
 */
+		main.select('.main.axis').call(x1DateAxis);
 /*
 		// update the axis
-		main.select('.main.axis.date').call(x1DateAxis);
 		main.select('.main.axis.month').call(x1MonthAxis)
 			.selectAll('text')
 				.attr('dx', 5)
