@@ -154,12 +154,19 @@ function createSwimlaneChart(data) {
 	var lanes = [];
 
 	function fitLane(startX, endX) {
-		for (var i = 0; i < laneOccupancy.length; ++i) {
+		var highestLaneThatFits = laneOccupancy.length;
+		for (var i = laneOccupancy.length-1; i >= 0; --i) {
 			if (laneOccupancy[i] <= startX) {
-				laneOccupancy[i] = endX;
-				return i;
+				highestLaneThatFits = i;
+			} else {
+				break;
 			}
 		}
+		if (highestLaneThatFits < laneOccupancy.length) {
+			laneOccupancy[highestLaneThatFits] = endX;
+			return highestLaneThatFits;
+		}
+
 		laneOccupancy.push(endX);
 		lanes.push({
 			id: laneOccupancy.length-1,
@@ -172,7 +179,8 @@ function createSwimlaneChart(data) {
 	for(var i in itemsOrdered) {
 		var p = itemsOrdered[i];
 
-		var laneIndex = fitLane(p.start, p.end);
+		var label = '(' + (p.end - p.start).toFixed(0) + 'ms) ' + p.cmd;
+		var laneIndex = fitLane(p.start, Math.max(p.end, p.start + label.length*3));
 
 		var item = {
 			class: 'past',
@@ -183,7 +191,8 @@ function createSwimlaneChart(data) {
 			lane: laneIndex,
 			cmdLine: p.cmdLine,
 			cmd: p.cmd,
-			color: p.color
+			color: p.color,
+			label: label
 		};
 		items.push(item);
 		++id;
@@ -505,7 +514,7 @@ function createSwimlaneChart(data) {
 					
 		labels.enter().append('text')
 //			.text(function (d) { return 'Item\n\n\n\n Id: ' + d.id; })
-			.text(function (d) { return '(' + (d.end - d.start).toFixed(0) + 'ms) ' + d.cmd; })
+			.text(function (d) { return d.label; })
 			.attr('x', function(d) { return x1(Math.max(d.start, minExtent)) + 2; })
 			.attr('y', function(d) { return y1(d.lane) + .4 * y1(1) + 0.5; })
 			.attr('text-anchor', 'start')
