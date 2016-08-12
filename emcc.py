@@ -38,6 +38,10 @@ if EM_PROFILE_TOOLCHAIN:
   Popen = ProfiledPopen
   check_call = profiled_check_call
   check_output = profiled_check_output
+else:
+  Popen = subprocess.Popen
+  check_call = subprocess.check_call
+  check_output = subprocess.check_output
 
 exit = profiled_sys_exit
 
