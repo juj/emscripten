@@ -53,7 +53,7 @@ def create_profiling_graph():
     json_file = 'toolchain_profiler.results_' + time.strftime('%Y%m%d_%H%M') + '.json'
   else:
     json_file = 'toolchain_profiler.results.json'
-  open(json_file, 'w').write(json.dumps(all_results))
+  open(json_file, 'w').write(json.dumps(all_results, indent=2))
   print 'Wrote "' + json_file + '"'
 
   html_file = json_file.replace('.json', '.html')
