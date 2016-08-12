@@ -2,6 +2,14 @@
 import os, sys, subprocess, multiprocessing, re, string, json, shutil, logging
 import shared
 
+EM_PROFILE_TOOLCHAIN = int(os.getenv('EM_PROFILE_TOOLCHAIN')) if os.getenv('EM_PROFILE_TOOLCHAIN') != None else 0
+from toolchain_profiler import ToolchainProfiler, ProfiledPopen, profiled_check_call, profiled_check_output, profiled_sys_exit
+if EM_PROFILE_TOOLCHAIN:
+  Popen = ProfiledPopen
+  check_call = profiled_check_call
+  check_output = profiled_check_output
+exit = profiled_sys_exit
+
 configuration = shared.configuration
 temp_files = configuration.get_temp_files()
 
@@ -68,7 +76,7 @@ def find_msbuild(sln_file, make_env):
 def get_native_optimizer():
   if os.environ.get('EMCC_FAST_COMPILER') == '0':
     logging.critical('Non-fastcomp compiler is no longer available, please use fastcomp or an older version of emscripten')
-    sys.exit(1)
+    exit(1)
 
   # Allow users to override the location of the optimizer executable by setting an environment variable EMSCRIPTEN_NATIVE_OPTIMIZER=/path/to/optimizer(.exe)
   if os.environ.get('EMSCRIPTEN_NATIVE_OPTIMIZER') and len(os.environ.get('EMSCRIPTEN_NATIVE_OPTIMIZER')) > 0:
@@ -118,7 +126,7 @@ def get_native_optimizer():
           cmake_generators = ['Unix Makefiles']
 
         for cmake_generator in cmake_generators:
-          proc = subprocess.Popen(['cmake', '-G', cmake_generator, '-DCMAKE_BUILD_TYPE='+cmake_build_type, shared.path_from_root('tools', 'optimizer')], cwd=build_path, stdin=log_output, stdout=log_output, stderr=log_output)
+          proc = Popen(['cmake', '-G', cmake_generator, '-DCMAKE_BUILD_TYPE='+cmake_build_type, shared.path_from_root('tools', 'optimizer')], cwd=build_path, stdin=log_output, stdout=log_output, stderr=log_output)
           proc.communicate()
           make_env = os.environ.copy()
           if proc.returncode == 0:
@@ -131,7 +139,7 @@ def get_native_optimizer():
             else:
               make = ['make']
 
-            proc = subprocess.Popen(make, cwd=build_path, stdin=log_output, stdout=log_output, stderr=log_output, env=make_env)
+            proc = Popen(make, cwd=build_path, stdin=log_output, stdout=log_output, stderr=log_output, env=make_env)
             proc.communicate()
             if proc.returncode == 0:
               if WINDOWS and 'Visual Studio' in cmake_generator:
@@ -152,13 +160,13 @@ def get_native_optimizer():
         for compiler in [shared.CLANG, 'g++', 'clang++']: # try our clang first, otherwise hope for a system compiler in the path
           shared.logging.debug('  using ' + compiler)
           try:
-            out, err = subprocess.Popen([compiler,
-                                         shared.path_from_root('tools', 'optimizer', 'parser.cpp'),
-                                         shared.path_from_root('tools', 'optimizer', 'simple_ast.cpp'),
-                                         shared.path_from_root('tools', 'optimizer', 'optimizer.cpp'),
-                                         shared.path_from_root('tools', 'optimizer', 'optimizer-shared.cpp'),
-                                         shared.path_from_root('tools', 'optimizer', 'optimizer-main.cpp'),
-                                         '-O3', '-std=c++11', '-fno-exceptions', '-fno-rtti', '-o', output] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+            out, err = Popen([compiler,
+                              shared.path_from_root('tools', 'optimizer', 'parser.cpp'),
+                              shared.path_from_root('tools', 'optimizer', 'simple_ast.cpp'),
+                              shared.path_from_root('tools', 'optimizer', 'optimizer.cpp'),
+                              shared.path_from_root('tools', 'optimizer', 'optimizer-shared.cpp'),
+                              shared.path_from_root('tools', 'optimizer', 'optimizer-main.cpp'),
+                              '-O3', '-std=c++11', '-fno-exceptions', '-fno-rtti', '-o', output] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
             outs.append(out)
             errs.append(err)
           except OSError:
@@ -234,7 +242,7 @@ class Minifier:
       f.write('// EXTRA_INFO:' + json.dumps(self.serialize()))
       f.close()
 
-      output = subprocess.Popen(self.js_engine +
+      output = Popen(self.js_engine +
           [JS_OPTIMIZER, temp_file, 'minifyGlobals', 'noPrintMetadata'] +
           (['minifyWhitespace'] if minify_whitespace else []) +
           (['--debug'] if source_map else []),
@@ -278,7 +286,7 @@ def run_on_chunk(command):
       print >> sys.stderr, 'running js optimizer command', ' '.join(map(lambda c: c if c != filename else saved, command))
       shutil.copyfile(filename, os.path.join(shared.get_emscripten_temp_dir(), saved))
     if shared.EM_BUILD_VERBOSE_LEVEL >= 3: print >> sys.stderr, 'run_on_chunk: ' + str(command)
-    proc = subprocess.Popen(command, stdout=subprocess.PIPE)
+    proc = Popen(command, stdout=subprocess.PIPE)
     output = proc.communicate()[0]
     assert proc.returncode == 0, 'Error in optimizer (return code ' + str(proc.returncode) + '): ' + output
     assert len(output) > 0 and not output.startswith('Assertion failed'), 'Error in optimizer: ' + output
@@ -317,7 +325,7 @@ def run_on_js(filename, passes, js_engine, source_map=False, extra_info=None, ju
 
   if start_funcs < 0 or end_funcs < start_funcs or not suffix:
     logging.critical('Invalid input file. Did not contain appropriate markers. (start_funcs: %s, end_funcs: %s, suffix_start: %s' % (start_funcs, end_funcs, suffix_start))
-    sys.exit(1)
+    exit(1)
 
   minify_globals = 'minifyNames' in passes and 'asm' in passes
   if minify_globals:
@@ -490,7 +498,7 @@ EMSCRIPTEN_FUNCS();
         if DEBUG: print >> sys.stderr, 'running cleanup on shell code'
         next = cld + '.cl.js'
         temp_files.note(next)
-        proc = subprocess.Popen(js_engine + [JS_OPTIMIZER, cld, 'noPrintMetadata', 'JSDCE'] + (['minifyWhitespace'] if 'minifyWhitespace' in passes else []), stdout=open(next, 'w'))
+        proc = Popen(js_engine + [JS_OPTIMIZER, cld, 'noPrintMetadata', 'JSDCE'] + (['minifyWhitespace'] if 'minifyWhitespace' in passes else []), stdout=open(next, 'w'))
         proc.communicate()
         assert proc.returncode == 0
         cld = next
@@ -551,12 +559,17 @@ def run(filename, passes, js_engine=shared.NODE_JS, source_map=False, extra_info
   return temp_files.run_and_clean(lambda: run_on_js(filename, passes, js_engine, source_map, extra_info, just_split, just_concat))
 
 if __name__ == '__main__':
-  last = sys.argv[-1]
-  if '{' in last:
-    extra_info = json.loads(last)
-    sys.argv = sys.argv[:-1]
-  else:
-    extra_info = None
-  out = run(sys.argv[1], sys.argv[2:], extra_info=extra_info)
-  shutil.copyfile(out, sys.argv[1] + '.jsopt.js')
-
+  ToolchainProfiler.record_process_start()
+  try:
+    last = sys.argv[-1]
+    if '{' in last:
+      extra_info = json.loads(last)
+      sys.argv = sys.argv[:-1]
+    else:
+      extra_info = None
+    out = run(sys.argv[1], sys.argv[2:], extra_info=extra_info)
+    shutil.copyfile(out, sys.argv[1] + '.jsopt.js')
+  except Exception, e:
+    ToolchainProfiler.record_process_exit(1)
+    raise e
+  exit(0)

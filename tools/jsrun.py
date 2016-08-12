@@ -1,6 +1,13 @@
 import time, os, sys, logging
 from subprocess import Popen, PIPE, STDOUT
 
+EM_PROFILE_TOOLCHAIN = int(os.getenv('EM_PROFILE_TOOLCHAIN')) if os.getenv('EM_PROFILE_TOOLCHAIN') != None else 0
+from toolchain_profiler import ToolchainProfiler, ProfiledPopen, profiled_check_call, profiled_check_output
+if EM_PROFILE_TOOLCHAIN:
+  Popen = ProfiledPopen
+  check_call = profiled_check_call
+  check_output = profiled_check_output
+
 TRACK_PROCESS_SPAWNS = True if (os.getenv('EM_BUILD_VERBOSE') and int(os.getenv('EM_BUILD_VERBOSE')) >= 3) else False
 
 def timeout_run(proc, timeout=None, note='unnamed process', full_output=False):

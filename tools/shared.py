@@ -1,7 +1,7 @@
 import os
 
 import shutil, time, os, sys, json, tempfile, copy, shlex, atexit, subprocess, hashlib, cPickle, re, errno
-from subprocess import Popen, PIPE, STDOUT
+from subprocess import Popen, PIPE, STDOUT, check_call
 from tempfile import mkstemp
 from distutils.spawn import find_executable
 import jsrun, cache, tempfiles
@@ -12,9 +12,11 @@ import logging, platform, multiprocessing
 from tempfiles import try_delete
 
 EM_PROFILE_TOOLCHAIN = int(os.getenv('EM_PROFILE_TOOLCHAIN')) if os.getenv('EM_PROFILE_TOOLCHAIN') != None else 0
-from toolchain_profiler import ToolchainProfiler, ProfiledPopen
+from toolchain_profiler import ToolchainProfiler, ProfiledPopen, profiled_check_call, profiled_check_output
 if EM_PROFILE_TOOLCHAIN:
   Popen = ProfiledPopen
+  check_call = profiled_check_call
+  check_output = profiled_check_output
 
 # On Windows python suffers from a particularly nasty bug if python is spawning new processes while python itself is spawned from some other non-console process.
 # Use a custom replacement for Popen on Windows to avoid the "WindowsError: [Error 6] The handle is invalid" errors when emcc is driven through cmake or mingw32-make.
@@ -551,23 +553,25 @@ def check_sanity(force=False):
 
     logging.info('(Emscripten: Running sanity checks)')
 
-    if not check_engine(COMPILER_ENGINE):
-      logging.critical('The JavaScript shell used for compiling (%s) does not seem to work, check the paths in %s' % (COMPILER_ENGINE, EM_CONFIG))
-      sys.exit(1)
+    with ToolchainProfiler.profile_block('sanity compiler_engine'):
+      if not check_engine(COMPILER_ENGINE):
+        logging.critical('The JavaScript shell used for compiling (%s) does not seem to work, check the paths in %s' % (COMPILER_ENGINE, EM_CONFIG))
+        sys.exit(1)
 
     if NODE_JS != COMPILER_ENGINE:
       if not check_engine(NODE_JS):
         logging.critical('Node.js (%s) does not seem to work, check the paths in %s' % (NODE_JS, EM_CONFIG))
         sys.exit(1)
 
-    for cmd in [CLANG, LLVM_LINK, LLVM_AR, LLVM_OPT, LLVM_AS, LLVM_DIS, LLVM_NM, LLVM_INTERPRETER]:
-      if not os.path.exists(cmd) and not os.path.exists(cmd + '.exe'): # .exe extension required for Windows
-        logging.critical('Cannot find %s, check the paths in %s' % (cmd, EM_CONFIG))
-        sys.exit(1)
+    with ToolchainProfiler.profile_block('sanity LLVM'):
+      for cmd in [CLANG, LLVM_LINK, LLVM_AR, LLVM_OPT, LLVM_AS, LLVM_DIS, LLVM_NM, LLVM_INTERPRETER]:
+        if not os.path.exists(cmd) and not os.path.exists(cmd + '.exe'): # .exe extension required for Windows
+          logging.critical('Cannot find %s, check the paths in %s' % (cmd, EM_CONFIG))
+          sys.exit(1)
 
     if not os.path.exists(PYTHON) and not os.path.exists(cmd + '.exe'):
       try:
-        subprocess.check_call([PYTHON, '--version'], stdout=PIPE, stderr=PIPE)
+        check_call([PYTHON, '--version'], stdout=PIPE, stderr=PIPE)
       except:
         logging.critical('Cannot find %s, check the paths in %s' % (PYTHON, EM_CONFIG))
         sys.exit(1)
@@ -577,8 +581,9 @@ def check_sanity(force=False):
       sys.exit(1)
 
     # Sanity check passed!
-    if not check_closure_compiler():
-      logging.warning('closure compiler will not be available')
+    with ToolchainProfiler.profile_block('sanity closure compiler'):
+      if not check_closure_compiler():
+        logging.warning('closure compiler will not be available')
 
     if not force:
       # Only create/update this file if the sanity check succeeded, i.e., we got here
@@ -1769,7 +1774,7 @@ class Building:
 
   @staticmethod
   def eval_ctors(js_file, mem_init_file):
-    subprocess.check_call([PYTHON, path_from_root('tools', 'ctor_evaller.py'), js_file, mem_init_file, str(Settings.TOTAL_MEMORY), str(Settings.TOTAL_STACK), str(Settings.GLOBAL_BASE)])
+    check_call([PYTHON, path_from_root('tools', 'ctor_evaller.py'), js_file, mem_init_file, str(Settings.TOTAL_MEMORY), str(Settings.TOTAL_STACK), str(Settings.GLOBAL_BASE)])
 
   @staticmethod
   def eliminate_duplicate_funcs(filename):
@@ -2135,7 +2140,7 @@ def check_execute(cmd, *args, **kw):
   # TODO: use in more places. execute doesn't actually check that return values
   # are nonzero
   try:
-    subprocess.check_output(cmd, *args, **kw)
+    check_output(cmd, *args, **kw)
     logging.debug("Successfuly executed %s" % " ".join(cmd))
   except subprocess.CalledProcessError as e:
     logging.error("'%s' failed with output:\n%s" % (" ".join(e.cmd), e.output))
@@ -2143,7 +2148,7 @@ def check_execute(cmd, *args, **kw):
 
 def check_call(cmd, *args, **kw):
   try:
-    subprocess.check_call(cmd, *args, **kw)
+    check_call(cmd, *args, **kw)
     logging.debug("Successfully executed %s" % " ".join(cmd))
   except subprocess.CalledProcessError as e:
     logging.error("'%s' failed" % " ".join(cmd))

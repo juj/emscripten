@@ -16,6 +16,13 @@ from tools import jsrun, cache as cache_module, tempfiles
 from tools.response_file import read_response_file
 from tools.shared import WINDOWS
 
+EM_PROFILE_TOOLCHAIN = int(os.getenv('EM_PROFILE_TOOLCHAIN')) if os.getenv('EM_PROFILE_TOOLCHAIN') != None else 0
+from tools.toolchain_profiler import ToolchainProfiler, ProfiledPopen, profiled_check_call, profiled_check_output
+if EM_PROFILE_TOOLCHAIN:
+  Popen = ProfiledPopen
+  check_call = profiled_check_call
+  check_output = profiled_check_output
+
 __rootpath__ = os.path.abspath(os.path.dirname(__file__))
 def path_from_root(*pathelems):
   """Returns the absolute path for which the given path elements are
@@ -138,7 +145,7 @@ def get_and_parse_backend(infile, settings, temp_files, DEBUG):
       if DEBUG:
         logging.debug('emscript: llvm backend: ' + ' '.join(backend_args))
         t = time.time()
-      shared.jsrun.timeout_run(subprocess.Popen(backend_args, stdout=subprocess.PIPE))
+      shared.jsrun.timeout_run(Popen(backend_args, stdout=subprocess.PIPE))
       if DEBUG:
         logging.debug('  emscript: llvm backend took %s seconds' % (time.time() - t))
 

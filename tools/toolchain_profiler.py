@@ -4,6 +4,9 @@ EM_PROFILE_TOOLCHAIN = int(os.getenv('EM_PROFILE_TOOLCHAIN')) if os.getenv('EM_P
 
 if EM_PROFILE_TOOLCHAIN:
   class ToolchainProfiler:
+    # Provide a running counter towards negative numbers for PIDs for which we don't know what the actual process ID is
+    imaginary_pid_ = 0
+
     @staticmethod
     def timestamp():
       return '{0:.3f}'.format(time.time())
@@ -54,6 +57,11 @@ if EM_PROFILE_TOOLCHAIN:
     @staticmethod
     def profile_block(block_name):
       return ToolchainProfiler.ProfileBlock(block_name)
+
+    @staticmethod
+    def imaginary_pid():
+      ToolchainProfiler.imaginary_pid_ -= 1
+      return ToolchainProfiler.imaginary_pid_
 
 else:
   class ToolchainProfiler:
@@ -120,3 +128,25 @@ class ProfiledPopen:
 def profiled_sys_exit(returncode):
   ToolchainProfiler.record_process_exit(returncode)
   sys.exit(returncode)
+
+def profiled_check_call(cmd, *args, **kw):
+  pid = ToolchainProfiler.imaginary_pid()
+  ToolchainProfiler.record_subprocess_spawn(pid, cmd)
+  try:
+    ret = subprocess.check_call(cmd, *args, **kw)
+  except Exception, e:
+    ToolchainProfiler.record_subprocess_finish(pid, e.returncode)
+    raise e
+  ToolchainProfiler.record_subprocess_finish(pid, 0)
+  return ret
+
+def profiled_check_output(cmd, *args, **kw):
+  pid = ToolchainProfiler.imaginary_pid()
+  ToolchainProfiler.record_subprocess_spawn(pid, cmd)
+  try:
+    ret = subprocess.check_output(cmd, *args, **kw)
+  except Exception, e:
+    ToolchainProfiler.record_subprocess_finish(pid, e.returncode)
+    raise e
+  ToolchainProfiler.record_subprocess_finish(pid, 0)
+  return ret
