@@ -571,7 +571,7 @@ def check_sanity(force=False):
 
     if not os.path.exists(PYTHON) and not os.path.exists(cmd + '.exe'):
       try:
-        check_call([PYTHON, '--version'], stdout=PIPE, stderr=PIPE)
+        check_return([PYTHON, '--version'], stdout=PIPE, stderr=PIPE)
       except:
         logging.critical('Cannot find %s, check the paths in %s' % (PYTHON, EM_CONFIG))
         sys.exit(1)
@@ -1774,7 +1774,7 @@ class Building:
 
   @staticmethod
   def eval_ctors(js_file, mem_init_file):
-    check_call([PYTHON, path_from_root('tools', 'ctor_evaller.py'), js_file, mem_init_file, str(Settings.TOTAL_MEMORY), str(Settings.TOTAL_STACK), str(Settings.GLOBAL_BASE)])
+    check_return([PYTHON, path_from_root('tools', 'ctor_evaller.py'), js_file, mem_init_file, str(Settings.TOTAL_MEMORY), str(Settings.TOTAL_STACK), str(Settings.GLOBAL_BASE)])
 
   @staticmethod
   def eliminate_duplicate_funcs(filename):
@@ -2146,7 +2146,7 @@ def check_execute(cmd, *args, **kw):
     logging.error("'%s' failed with output:\n%s" % (" ".join(e.cmd), e.output))
     raise
 
-def check_call(cmd, *args, **kw):
+def check_return(cmd, *args, **kw):
   try:
     check_call(cmd, *args, **kw)
     logging.debug("Successfully executed %s" % " ".join(cmd))

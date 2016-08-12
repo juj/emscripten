@@ -22,6 +22,10 @@ if EM_PROFILE_TOOLCHAIN:
   Popen = ProfiledPopen
   check_call = profiled_check_call
   check_output = profiled_check_output
+else:
+  Popen = subprocess.Popen
+  check_call = subprocess.check_call
+  check_output = subprocess.check_output
 
 __rootpath__ = os.path.abspath(os.path.dirname(__file__))
 def path_from_root(*pathelems):
