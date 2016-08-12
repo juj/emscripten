@@ -1,3 +1,5 @@
+import os
+
 import shutil, time, os, sys, json, tempfile, copy, shlex, atexit, subprocess, hashlib, cPickle, re, errno
 from subprocess import Popen, PIPE, STDOUT
 from tempfile import mkstemp
@@ -8,6 +10,11 @@ import logging, platform, multiprocessing
 
 # Temp file utilities
 from tempfiles import try_delete
+
+EM_PROFILE_TOOLCHAIN = int(os.getenv('EM_PROFILE_TOOLCHAIN')) if os.getenv('EM_PROFILE_TOOLCHAIN') != None else 0
+from toolchain_profiler import ToolchainProfiler, ProfiledPopen
+if EM_PROFILE_TOOLCHAIN:
+  Popen = ProfiledPopen
 
 # On Windows python suffers from a particularly nasty bug if python is spawning new processes while python itself is spawned from some other non-console process.
 # Use a custom replacement for Popen on Windows to avoid the "WindowsError: [Error 6] The handle is invalid" errors when emcc is driven through cmake or mingw32-make.
@@ -498,6 +505,7 @@ def generate_sanity():
   return EMSCRIPTEN_VERSION + '|' + LLVM_ROOT + '|' + get_clang_version() + ('_wasm' if get_llvm_target() == WASM_TARGET else '')
 
 def check_sanity(force=False):
+  ToolchainProfiler.enter_block('sanity')
   try:
     if os.environ.get('EMCC_SKIP_SANITY_CHECK') == '1':
       return
@@ -581,6 +589,8 @@ def check_sanity(force=False):
   except Exception, e:
     # Any error here is not worth failing on
     print 'WARNING: sanity check failed to run', e
+  finally:
+    ToolchainProfiler.exit_block('sanity')
 
 # Tools/paths
 

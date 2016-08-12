@@ -5,12 +5,15 @@
 
 import sys
 
+from tools.toolchain_profiler import ToolchainProfiler, profiled_sys_exit
 
 
 if sys.version_info.major == 2:
   import emcc
   if __name__ == '__main__':
+    ToolchainProfiler.record_process_start()
     emcc.run()
+    profiled_sys_exit(0)
 else:
   import os, subprocess
   if __name__ == '__main__':

@@ -23,11 +23,18 @@ emcc can be influenced by a few environment variables:
   EMMAKEN_COMPILER - The compiler to be used, if you don't want the default clang.
 '''
 
+from tools.toolchain_profiler import ToolchainProfiler, profiled_sys_exit
+if __name__ == '__main__':
+  ToolchainProfiler.record_process_start()
+
 import os, sys, shutil, tempfile, subprocess, shlex, time, re, logging
 from subprocess import PIPE
 from tools import shared, jsrun, system_libs
 from tools.shared import execute, suffix, unsuffixed, unsuffixed_basename, WINDOWS, safe_move
 from tools.response_file import read_response_file
+
+EM_PROFILE_TOOLCHAIN = int(os.getenv('EM_PROFILE_TOOLCHAIN')) if os.getenv('EM_PROFILE_TOOLCHAIN') != None else 0
+exit = profiled_sys_exit
 
 # endings = dot + a suffix, safe to test by  filename.endswith(endings)
 C_ENDINGS = ('.c', '.C', '.i')
@@ -312,7 +319,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
   if len(sys.argv) == 1 or sys.argv[1] in ['x', 't']:
     # noop ar
     logging.debug('just ar')
-    sys.exit(0)
+    exit(0)
 
   use_cxx = True
 
@@ -729,7 +736,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         cfi = True
 
     if should_exit:
-      sys.exit(0)
+      exit(0)
 
     newargs = [arg for arg in newargs if arg is not '']
 
@@ -943,7 +950,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
 
     if os.environ.get('EMCC_FAST_COMPILER') == '0':
       logging.critical('Non-fastcomp compiler is no longer available, please use fastcomp or an older version of emscripten')
-      sys.exit(1)
+      exit(1)
 
     # Set ASM_JS default here so that we can override it from the command line.
     shared.Settings.ASM_JS = 1 if opt_level > 0 else 2
@@ -1004,7 +1011,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       shared.Settings.USE_CLOSURE_COMPILER = use_closure_compiler
       if not shared.check_closure_compiler():
         logging.error('fatal: closure compiler is not configured correctly')
-        sys.exit(1)
+        exit(1)
       if use_closure_compiler == 2 and shared.Settings.ASM_JS == 1:
         logging.warning('not all asm.js optimizations are possible with --closure 2, disabling those - your code will be run more slowly')
         shared.Settings.ASM_JS = 2
@@ -1217,7 +1224,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       args = system_libs.process_args(args, shared.Settings)
       logging.debug("running (for precompiled headers): " + call + ' ' + ' '.join(args))
       execute([call] + args) # let compiler frontend print directly, so colors are saved (PIPE kills that)
-      sys.exit(0)
+      exit(0)
 
     def get_bitcode_file(input_file):
       if final_suffix not in JS_CONTAINING_SUFFIXES:
@@ -1267,7 +1274,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       execute(args) # let compiler frontend print directly, so colors are saved (PIPE kills that)
       if not os.path.exists(output_file):
         logging.error('compiler frontend failed to generate LLVM bitcode, halting')
-        sys.exit(1)
+        exit(1)
 
     # First, generate LLVM bitcode. For each input file, we get base.o with bitcode
     for i, input_file in input_files:
@@ -1292,7 +1299,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
             compile_source_file(i, input_file)
           else:
             logging.error(input_file + ': Unknown file suffix when compiling to LLVM bitcode!')
-            sys.exit(1)
+            exit(1)
 
     log_time('bitcodeize inputs')
 
@@ -1845,7 +1852,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
 
       if shared.Settings.EMTERPRETIFY_ADVISE:
         logging.warning('halting compilation due to EMTERPRETIFY_ADVISE')
-        sys.exit(0)
+        exit(0)
 
       # minify (if requested) after emterpreter processing, and finalize output
       logging.debug('finalizing emterpreted code')
@@ -2101,3 +2108,4 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
 
 if __name__ == '__main__':
   run()
+  exit(0)
