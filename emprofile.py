@@ -2,6 +2,9 @@ import sys, shutil, os, json, tempfile, time
 
 profiler_logs_path = os.path.join(tempfile.gettempdir(), 'emscripten_toolchain_profiler_logs')
 
+# If set to 1, always generates the output file under the same filename and doesn't delete the temp data.
+DEBUG_EMPROFILE_PY = 0
+
 # Deletes all previously captured log files to make room for a new clean run.
 def delete_profiler_logs():
   try:
@@ -28,12 +31,26 @@ def create_profiling_graph():
   if len(log_files) > 0:
     print 'Processing ' + str(len(log_files)) + ' profile log files in "' + profiler_logs_path + '"...'
   for f in log_files:
-    all_results += json.loads(open(f, 'r').read())
+    try:
+      json_data = open(f, 'r').read()
+      lines = json_data.split('\n')
+      lines = filter(lambda x: x != '[' and x != ']' and len(x.strip()) > 0, lines)
+      lines = map(lambda x: (x + ',') if not x.endswith(',') else x, lines)
+      lines[-1] = lines[-1][:-1]
+      json_data = '[' + '\n'.join(lines) + ']'
+      all_results += json.loads(json_data)
+    except Exception, e:
+      print >> sys.stderr, str(e)
+      print >> sys.stderr, 'Failed to parse JSON file "' + f + '"!'
+      sys.exit(1)
   if len(all_results) == 0:
     print 'No profiler logs were found in path "' + profiler_logs_path + '". Try setting the environment variable EM_PROFILE_TOOLCHAIN=1 and run some emcc commands, and then rerun "python emprofile.py --graph" again.'
     return
 
-  json_file = 'toolchain_profiler.results_' + time.strftime('%Y%m%d') + '.json'
+  if not DEBUG_EMPROFILE_PY:
+    json_file = 'toolchain_profiler.results_' + time.strftime('%Y%m%d_%H%M') + '.json'
+  else:
+    json_file = 'toolchain_profiler.results.json'
   open(json_file, 'w').write(json.dumps(all_results))
   print 'Wrote "' + json_file + '"'
 
@@ -42,7 +59,8 @@ def create_profiling_graph():
   open(html_file, 'w').write(html_contents)
   print 'Wrote "' + html_file + '"'
 
-  delete_profiler_logs()
+  if not DEBUG_EMPROFILE_PY:
+    delete_profiler_logs()
 
 if sys.argv[1] == '--reset':
   delete_profiler_logs()
