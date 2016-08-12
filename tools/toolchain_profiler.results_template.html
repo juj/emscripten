@@ -1,0 +1,530 @@
+<!--
+The MIT License (MIT)
+
+Copyright (c) 2013 bill@bunkat.com
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+
+
+<html>
+<head>
+<title>Swimlane using d3.js</title>
+<script type="text/javascript" src="d3.v2.js"></script>
+<style>
+.chart {
+	shape-rendering: crispEdges;
+}
+
+.mini text {
+	font: 9px sans-serif;	
+}
+
+.main text {
+	font: 12px sans-serif;	
+}
+
+.month text {
+	text-anchor: start;
+}
+
+.todayLine {
+	stroke: blue;
+	stroke-width: 1.5;
+}
+
+.axis line, .axis path {
+	stroke: black;
+}
+
+.miniItem {
+	stroke-width: 6;	
+}
+
+.future {
+	stroke: gray;
+	fill: #ddd;
+}
+
+.past {
+	stroke: green;
+}
+
+.brush .extent {
+	stroke: gray;
+	fill: blue;
+	fill-opacity: .165;
+}
+</style>
+</head>
+<body>
+
+<script type="text/javascript">
+
+var lanes = [];
+var items = [];
+
+function getBaseName(cmdLine) {
+	var cmd = cmdLine[0];
+	var lastSlash = Math.max(cmd.lastIndexOf('\\'), cmd.lastIndexOf('/'));
+	var basename = cmd.substr(lastSlash+1);
+	if (basename.indexOf('node') == 0 && cmdLine[1].indexOf('.js') != -1)
+		return getBaseName(cmdLine.slice(1));
+	else if (basename.indexOf('python') == 0 && cmdLine[1].indexOf('.py') != -1)
+		return getBaseName(cmdLine.slice(1));
+	else
+		return basename;
+}
+
+var lastEndTime = 0;
+
+function createSwimlaneChart(data) {
+	var itemsByPid = {};
+
+	var t0 = Infinity;
+	for(var i in data) {
+		t0 = Math.min(t0, data[i].time)
+		lastEndTime = Math.max(lastEndTime, data[i].time);
+	}
+
+	for(var i in data) {
+		var d = data[i];
+		if (d.op === 'start') {
+			itemsByPid[d.pid] = {
+				pid: d.pid,
+				start: (d.time - t0)*1000,
+				end: null,
+				cmdLine: d.cmdLine,
+				cmd: getBaseName(d.cmdLine),
+				color: d3.rgb('#80ff80')
+			};
+		} else if (d.op === 'exit') {
+			itemsByPid[d.pid].end = (d.time - t0)*1000;
+			d.end = (d.time - t0)*1000 ;
+		} else if (d.op === 'spawn') {
+			itemsByPid[d.targetPid] = {
+				pid: d.targetPid,
+				start: (d.time - t0)*1000,
+				end: null,
+				cmdLine: d.cmdLine,
+				cmd: getBaseName(d.cmdLine),
+				color: d3.rgb('#80ff80')
+			};
+		} else if (d.op === 'finish') {
+			itemsByPid[d.targetPid].end = (d.time - t0)*1000;
+		} else if (d.op === 'enterBlock') {
+			var id = d.pid + '-' + d.name;
+			itemsByPid[id] = {
+				pid: id,
+				start: (d.time - t0)*1000,
+				end: null,
+				cmd: d.name,
+				color: d3.rgb('#8080ff')
+			};
+		} else if (d.op === 'exitBlock') {
+			var id = d.pid + '-' + d.name;
+			itemsByPid[id].end = (d.time - t0)*1000;
+		}
+	}
+
+	var itemsOrdered = [];
+	for(var i in itemsByPid) {
+		itemsOrdered.push(itemsByPid[i]);
+	}
+	itemsOrdered = itemsOrdered.sort(function(a, b) { return a.start - b.start;});
+
+	var id = 0;
+	for(var i in itemsOrdered) {
+		var p = itemsOrdered[i];
+
+		var lane = {
+			id: id,
+			label: 'pid ' + p.pid
+		};
+		lanes.push(lane);
+
+		var item = {
+			class: 'past',
+			desc: 'Description',
+			start: p.start,
+			end: p.end,
+			id: id,
+			lane: id,
+			cmdLine: p.cmdLine,
+			cmd: p.cmd,
+			color: p.color
+		};
+		items.push(item);
+		++id;
+	}
+	/*
+	var data = randomData();
+	var lanes = data.laneLines;
+	var items = data.items;
+	*/
+	var now = new Date();
+
+	var margin = {top: 20, right: 15, bottom: 15, left: 60};
+	var width = document.body.clientWidth - margin.left - margin.right - 50;
+//	var width = 960 - margin.left - margin.right;
+//	var height = 500 - margin.top - margin.bottom;
+	var height = lanes.length * 50 + 50;
+	var miniHeight = lanes.length * 12 + 50;
+	var mainHeight = height - miniHeight - 50;
+
+	var x = //d3.time.scale()
+				d3.scale.linear()
+//		.domain([d3.time.sunday(d3.min(items, function(d) { return d.start; })),
+		.domain([
+			   d3.min(items, function(d) { return d.start; }),
+				 d3.max(items, function(d) { return d.end; })])
+		.range([0, width]);
+
+//	var x1 = d3.time.scale().range([0, width]);
+	var x1 = x;//d3.scale.linear().range([0, width]);
+
+	var ext = d3.extent(lanes, function(d) { return d.id; });
+	var y1 = d3.scale.linear().domain([ext[0], ext[1] + 1]).range([0, mainHeight]);
+	var y2 = d3.scale.linear().domain([ext[0], ext[1] + 1]).range([0, miniHeight]);
+
+	var chart = d3.select('body')
+		.append('svg:svg')
+		.attr('width', width + margin.right + margin.left)
+		.attr('height', height + margin.top + margin.bottom)
+		.attr('class', 'chart');
+
+	chart.append('defs').append('clipPath')
+		.attr('id', 'clip')
+		.append('rect')
+			.attr('width', width)
+			.attr('height', mainHeight);
+
+	var main = chart.append('g')
+		.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
+		.attr('width', width)
+		.attr('height', mainHeight)
+		.attr('class', 'main');
+
+	var mini = chart.append('g')
+		.attr('transform', 'translate(' + margin.left + ',' + (mainHeight + 60) + ')')
+		.attr('width', width)
+		.attr('height', miniHeight)
+		.attr('class', 'mini');
+
+	// draw the lanes for the main chart
+	main.append('g').selectAll('.laneLines')
+		.data(lanes)
+		.enter().append('line')
+		.attr('x1', 0)
+		.attr('y1', function(d) { return d3.round(y1(d.id)) + 0.5; })
+		.attr('x2', width)
+		.attr('y2', function(d) { return d3.round(y1(d.id)) + 0.5; })
+		.attr('stroke', function(d) { return d.label === '' ? 'white' : 'lightgray' });
+
+	main.append('g').selectAll('.laneText')
+		.data(lanes)
+		.enter().append('text')
+		.text(function(d) { return d.label; })
+		.attr('x', -10)
+		.attr('y', function(d) { return y1(d.id + .5); })
+		.attr('dy', '0.5ex')
+		.attr('text-anchor', 'end')
+		.attr('class', 'laneText');
+
+	// draw the lanes for the mini chart
+	mini.append('g').selectAll('.laneLines')
+		.data(lanes)
+		.enter().append('line')
+		.attr('x1', 0)
+		.attr('y1', function(d) { return d3.round(y2(d.id)) + 0.5; })
+		.attr('x2', width)
+		.attr('y2', function(d) { return d3.round(y2(d.id)) + 0.5; })
+		.attr('stroke', function(d) { return d.label === '' ? 'white' : 'lightgray' });
+
+	mini.append('g').selectAll('.laneText')
+		.data(lanes)
+		.enter().append('text')
+		.text(function(d) { return d.label; })
+		.attr('x', -10)
+		.attr('y', function(d) { return y2(d.id + .5); })
+		.attr('dy', '0.5ex')
+		.attr('text-anchor', 'end')
+		.attr('class', 'laneText');
+
+	// draw the x axis
+
+	var xDateAxis = d3.svg.axis()
+		.scale(x)
+		.orient('bottom')
+	//	.ticks(d3.time.mondays, (x.domain()[1] - x.domain()[0]) > 15552e6 ? 2 : 1)
+		.tickFormat(function(e) { return e + ' ms' })
+//		.tickFormat(d3.time.format('%d'))
+		.tickSize(6, 0, 0);
+
+	var x1DateAxis = d3.svg.axis()
+		.scale(x1)
+		.orient('bottom')
+//		.ticks(d3.time.days, 1)
+//		.tickFormat(d3.time.format('%a %d'))
+		.tickFormat(function(e) { return e + ' ms' })
+		.tickSize(6, 0, 0);
+
+	/*
+
+	var xDateAxis = d3.svg.axis()
+		.scale(x)
+		.orient('bottom')
+		.ticks(d3.time.mondays, (x.domain()[1] - x.domain()[0]) > 15552e6 ? 2 : 1)
+		.tickFormat(d3.time.format('%d'))
+		.tickSize(6, 0, 0);
+
+	var x1DateAxis = d3.svg.axis()
+		.scale(x1)
+		.orient('bottom')
+		.ticks(d3.time.days, 1)
+		.tickFormat(d3.time.format('%a %d'))
+		.tickSize(6, 0, 0);
+
+	var xMonthAxis = d3.svg.axis()
+		.scale(x)
+		.orient('top')
+		.ticks(d3.time.months, 1)
+		.tickFormat(d3.time.format('%b %Y'))
+		.tickSize(15, 0, 0);
+
+	var x1MonthAxis = d3.svg.axis()
+		.scale(x1)
+		.orient('top')
+		.ticks(d3.time.mondays, 1)
+		.tickFormat(d3.time.format('%b - Week %W'))
+		.tickSize(15, 0, 0);
+
+	main.append('g')
+		.attr('transform', 'translate(0,' + mainHeight + ')')
+		.attr('class', 'main axis date')
+		.call(x1DateAxis);
+
+	main.append('g')
+		.attr('transform', 'translate(0,0.5)')
+		.attr('class', 'main axis month')
+		.call(x1MonthAxis)
+		.selectAll('text')
+			.attr('dx', 5)
+			.attr('dy', 12);
+*/
+	main.append('g')
+		.attr('transform', 'translate(0,' + mainHeight + ')')
+		.attr('class', 'main axis')
+		.call(x1DateAxis);
+
+	mini.append('g')
+		.attr('transform', 'translate(0,' + miniHeight + ')')
+		.attr('class', 'axis')
+		.call(xDateAxis);
+/*
+	mini.append('g')
+		.attr('transform', 'translate(0,' + miniHeight + ')')
+		.attr('class', 'axis date')
+		.call(xDateAxis);
+
+	mini.append('g')
+		.attr('transform', 'translate(0,0.5)')
+		.attr('class', 'axis month')
+		.call(xMonthAxis)
+		.selectAll('text')
+			.attr('dx', 5)
+			.attr('dy', 12);
+
+	// draw a line representing today's date
+	main.append('line')
+		.attr('y1', 0)
+		.attr('y2', mainHeight)
+		.attr('class', 'main todayLine')
+		.attr('clip-path', 'url(#clip)');
+		
+	mini.append('line')
+		.attr('x1', x(now) + 0.5)
+		.attr('y1', 0)
+		.attr('x2', x(now) + 0.5)
+		.attr('y2', miniHeight)
+		.attr('class', 'todayLine');
+*/
+	// draw the items
+	var itemRects = main.append('g')
+		.attr('clip-path', 'url(#clip)');
+
+	// generates a single path for each item class in the mini display
+	// ugly - but draws mini 2x faster than append lines or line generator
+	// is there a better way to do a bunch of lines as a single path with d3?
+	function getPaths(items) {
+		var paths = {}, d, offset = .5 * y2(1) + 0.5, result = [];
+		for (var i = 0; i < items.length; i++) {
+			d = items[i];
+			if (!paths[d.class]) paths[d.class] = '';	
+			paths[d.class] += ['M',x(d.start),(y2(d.lane) + offset),'H',x(d.end)].join(' ');
+		}
+
+		for (var className in paths) {
+			result.push({class: className, path: paths[className]});
+		}
+
+		return result;
+	}
+
+	mini.append('g').selectAll('miniItems')
+		.data(getPaths(items))
+		.enter().append('path')
+		.attr('class', function(d) { return 'miniItem ' + d.class; })
+		.attr('d', function(d) { return d.path; });
+/*
+	// invisible hit area to move around the selection window
+	mini.append('rect')
+		.attr('pointer-events', 'painted')
+		.attr('width', width)
+		.attr('height', miniHeight)
+		.attr('visibility', 'hidden')
+		.on('mouseup', moveBrush);
+*/
+	// draw the selection area
+	var brush = d3.svg.brush()
+		.x(x)
+//		.extent([d3.time.monday(now),d3.time.saturday.ceil(now)])
+		.extent([
+			   d3.min(items, function(d) { return d.start; }),
+				 d3.max(items, function(d) { return d.end; })])
+		.on("brush", display);
+
+	mini.append('g')
+		.attr('class', 'x brush')
+		.call(brush)
+		.selectAll('rect')
+			.attr('y', 1)
+			.attr('height', miniHeight - 1);
+
+	mini.selectAll('rect.background').remove();
+	display();
+
+	function display () {
+
+		var rects, labels
+//		  , minExtent = d3.time.day(brush.extent()[0])
+//		  , maxExtent = d3.time.day(brush.extent()[1])
+		  , minExtent = Math.max(0, brush.extent()[0])
+		  , maxExtent = Math.min(lastEndTime, brush.extent()[1])
+		  , visItems = items.filter(function (d) { return d.start < maxExtent && d.end > minExtent});
+
+		mini.select('.brush').call(brush.extent([minExtent, maxExtent]));		
+
+		x1.domain([minExtent, maxExtent]);
+/*
+		if ((maxExtent - minExtent) > 1468800000) {
+			x1DateAxis.ticks(d3.time.mondays, 1).tickFormat(d3.time.format('%a %d'))
+			x1MonthAxis.ticks(d3.time.mondays, 1).tickFormat(d3.time.format('%b - Week %W'))		
+		}
+		else if ((maxExtent - minExtent) > 172800000) {
+			x1DateAxis.ticks(d3.time.days, 1).tickFormat(d3.time.format('%a %d'))
+			x1MonthAxis.ticks(d3.time.mondays, 1).tickFormat(d3.time.format('%b - Week %W'))
+		}
+		else {
+			x1DateAxis.ticks(d3.time.hours, 4).tickFormat(d3.time.format('%I %p'))
+			x1MonthAxis.ticks(d3.time.days, 1).tickFormat(d3.time.format('%b %e'))
+		}
+*/
+
+//		x1DateAxis.ticks(d3.time.seconds, 4).tickFormat(d3.time.format('%I %p'))
+//		x1MonthAxis.ticks(d3.time.minutes, 1).tickFormat(d3.time.format('%b %e'))
+
+		//x1Offset.range([0, x1(d3.time.day.ceil(now) - x1(d3.time.day.floor(now)))]);
+
+		// shift the today line
+/*		
+		main.select('.main.todayLine')
+			.attr('x1', x1(now) + 0.5)
+			.attr('x2', x1(now) + 0.5);
+*/
+/*
+		// update the axis
+		main.select('.main.axis.date').call(x1DateAxis);
+		main.select('.main.axis.month').call(x1MonthAxis)
+			.selectAll('text')
+				.attr('dx', 5)
+				.attr('dy', 12);
+*/
+
+		// upate the item rects
+		rects = itemRects.selectAll('rect')
+			.data(visItems, function (d) { return d.id; })
+			.attr('x', function(d) { return x1(d.start); })
+			.attr('width', function(d) { return x1(d.end) - x1(d.start); });
+
+		rects.enter().append('rect')
+			.attr('x', function(d) { return x1(d.start); })
+			.attr('y', function(d) { return y1(d.lane) + .1 * y1(1) + 0.5; })
+			.attr('width', function(d) { return x1(d.end) - x1(d.start); })
+			.attr('height', function(d) { return .8 * y1(1); })
+			.attr('class', function(d) { return 'mainItem ' + d.class; })
+			.attr('fill', function(d) { return d.color; });
+
+		rects.exit().remove();
+
+		// update the item labels
+		labels = itemRects.selectAll('text')
+			.data(visItems, function (d) { return d.id; })
+			.attr('x', function(d) { return x1(Math.max(d.start, minExtent)) + 2; });
+					
+		labels.enter().append('text')
+//			.text(function (d) { return 'Item\n\n\n\n Id: ' + d.id; })
+			.text(function (d) { return '(' + (d.end - d.start).toFixed(0) + 'ms) ' + d.cmd; })
+			.attr('x', function(d) { return x1(Math.max(d.start, minExtent)) + 2; })
+			.attr('y', function(d) { return y1(d.lane) + .4 * y1(1) + 0.5; })
+			.attr('text-anchor', 'start')
+			.attr('class', 'itemLabel');
+
+		labels.exit().remove();
+	}
+
+	function moveBrush () {
+		return;
+		var origin = d3.mouse(this)
+		  , point = x.invert(origin[0])
+//		  , halfExtent = (brush.extent()[1].getTime() - brush.extent()[0].getTime()) / 2
+//		  , start = new Date(point.getTime() - halfExtent)
+//		  , end = new Date(point.getTime() + halfExtent);
+		  , halfExtent = (brush.extent()[1] - brush.extent()[0]) / 2
+		  , start = point - halfExtent
+		  , end = point + halfExtent;
+
+		console.log('start ' + start + ', end ' + end);
+		brush.extent([start,end]);
+		display();
+	}
+}
+
+var xhr = new XMLHttpRequest();
+xhr.onreadystatechange = function() {
+	if (xhr.readyState == 4 && (xhr.status == 200 || xhr.status == 0)) {
+		createSwimlaneChart(JSON.parse(xhr.responseText));
+	}
+};
+xhr.open("GET", {{{results_log_file}}}, true);
+xhr.send();
+
+</script>
+</body>
+</html>

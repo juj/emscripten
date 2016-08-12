@@ -1,4 +1,4 @@
-import subprocess, os, time, sys
+import subprocess, os, time, sys, tempfile
 
 EM_PROFILE_TOOLCHAIN = int(os.getenv('EM_PROFILE_TOOLCHAIN')) if os.getenv('EM_PROFILE_TOOLCHAIN') != None else 0
 
@@ -14,7 +14,12 @@ if EM_PROFILE_TOOLCHAIN:
     @staticmethod
     def record_process_start():
       ToolchainProfiler.mypid = str(os.getpid())
-      ToolchainProfiler.logfile = open('.toolchainprofiler.' + ToolchainProfiler.mypid + '.txt', 'a')
+      profiler_logs_path = os.path.join(tempfile.gettempdir(), 'emscripten_toolchain_profiler_logs')
+      try:
+        os.makedirs(profiler_logs_path)
+      except:
+        pass
+      ToolchainProfiler.logfile = open(os.path.join(profiler_logs_path, 'toolchain_profiler.pid_' + ToolchainProfiler.mypid + '.json'), 'a')
       ToolchainProfiler.logfile.write('[\n')
       ToolchainProfiler.logfile.write('{"pid":' + ToolchainProfiler.mypid + ',"op":"start","time":' + ToolchainProfiler.timestamp() + ',"cmdLine":["' + '","'.join(sys.argv).replace('\\', '\\\\') + '"]}')
 
