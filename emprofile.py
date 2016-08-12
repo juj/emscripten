@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys, shutil, os, json, tempfile, time
 
 profiler_logs_path = os.path.join(tempfile.gettempdir(), 'emscripten_toolchain_profiler_logs')
@@ -62,7 +64,20 @@ def create_profiling_graph():
   if not DEBUG_EMPROFILE_PY:
     delete_profiler_logs()
 
+if len(sys.argv) < 2:
+  print '''Usage:
+       emprofile.py --reset
+         Deletes all previously recorded profiling log files.
+
+       emprofile.py --graph
+         Draws a graph from all recorded profiling log files.
+'''
+  sys.exit(1)
+
 if sys.argv[1] == '--reset':
   delete_profiler_logs()
 elif sys.argv[1] == '--graph':
   create_profiling_graph()
+else:
+  print 'Unknown command "' + sys.argv[1] + '"!'
+  sys.exit(1)
