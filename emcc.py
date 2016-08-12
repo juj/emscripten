@@ -23,7 +23,7 @@ emcc can be influenced by a few environment variables:
   EMMAKEN_COMPILER - The compiler to be used, if you don't want the default clang.
 '''
 
-from tools.toolchain_profiler import ToolchainProfiler, profiled_sys_exit
+from tools.toolchain_profiler import ToolchainProfiler, ProfiledPopen, profiled_sys_exit, profiled_check_call, profiled_check_output
 if __name__ == '__main__':
   ToolchainProfiler.record_process_start()
 
@@ -34,6 +34,11 @@ from tools.shared import execute, suffix, unsuffixed, unsuffixed_basename, WINDO
 from tools.response_file import read_response_file
 
 EM_PROFILE_TOOLCHAIN = int(os.getenv('EM_PROFILE_TOOLCHAIN')) if os.getenv('EM_PROFILE_TOOLCHAIN') != None else 0
+if EM_PROFILE_TOOLCHAIN:
+  Popen = ProfiledPopen
+  check_call = profiled_check_call
+  check_output = profiled_check_output
+
 exit = profiled_sys_exit
 
 # endings = dot + a suffix, safe to test by  filename.endswith(endings)
@@ -1581,50 +1586,51 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         final += '.tr.js'
         posix = True if not shared.WINDOWS else False
         logging.debug('applying transform: %s', js_transform)
-        subprocess.check_call(shlex.split(js_transform, posix=posix) + [os.path.abspath(final)])
+        check_call(shlex.split(js_transform, posix=posix) + [os.path.abspath(final)])
         if DEBUG: save_intermediate('transformed')
 
       js_transform_tempfiles = [final]
 
-      if shared.Settings.MEM_INIT_METHOD > 0:
-        memfile = target + '.mem'
-        shared.try_delete(memfile)
-        def repl(m):
-          # handle chunking of the memory initializer
-          s = m.group(1)
-          if len(s) == 0: return '' # don't emit 0-size ones
-          membytes = [int(x or '0') for x in s.split(',')]
-          while membytes and membytes[-1] == 0:
-            membytes.pop()
-          if not membytes: return ''
-          if not memory_init_file:
-            # memory initializer in a string literal
-            return "memoryInitializer = '%s';" % shared.JS.generate_string_initializer(list(membytes))
-          open(memfile, 'wb').write(''.join(map(chr, membytes)))
-          if DEBUG:
-            # Copy into temp dir as well, so can be run there too
-            shared.safe_copy(memfile, os.path.join(shared.get_emscripten_temp_dir(), os.path.basename(memfile)))
-          return 'memoryInitializer = "%s";' % os.path.basename(memfile)
-        src = re.sub(shared.JS.memory_initializer_pattern, repl, open(final).read(), count=1)
-        open(final + '.mem.js', 'w').write(src)
-        final += '.mem.js'
-        src = None
-        js_transform_tempfiles[-1] = final # simple text substitution preserves comment line number mappings
-        if DEBUG:
-          if os.path.exists(memfile):
-            save_intermediate('meminit')
-            logging.debug('wrote memory initialization to %s', memfile)
-          else:
-            logging.debug('did not see memory initialization')
-      elif not shared.Settings.MAIN_MODULE and not shared.Settings.SIDE_MODULE and debug_level < 4:
-        # not writing a binary init, but we can at least optimize them by splitting them up
-        src = open(final).read()
-        src = shared.JS.optimize_initializer(src)
-        if src is not None:
-          logging.debug('optimizing memory initialization')
+      with ToolchainProfiler.profile_block('memory initializer'):
+        if shared.Settings.MEM_INIT_METHOD > 0:
+          memfile = target + '.mem'
+          shared.try_delete(memfile)
+          def repl(m):
+            # handle chunking of the memory initializer
+            s = m.group(1)
+            if len(s) == 0: return '' # don't emit 0-size ones
+            membytes = [int(x or '0') for x in s.split(',')]
+            while membytes and membytes[-1] == 0:
+              membytes.pop()
+            if not membytes: return ''
+            if not memory_init_file:
+              # memory initializer in a string literal
+              return "memoryInitializer = '%s';" % shared.JS.generate_string_initializer(list(membytes))
+            open(memfile, 'wb').write(''.join(map(chr, membytes)))
+            if DEBUG:
+              # Copy into temp dir as well, so can be run there too
+              shared.safe_copy(memfile, os.path.join(shared.get_emscripten_temp_dir(), os.path.basename(memfile)))
+            return 'memoryInitializer = "%s";' % os.path.basename(memfile)
+          src = re.sub(shared.JS.memory_initializer_pattern, repl, open(final).read(), count=1)
           open(final + '.mem.js', 'w').write(src)
           final += '.mem.js'
           src = None
+          js_transform_tempfiles[-1] = final # simple text substitution preserves comment line number mappings
+          if DEBUG:
+            if os.path.exists(memfile):
+              save_intermediate('meminit')
+              logging.debug('wrote memory initialization to %s', memfile)
+            else:
+              logging.debug('did not see memory initialization')
+        elif not shared.Settings.MAIN_MODULE and not shared.Settings.SIDE_MODULE and debug_level < 4:
+          # not writing a binary init, but we can at least optimize them by splitting them up
+          src = open(final).read()
+          src = shared.JS.optimize_initializer(src)
+          if src is not None:
+            logging.debug('optimizing memory initialization')
+            open(final + '.mem.js', 'w').write(src)
+            final += '.mem.js'
+            src = None
 
       if shared.Settings.USE_PTHREADS:
         shutil.copyfile(shared.path_from_root('src', 'pthread-main.js'), os.path.join(os.path.dirname(os.path.abspath(target)), 'pthread-main.js'))
@@ -1909,7 +1915,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       if (separate_asm or shared.Settings.BINARYEN) and not shared.Settings.WASM_BACKEND:
         logging.debug('separating asm')
         with misc_temp_files.get_file(suffix='.js') as temp_target:
-          subprocess.check_call([shared.PYTHON, shared.path_from_root('tools', 'separate_asm.py'), js_target, asm_target, temp_target])
+          check_call([shared.PYTHON, shared.path_from_root('tools', 'separate_asm.py'), js_target, asm_target, temp_target])
           shutil.move(temp_target, js_target)
 
         # extra only-my-code logic
@@ -1948,7 +1954,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
           with ToolchainProfiler.profile_block('asm2wasm'):
             logging.debug('asm2wasm (asm.js => WebAssembly): ' + ' '.join(cmd))
             TimeLogger.update()
-            subprocess.check_call(cmd, stdout=open(wasm_text_target, 'w'))
+            check_call(cmd, stdout=open(wasm_text_target, 'w'))
             log_time('asm2wasm')
         if shared.Settings.BINARYEN_SCRIPTS:
           binaryen_scripts = os.path.join(shared.Settings.BINARYEN_ROOT, 'scripts')
@@ -1960,10 +1966,10 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
             script_env['PYTHONPATH'] = root_dir
           for script in shared.Settings.BINARYEN_SCRIPTS.split(','):
             logging.debug('running binaryen script: ' + script)
-            subprocess.check_call([shared.PYTHON, os.path.join(binaryen_scripts, script), js_target, wasm_text_target], env=script_env)
+            check_call([shared.PYTHON, os.path.join(binaryen_scripts, script), js_target, wasm_text_target], env=script_env)
         if 'native-wasm' in shared.Settings.BINARYEN_METHOD or 'interpret-binary' in shared.Settings.BINARYEN_METHOD:
           logging.debug('wasm-as (wasm => binary)')
-          subprocess.check_call([os.path.join(binaryen_bin, 'wasm-as'), wasm_text_target, '-o', wasm_binary_target])
+          check_call([os.path.join(binaryen_bin, 'wasm-as'), wasm_text_target, '-o', wasm_binary_target])
           shutil.copyfile(wasm_text_target + '.mappedGlobals', wasm_binary_target + '.mappedGlobals')
 
       # If we were asked to also generate HTML, do that
