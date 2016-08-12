@@ -147,17 +147,32 @@ function createSwimlaneChart(data) {
 	for(var i in itemsByPid) {
 		itemsOrdered.push(itemsByPid[i]);
 	}
-	itemsOrdered = itemsOrdered.sort(function(a, b) { return a.start - b.start;});
+	itemsOrdered.sort(function(a, b) { return a.start - b.start;});
+
+	// Specifies for each lane (row) how far to the right it is used.
+	var laneOccupancy = [];
+	var lanes = [];
+
+	function fitLane(startX, endX) {
+		for (var i = 0; i < laneOccupancy.length; ++i) {
+			if (laneOccupancy[i] <= startX) {
+				laneOccupancy[i] = endX;
+				return i;
+			}
+		}
+		laneOccupancy.push(endX);
+		lanes.push({
+			id: laneOccupancy.length-1,
+			label: laneOccupancy.length-1
+		});
+		return laneOccupancy.length-1;
+	}
 
 	var id = 0;
 	for(var i in itemsOrdered) {
 		var p = itemsOrdered[i];
 
-		var lane = {
-			id: id,
-			label: 'pid ' + p.pid
-		};
-		lanes.push(lane);
+		var laneIndex = fitLane(p.start, p.end);
 
 		var item = {
 			class: 'past',
@@ -165,7 +180,7 @@ function createSwimlaneChart(data) {
 			start: p.start,
 			end: p.end,
 			id: id,
-			lane: id,
+			lane: laneIndex,
 			cmdLine: p.cmdLine,
 			cmd: p.cmd,
 			color: p.color
