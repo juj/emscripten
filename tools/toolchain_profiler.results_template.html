@@ -80,16 +80,123 @@ THE SOFTWARE.
 var lanes = [];
 var items = [];
 
-function getBaseName(cmdLine) {
+function pathBasename(absPath) {
+	return absPath.substr(Math.max(absPath.lastIndexOf('\\'), absPath.lastIndexOf('/'))+1);
+}
+
+function findPositionalParams(cmdLine, argsTakingParams) {
+	var np = [];
+	for(var i = 1; i < cmdLine.length; ++i) {
+		var perhapsKey = cmdLine[i-1];
+		var value = cmdLine[i];
+		if (value[0] != '-' && value[0] != '@' && argsTakingParams.indexOf(perhapsKey) == -1) {
+			np.push(value);
+		}
+	}
+	return np;
+}
+
+function cmdLineBasename(cmdLine) {
 	var cmd = cmdLine[0];
-	var lastSlash = Math.max(cmd.lastIndexOf('\\'), cmd.lastIndexOf('/'));
-	var basename = cmd.substr(lastSlash+1);
-	if (basename.indexOf('node') == 0 && cmdLine[1].indexOf('.js') != -1)
-		return getBaseName(cmdLine.slice(1));
-	else if (basename.indexOf('python') == 0 && cmdLine[1].indexOf('.py') != -1)
-		return getBaseName(cmdLine.slice(1));
+	cmdname = pathBasename(cmd);
+	if (cmdname.indexOf('node') == 0 && cmdLine[1].indexOf('.js') != -1)
+		return cmdLineBasename(cmdLine.slice(1));
+	else if (cmdname.indexOf('python') == 0 && cmdLine[1].indexOf('.py') != -1)
+		return cmdLineBasename(cmdLine.slice(1));
 	else
-		return basename;
+		return cmdname;
+}
+
+function findValueOfParam(cmdLine, key) {
+	var i = cmdLine.indexOf(key);
+	if (i != -1) return cmdLine[i+1];
+}
+
+function findInterestingParams(cmdLine, interestingParams) {
+	p = [];
+	for(var i in interestingParams) {
+		if (cmdLine.indexOf(interestingParams[i]) != -1)
+			p.push(interestingParams[i]);
+	}
+	return p;
+}
+
+// A heuristic approach to finding print-worthy elements from a given command line array.
+function findInterestingBits(cmdLine) {
+	var basename = cmdLineBasename(cmdLine);
+	if (basename == 'em++' || basename == 'emcc') {
+		src = findValueOfParam(cmdLine, '-c');
+		if (src) src = '-c ' + pathBasename(src);
+		else {
+			src = findValueOfParam(cmdLine, '-o');
+			if (src) src = '-o ' + pathBasename(src);
+		}
+		return [basename, src];
+	} else if (basename == 'clang' || basename == 'clang++') {
+		var posParams = findPositionalParams(cmdLine, ['-target', '-o']);
+		for(var i = 0; i < posParams.length; ++i) {
+			if (posParams[i].indexOf('.c') != -1 && (posParams[i].indexOf('/') != -1 || posParams[i].indexOf('\\') != -1))
+				posParams[i] = pathBasename(posParams[i]);
+		}
+		var out = findValueOfParam(cmdLine, '-o');
+		if (out) out = '-o ' + pathBasename(out);
+		if (cmdLine.length <= 3) return [basename].concat(cmdLine.slice(1));
+		return [basename].concat(posParams).concat([out]);
+	} else if (basename == 'opt') {
+		var interestingParams = findInterestingParams(cmdLine, ['-O0', '-O1', '-O2', '-O3', '-Os', '-Oz'])
+		var out = findValueOfParam(cmdLine, '-o');
+		if (out) out = '-o ' + pathBasename(out);
+		return [basename].concat(interestingParams).concat([out]);
+	} else if (basename == 'llvm-nm') {
+		var posParams = findPositionalParams(cmdLine, []);
+		for(var i = 0; i < posParams.length; ++i) {
+			if (posParams[i].indexOf('/') != -1 || posParams[i].indexOf('\\') != -1)
+				posParams[i] = pathBasename(posParams[i]);
+		}
+		return [basename].concat(posParams);
+	} else if (basename == 'llvm-ar') {
+		for(var i = 0; i < cmdLine.length; ++i) {
+			if (cmdLine[i].indexOf('/') != -1 || cmdLine[i].indexOf('\\') != -1)
+				cmdLine[i] = pathBasename(cmdLine[i]);
+		}
+		return cmdLine;
+	} else if (basename == 'llc') {
+		var interestingParams = findInterestingParams(cmdLine, ['-O0', '-O1', '-O2', '-O3', '-Os', '-Oz'])
+		var posParams = findPositionalParams(cmdLine, ['-o']);
+		for(var i = 0; i < posParams.length; ++i) {
+			if (posParams[i].indexOf('/') != -1 || posParams[i].indexOf('\\') != -1)
+				posParams[i] = pathBasename(posParams[i]);
+		}
+		var ret = [basename].concat(interestingParams).concat(posParams);
+		var out = findValueOfParam(cmdLine, '-o');
+		if (out) out = '-o ' + pathBasename(out);
+		if (out.indexOf('tmp') != 0)
+			ret.concat([out]);
+		return ret;
+	} else if (basename == 'compiler.js') {
+		var posParams = findPositionalParams(cmdLine, []);
+		var interestingParams = [];
+		for(var i = 1; i < posParams.length; ++i) {
+			if (posParams[i].indexOf('.js') != -1) {
+				if (posParams[i].indexOf('/') != -1 || posParams[i].indexOf('\\') != -1)
+					posParams[i] = pathBasename(posParams[i]);
+				interestingParams.push(posParams[i]);
+			}
+		}
+		return [basename].concat(interestingParams);
+	} else if (basename == 'js-optimizer.js') {
+		var posParams = findPositionalParams(cmdLine, []);
+		var interestingParams = [];
+		for(var i = 1; i < posParams.length; ++i) {
+			if (posParams[i].indexOf('/') != -1 || posParams[i].indexOf('\\') != -1)
+				posParams[i] = pathBasename(posParams[i]);
+			if (posParams[i].indexOf('tmp') != 0)
+				interestingParams.push(posParams[i]);
+		}
+		return [basename].concat(interestingParams);
+	} else {
+		return [basename];
+	}
 }
 
 var firstStartTime = Infinity;
@@ -113,7 +220,7 @@ function createSwimlaneChart(data) {
 				start: (d.time - t0)*1000,
 				end: null,
 				cmdLine: d.cmdLine,
-				cmd: getBaseName(d.cmdLine),
+				cmd: findInterestingBits(d.cmdLine).join(' '),
 				color: d3.rgb('#80ff80')
 			};
 		} else if (d.op === 'exit') {
@@ -125,7 +232,7 @@ function createSwimlaneChart(data) {
 				start: (d.time - t0)*1000,
 				end: null,
 				cmdLine: d.cmdLine,
-				cmd: getBaseName(d.cmdLine),
+				cmd: findInterestingBits(d.cmdLine).join(' '),
 				color: d3.rgb('#80ff80')
 			};
 		} else if (d.op === 'finish') {
@@ -182,7 +289,7 @@ function createSwimlaneChart(data) {
 		var p = itemsOrdered[i];
 
 		var label = '(' + (p.end - p.start).toFixed(0) + 'ms) ' + p.cmd;
-		var laneIndex = fitLane(p.start, Math.max(p.end, p.start + label.length*3));
+		var laneIndex = fitLane(p.start, Math.max(p.end, p.start + label.length*14));
 
 		var item = {
 			class: 'past',
