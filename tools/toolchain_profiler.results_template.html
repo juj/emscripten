@@ -146,7 +146,7 @@ function findInterestingBits(cmdLine) {
 		if (out) out = '-o ' + pathBasename(out);
 		if (cmdLine.length <= 3) return [basename].concat(cmdLine.slice(1));
 		return [basename].concat(posParams).concat([out]);
-	} else if (startsWith(basename, 'llvm-ar') || startsWith(basename, 'optimizer')) {
+	} else if (startsWith(basename, 'llvm-ar') || startsWith(basename, 'optimizer') || startsWith(basename, 'asm2wasm') || startsWith(basename, 'wasm-as')) {
 		for(var i = 0; i < cmdLine.length; ++i) {
 			if (cmdLine[i].indexOf('/') != -1 || cmdLine[i].indexOf('\\') != -1)
 				cmdLine[i] = pathBasename(cmdLine[i]);
