@@ -216,6 +216,8 @@ function createSwimlaneChart(data) {
 	}
 	firstStartTime = t0;
 
+	var itemsOrdered = [];
+
 	for(var i in data) {
 		var d = data[i];
 		if (d.op === 'start') {
@@ -229,7 +231,9 @@ function createSwimlaneChart(data) {
 			};
 		} else if (d.op === 'exit') {
 			itemsByPid[d.pid].end = (d.time - t0)*1000;
-			d.end = (d.time - t0)*1000 ;
+			d.end = (d.time - t0)*1000;
+			itemsOrdered.push(itemsByPid[d.pid]);
+			delete itemsByPid[d.pid];
 		} else if (d.op === 'spawn') {
 			itemsByPid[d.targetPid] = {
 				pid: d.targetPid,
@@ -241,6 +245,8 @@ function createSwimlaneChart(data) {
 			};
 		} else if (d.op === 'finish') {
 			itemsByPid[d.targetPid].end = (d.time - t0)*1000;
+			itemsOrdered.push(itemsByPid[d.targetPid]);
+			delete itemsByPid[d.targetPid];
 		} else if (d.op === 'enterBlock') {
 			var id = d.pid + '-' + d.name;
 			itemsByPid[id] = {
@@ -253,10 +259,11 @@ function createSwimlaneChart(data) {
 		} else if (d.op === 'exitBlock') {
 			var id = d.pid + '-' + d.name;
 			itemsByPid[id].end = (d.time - t0)*1000;
+			itemsOrdered.push(itemsByPid[id]);
+			delete itemsByPid[id];
 		}
 	}
 
-	var itemsOrdered = [];
 	for(var i in itemsByPid) {
 		itemsOrdered.push(itemsByPid[i]);
 	}
