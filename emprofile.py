@@ -41,7 +41,7 @@ def create_profiling_graph():
     try:
       json_data = open(f, 'r').read()
       lines = json_data.split('\n')
-      lines = filter(lambda x: x != '[' and x != ']' and len(x.strip()) > 0, lines)
+      lines = filter(lambda x: x != '[' and x != ']' and x != ',' and len(x.strip()) > 0, lines)
       lines = map(lambda x: (x + ',') if not x.endswith(',') else x, lines)
       lines[-1] = lines[-1][:-1]
       json_data = '[' + '\n'.join(lines) + ']'
@@ -53,6 +53,8 @@ def create_profiling_graph():
   if len(all_results) == 0:
     print 'No profiler logs were found in path "' + profiler_logs_path + '". Try setting the environment variable EM_PROFILE_TOOLCHAIN=1 and run some emcc commands, and then rerun "python emprofile.py --graph" again.'
     return
+
+  all_results.sort(key=lambda x: x['time'])
 
   json_file = OUTFILE + '.json'
   open(json_file, 'w').write(json.dumps(all_results, indent=2))
