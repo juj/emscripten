@@ -7,6 +7,10 @@ if EM_PROFILE_TOOLCHAIN:
   Popen = ProfiledPopen
   check_call = profiled_check_call
   check_output = profiled_check_output
+else:
+  Popen = subprocess.Popen
+  check_call = subprocess.check_call
+  check_output = subprocess.check_output
 
 TRACK_PROCESS_SPAWNS = True if (os.getenv('EM_BUILD_VERBOSE') and int(os.getenv('EM_BUILD_VERBOSE')) >= 3) else False
 
