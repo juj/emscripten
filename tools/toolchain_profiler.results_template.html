@@ -267,7 +267,7 @@ function createSwimlaneChart(data) {
 	for(var i in itemsByPid) {
 		itemsOrdered.push(itemsByPid[i]);
 	}
-	itemsOrdered.sort(function(a, b) { return a.start - b.start;});
+	itemsOrdered.sort(function(a, b) { if (a.start == b.start) return b.end - a.end; else return a.start - b.start;});
 
 	// Specifies for each lane (row) how far to the right it is used.
 	var laneOccupancy = [];
