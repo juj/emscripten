@@ -284,7 +284,7 @@ function createSwimlaneChart(data) {
 			popItemFromStack(itemsByPid[d.targetPid], d.targetPid);
 			delete itemsByPid[d.targetPid];
 		} else if (d.op === 'enterBlock') {
-			var id = d.pid + '-' + d.name;
+			var id = d.pid + '-' + d.name + '-' + d.subprocessPid;
 			itemsByPid[id] = {
 				pid: d.pid, // ?? id?
 				start: (d.time - t0)*1000,
@@ -297,7 +297,7 @@ function createSwimlaneChart(data) {
 			};
 			pushItemToStack(itemsByPid[id], d.pid);
 		} else if (d.op === 'exitBlock') {
-			var id = d.pid + '-' + d.name;
+			var id = d.pid + '-' + d.name + '-' + d.subprocessPid;
 			itemsByPid[id].end = (d.time - t0)*1000;
 			itemsOrdered.push(itemsByPid[id]);
 			popItemFromStack(itemsByPid[id], d.pid);

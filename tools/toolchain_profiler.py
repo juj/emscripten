@@ -41,36 +41,36 @@ if EM_PROFILE_TOOLCHAIN:
       if write_log_entry:
         with ToolchainProfiler.log_access() as f:
           f.write('[\n')
-          f.write('{"pid":' + ToolchainProfiler.mypid_str + ',"op":"start","time":' + ToolchainProfiler.timestamp() + ',"cmdLine":["' + '","'.join(sys.argv).replace('\\', '\\\\') + '"]}')
+          f.write('{"pid":' + ToolchainProfiler.mypid_str + ',"subprocessPid":' + str(os.getpid()) + ',"op":"start","time":' + ToolchainProfiler.timestamp() + ',"cmdLine":["' + '","'.join(sys.argv).replace('\\', '\\\\') + '"]}')
 
     @staticmethod
     def record_process_exit(returncode):
       ToolchainProfiler.exit_all_blocks()
       with ToolchainProfiler.log_access() as f:
-        f.write(',\n{"pid":' + ToolchainProfiler.mypid_str + ',"op":"exit","time":' + ToolchainProfiler.timestamp() + ',"returncode":' + str(returncode) + '}')
+        f.write(',\n{"pid":' + ToolchainProfiler.mypid_str + ',"subprocessPid":' + str(os.getpid()) + ',"op":"exit","time":' + ToolchainProfiler.timestamp() + ',"returncode":' + str(returncode) + '}')
         f.write('\n]\n')
 
     @staticmethod
     def record_subprocess_spawn(process_pid, process_cmdline):
       with ToolchainProfiler.log_access() as f:
-        f.write(',\n{"pid":' + ToolchainProfiler.mypid_str + ',"op":"spawn","targetPid":' + str(process_pid) + ',"time":' + ToolchainProfiler.timestamp() + ',"cmdLine":["' + '","'.join(process_cmdline).replace('\\', '\\\\') + '"]}')
+        f.write(',\n{"pid":' + ToolchainProfiler.mypid_str + ',"subprocessPid":' + str(os.getpid()) + ',"op":"spawn","targetPid":' + str(process_pid) + ',"time":' + ToolchainProfiler.timestamp() + ',"cmdLine":["' + '","'.join(process_cmdline).replace('\\', '\\\\') + '"]}')
 
     @staticmethod
     def record_subprocess_wait(process_pid):
       with ToolchainProfiler.log_access() as f:
-        f.write(',\n{"pid":' + ToolchainProfiler.mypid_str + ',"op":"wait","targetPid":' + str(process_pid) + ',"time":' + ToolchainProfiler.timestamp() + '}')
+        f.write(',\n{"pid":' + ToolchainProfiler.mypid_str + ',"subprocessPid":' + str(os.getpid()) + ',"op":"wait","targetPid":' + str(process_pid) + ',"time":' + ToolchainProfiler.timestamp() + '}')
 
     @staticmethod
     def record_subprocess_finish(process_pid, returncode):
       with ToolchainProfiler.log_access() as f:
-        f.write(',\n{"pid":' + ToolchainProfiler.mypid_str + ',"op":"finish","targetPid":' + str(process_pid) + ',"time":' + ToolchainProfiler.timestamp() + ',"returncode":' + str(returncode) + '}')
+        f.write(',\n{"pid":' + ToolchainProfiler.mypid_str + ',"subprocessPid":' + str(os.getpid()) + ',"op":"finish","targetPid":' + str(process_pid) + ',"time":' + ToolchainProfiler.timestamp() + ',"returncode":' + str(returncode) + '}')
 
     block_stack = []
 
     @staticmethod
     def enter_block(block_name):
       with ToolchainProfiler.log_access() as f:
-        f.write(',\n{"pid":' + ToolchainProfiler.mypid_str + ',"op":"enterBlock","name":"' + block_name + '","time":' + ToolchainProfiler.timestamp() + '}')
+        f.write(',\n{"pid":' + ToolchainProfiler.mypid_str + ',"subprocessPid":' + str(os.getpid()) + ',"op":"enterBlock","name":"' + block_name + '","time":' + ToolchainProfiler.timestamp() + '}')
 
       ToolchainProfiler.block_stack.append(block_name)
 
@@ -78,7 +78,7 @@ if EM_PROFILE_TOOLCHAIN:
     def exit_block(block_name):
       if remove_last_occurrence_if_exists(ToolchainProfiler.block_stack, block_name):
         with ToolchainProfiler.log_access() as f:
-          f.write(',\n{"pid":' + ToolchainProfiler.mypid_str + ',"op":"exitBlock","name":"' + block_name + '","time":' + ToolchainProfiler.timestamp() + '}')
+          f.write(',\n{"pid":' + ToolchainProfiler.mypid_str + ',"subprocessPid":' + str(os.getpid()) + ',"op":"exitBlock","name":"' + block_name + '","time":' + ToolchainProfiler.timestamp() + '}')
 
     @staticmethod
     def exit_all_blocks():
