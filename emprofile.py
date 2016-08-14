@@ -7,6 +7,11 @@ profiler_logs_path = os.path.join(tempfile.gettempdir(), 'emscripten_toolchain_p
 # If set to 1, always generates the output file under the same filename and doesn't delete the temp data.
 DEBUG_EMPROFILE_PY = 0
 
+OUTFILE = 'toolchain_profiler.results_' + time.strftime('%Y%m%d_%H%M')
+for arg in sys.argv:
+  if arg.startswith('--outfile='):
+    OUTFILE = arg.split('=')[1].strip().replace('.html', '')
+
 # Deletes all previously captured log files to make room for a new clean run.
 def delete_profiler_logs():
   try:
@@ -49,14 +54,11 @@ def create_profiling_graph():
     print 'No profiler logs were found in path "' + profiler_logs_path + '". Try setting the environment variable EM_PROFILE_TOOLCHAIN=1 and run some emcc commands, and then rerun "python emprofile.py --graph" again.'
     return
 
-  if not DEBUG_EMPROFILE_PY:
-    json_file = 'toolchain_profiler.results_' + time.strftime('%Y%m%d_%H%M') + '.json'
-  else:
-    json_file = 'toolchain_profiler.results.json'
+  json_file = OUTFILE + '.json'
   open(json_file, 'w').write(json.dumps(all_results, indent=2))
   print 'Wrote "' + json_file + '"'
 
-  html_file = json_file.replace('.json', '.html')
+  html_file = OUTFILE + '.html'
   html_contents = open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tools', 'toolchain_profiler.results_template.html'), 'r').read().replace('{{{results_log_file}}}', '"' + json_file + '"')
   open(html_file, 'w').write(html_contents)
   print 'Wrote "' + html_file + '"'
@@ -71,12 +73,17 @@ if len(sys.argv) < 2:
 
        emprofile.py --graph
          Draws a graph from all recorded profiling log files.
+
+Optional parameters:
+        
+        --outfile=x.html
+          Specifies the name of the results file to generate.
 '''
   sys.exit(1)
 
-if sys.argv[1] == '--reset':
+if '--reset' in sys.argv:
   delete_profiler_logs()
-elif sys.argv[1] == '--graph':
+elif '--graph' in sys.argv:
   create_profiling_graph()
 else:
   print 'Unknown command "' + sys.argv[1] + '"!'
