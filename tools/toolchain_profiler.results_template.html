@@ -181,11 +181,9 @@ function findInterestingBits(cmdLine) {
 		var posParams = findPositionalParams(cmdLine, []);
 		var interestingParams = [];
 		for(var i = 1; i < posParams.length; ++i) {
-			if (posParams[i].indexOf('.js') != -1) {
-				if (posParams[i].indexOf('/') != -1 || posParams[i].indexOf('\\') != -1)
-					posParams[i] = pathBasename(posParams[i]);
-				interestingParams.push(posParams[i]);
-			}
+			if (posParams[i].indexOf('/') != -1 || posParams[i].indexOf('\\') != -1)
+				posParams[i] = pathBasename(posParams[i]);
+			interestingParams.push(posParams[i]);
 		}
 		return [basename].concat(interestingParams);
 	} else if (startsWith(basename, 'js-optimizer.js')) {
