@@ -216,6 +216,30 @@ function createSwimlaneChart(data) {
 
 	var itemsOrdered = [];
 
+	var itemStackByPid = {};
+	function pushItemToStack(item, pid) {
+		if (!itemStackByPid[pid]) itemStackByPid[pid] = [item];
+		else {
+			var parent = topOnStack(pid);
+			if (parent) {
+				parent.children.push(item);
+			}
+			itemStackByPid[pid].push(item);
+		}
+	}
+	function topOnStack(pid) {
+		if (!itemStackByPid[pid]) return null;
+		return itemStackByPid[pid][itemStackByPid[pid].length-1];
+	}
+	function popItemFromStack(item, pid) {
+		var stack = itemStackByPid[pid];
+		for(var i = stack.length-1; i >= 0; --i)
+			if (stack[i] === item) {
+				stack.splice(i, 1);
+				return;
+			}
+	}
+
 	var startOrder = 0; // Tiebreaker for sorting predicate
 	for(var i in data) {
 		var d = data[i];
@@ -227,41 +251,56 @@ function createSwimlaneChart(data) {
 				startOrder: startOrder++,
 				cmdLine: d.cmdLine,
 				cmd: findInterestingBits(d.cmdLine).join(' '),
-				color: d3.rgb('#80ff80')
+				color: d3.rgb('#80ff80'),
+				parent: null,
+				children: []
 			};
+			pushItemToStack(itemsByPid[d.pid], d.pid);
 		} else if (d.op === 'exit') {
 			itemsByPid[d.pid].end = (d.time - t0)*1000;
 			d.end = (d.time - t0)*1000;
 			itemsOrdered.push(itemsByPid[d.pid]);
+			popItemFromStack(itemsByPid[d.pid], d.pid);
 			delete itemsByPid[d.pid];
 		} else if (d.op === 'spawn') {
 			itemsByPid[d.targetPid] = {
+				parentPid: d.pid,
 				pid: d.targetPid,
 				start: (d.time - t0)*1000,
 				end: null,
 				startOrder: startOrder++,
 				cmdLine: d.cmdLine,
 				cmd: findInterestingBits(d.cmdLine).join(' '),
-				color: d3.rgb('#80ff80')
+				color: d3.rgb('#80ff80'),
+				parent: topOnStack(d.pid),
+				children: []
 			};
+			pushItemToStack(itemsByPid[d.targetPid], d.pid);
+			pushItemToStack(itemsByPid[d.targetPid], d.targetPid);
 		} else if (d.op === 'finish') {
 			itemsByPid[d.targetPid].end = (d.time - t0)*1000;
 			itemsOrdered.push(itemsByPid[d.targetPid]);
+			popItemFromStack(itemsByPid[d.targetPid], d.pid);
+			popItemFromStack(itemsByPid[d.targetPid], d.targetPid);
 			delete itemsByPid[d.targetPid];
 		} else if (d.op === 'enterBlock') {
 			var id = d.pid + '-' + d.name;
 			itemsByPid[id] = {
-				pid: id,
+				pid: d.pid, // ?? id?
 				start: (d.time - t0)*1000,
 				end: null,
 				startOrder: startOrder++,
 				cmd: d.name,
-				color: d3.rgb('#8080ff')
+				color: d3.rgb('#8080ff'),
+				parent: topOnStack(d.pid),
+				children: []
 			};
+			pushItemToStack(itemsByPid[id], d.pid);
 		} else if (d.op === 'exitBlock') {
 			var id = d.pid + '-' + d.name;
 			itemsByPid[id].end = (d.time - t0)*1000;
 			itemsOrdered.push(itemsByPid[id]);
+			popItemFromStack(itemsByPid[id], d.pid);
 			delete itemsByPid[id];
 		}
 	}
@@ -275,21 +314,29 @@ function createSwimlaneChart(data) {
 	var laneOccupancy = [];
 	var lanes = [];
 
-	function fitLane(startX, endX) {
-		var highestLaneThatFits = laneOccupancy.length;
-		for (var i = laneOccupancy.length-1; i >= 0; --i) {
-			if (laneOccupancy[i] <= startX) {
-				highestLaneThatFits = i;
-			} else {
-				break;
+	function itemHierarchyFitsRootedOnLane(item, lane) {
+		var i = item;
+		while(i && lane < laneOccupancy.length) {
+			if (i.start < laneOccupancy[lane]) {
+				return false;
+			}
+			++lane;
+			i = i.children[0];
+		}
+		return true;
+	}
+	function fitLaneHierarchy(item) {
+		var parent = item.parent;
+		var highestLaneAllowed = 0;
+		// Child should never be drawn on the same column as its parent.
+		if (parent) highestLaneAllowed = parent.visualBlock.lane+1;
+		for(var lane = highestLaneAllowed; lane < laneOccupancy.length; ++lane) {
+			if (itemHierarchyFitsRootedOnLane(item, lane)) {
+				laneOccupancy[lane] = item.visualEnd;
+				return lane;
 			}
 		}
-		if (highestLaneThatFits < laneOccupancy.length) {
-			laneOccupancy[highestLaneThatFits] = endX;
-			return highestLaneThatFits;
-		}
-
-		laneOccupancy.push(endX);
+		laneOccupancy.push(item.visualEnd);
 		lanes.push({
 			id: laneOccupancy.length-1,
 			label: laneOccupancy.length-1
@@ -302,7 +349,8 @@ function createSwimlaneChart(data) {
 		var p = itemsOrdered[i];
 
 		var label = '(' + (p.end - p.start).toFixed(0) + 'ms) ' + p.cmd;
-		var laneIndex = fitLane(p.start, Math.max(p.end, p.start + label.length*14));
+		p.visualEnd = Math.max(p.end, p.start + label.length*14);
+		var laneIndex = fitLaneHierarchy(p);
 
 		var item = {
 			class: 'past',
@@ -316,15 +364,12 @@ function createSwimlaneChart(data) {
 			color: p.color,
 			label: label
 		};
+		p.visualBlock = item;
 		items.push(item);
 		++id;
 	}
-	/*
-	var data = randomData();
-	var lanes = data.laneLines;
-	var items = data.items;
-	*/
-	var now = new Date();
+
+//	var now = new Date();
 
 	var margin = {top: 20, right: 15, bottom: 15, left: 60};
 	var width = document.body.clientWidth - margin.left - margin.right - 50;
