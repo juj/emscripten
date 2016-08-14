@@ -218,6 +218,7 @@ function createSwimlaneChart(data) {
 
 	var itemsOrdered = [];
 
+	var startOrder = 0; // Tiebreaker for sorting predicate
 	for(var i in data) {
 		var d = data[i];
 		if (d.op === 'start') {
@@ -225,6 +226,7 @@ function createSwimlaneChart(data) {
 				pid: d.pid,
 				start: (d.time - t0)*1000,
 				end: null,
+				startOrder: startOrder++,
 				cmdLine: d.cmdLine,
 				cmd: findInterestingBits(d.cmdLine).join(' '),
 				color: d3.rgb('#80ff80')
@@ -239,6 +241,7 @@ function createSwimlaneChart(data) {
 				pid: d.targetPid,
 				start: (d.time - t0)*1000,
 				end: null,
+				startOrder: startOrder++,
 				cmdLine: d.cmdLine,
 				cmd: findInterestingBits(d.cmdLine).join(' '),
 				color: d3.rgb('#80ff80')
@@ -253,6 +256,7 @@ function createSwimlaneChart(data) {
 				pid: id,
 				start: (d.time - t0)*1000,
 				end: null,
+				startOrder: startOrder++,
 				cmd: d.name,
 				color: d3.rgb('#8080ff')
 			};
@@ -267,7 +271,7 @@ function createSwimlaneChart(data) {
 	for(var i in itemsByPid) {
 		itemsOrdered.push(itemsByPid[i]);
 	}
-	itemsOrdered.sort(function(a, b) { if (a.start == b.start) return b.end - a.end; else return a.start - b.start;});
+	itemsOrdered.sort(function(a, b) { if (a.start == b.start) return a.startOrder - b.startOrder; else return a.start - b.start;});
 
 	// Specifies for each lane (row) how far to the right it is used.
 	var laneOccupancy = [];
