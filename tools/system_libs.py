@@ -300,7 +300,7 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
       add_back_deps(need) # recurse to get deps of deps
 
   # Scan symbols
-  symbolses = map(lambda temp_file: shared.Building.llvm_nm(temp_file), temp_files)
+  symbolses = shared.Building.parallel_llvm_nm(map(os.path.abspath, temp_files))
 
   if len(symbolses) == 0:
     class Dummy:
