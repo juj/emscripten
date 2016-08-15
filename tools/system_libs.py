@@ -23,7 +23,7 @@ def run_commands(commands):
     for command in commands:
       call_process(command)
   else:
-    pool = multiprocessing.Pool(processes=cores)
+    pool = shared.Building.get_multiprocessing_pool()
     pool.map(call_process, commands, chunksize=1)
 
 def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):

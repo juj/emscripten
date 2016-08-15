@@ -1216,6 +1216,17 @@ class Building:
   LLVM_OPTS = False
   COMPILER_TEST_OPTS = [] # For use of the test runner
   JS_ENGINE_OVERRIDE = None # Used to pass the JS engine override from runner.py -> test_benchmark.py
+  multiprocessing_pool = None
+
+  # Multiprocessing pools are very slow to build up and tear down, and having several pools throughout
+  # the application has a problem of overallocating child processes. Therefore maintain a single
+  # centralized pool that is shared between all pooled task invocations.
+  @staticmethod
+  def get_multiprocessing_pool():
+    if not Building.multiprocessing_pool:
+      cores = int(os.environ.get('EMCC_CORES') or multiprocessing.cpu_count())
+      Building.multiprocessing_pool = multiprocessing.Pool(processes=cores)
+    return Building.multiprocessing_pool
 
   @staticmethod
   def get_building_env(native=False):
@@ -1456,17 +1467,10 @@ class Building:
   # multiprocessing_pool: An existing multiprocessing pool to reuse for the operation, or None
   # to have the function allocate its own.
   @staticmethod
-  def parallel_llvm_nm(files, multiprocessing_pool=None):
+  def parallel_llvm_nm(files):
     with ToolchainProfiler.profile_block('parallel_llvm_nm'):
-      cores = int(os.environ.get('EMCC_CORES') or multiprocessing.cpu_count())
-
-      if cores > 1:
-        if not multiprocessing_pool: multiprocessing_pool = multiprocessing.Pool(processes=cores)
-        object_contents = multiprocessing_pool.map(g_llvm_nm_uncached, files)
-      else:
-        object_contents = []
-        for o in files:
-          object_contents += [g_llvm_nm_uncached(o)]
+      pool = Building.get_multiprocessing_pool()
+      object_contents = pool.map(g_llvm_nm_uncached, files)
 
       for i in range(len(files)):
         Building.nm_cache[files[i]] = object_contents[i]
@@ -1494,15 +1498,8 @@ class Building:
             object_names.append(absolute_path_f)
 
       # Archives contain objects, so process all archives first in parallel to obtain the object files in them.
-      cores = int(os.environ.get('EMCC_CORES') or multiprocessing.cpu_count())
-      pool = None
-      if cores > 1:
-        pool = multiprocessing.Pool(processes=cores)
-        object_names_in_archives = pool.map(extract_archive_contents, archive_names)
-      else:
-        object_names_in_archives = []
-        for a in archive_names:
-          object_names_in_archives += [extract_archive_contents(a)]
+      pool = Building.get_multiprocessing_pool()
+      object_names_in_archives = pool.map(extract_archive_contents, archive_names)
 
       for n in range(len(archive_names)):
         Building.ar_contents[archive_names[n]] = object_names_in_archives[n]['files']
@@ -1513,7 +1510,7 @@ class Building:
             object_names += [f]
 
       # Next, extract symbols from all object files (either standalone or inside archives we just extracted)
-      Building.parallel_llvm_nm(object_names, pool)
+      Building.parallel_llvm_nm(object_names)
 
   @staticmethod
   def link(files, target, force_archive_contents=False, temp_files=None, just_calculate=False):
