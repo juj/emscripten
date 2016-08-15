@@ -98,10 +98,13 @@ function findPositionalParams(cmdLine, argsTakingParams) {
 
 function cmdLineBasename(cmdLine) {
 	var cmd = cmdLine[0];
+	// cmdline could be '/path/to/node --param /path/to/file/to/run', in which case
+	// we want to return 'run' as the interesting command that was executed
+	if (cmd[0] == '-') return cmdLineBasename(cmdLine.slice(1));
 	cmdname = pathBasename(cmd);
-	if (cmdname.indexOf('node') == 0 && cmdLine[1].indexOf('.js') != -1)
+	if (cmdname.indexOf('node') == 0)
 		return cmdLineBasename(cmdLine.slice(1));
-	else if (cmdname.indexOf('python') == 0 && cmdLine[1].indexOf('.py') != -1)
+	else if (cmdname.indexOf('python') == 0)
 		return cmdLineBasename(cmdLine.slice(1));
 	else
 		return cmdname;
