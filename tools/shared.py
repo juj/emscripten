@@ -1157,9 +1157,9 @@ class Settings(object):
 # llvm-ar appears to just use basenames inside archives. as a result, files with the same basename
 # will trample each other when we extract them. to help warn of such situations, we warn if there
 # are duplicate entries in the archive
-def warn_if_duplicate_entries(archive_contents):
+def warn_if_duplicate_entries(archive_contents, archive_filename_hint=''):
   if len(archive_contents) != len(set(archive_contents)):
-    logging.warning('loading from archive %s, which has duplicate entries (files with identical base names). this is dangerous as only the last will be taken into account, and you may see surprising undefined symbols later. you should rename source files to avoid this problem (or avoid .a archives, and just link bitcode together to form libraries for later linking)' % f)
+    logging.warning('loading from archive %s, which has duplicate entries (files with identical base names). this is dangerous as only the last will be taken into account, and you may see surprising undefined symbols later. you should rename source files to avoid this problem (or avoid .a archives, and just link bitcode together to form libraries for later linking)' % archive_filename_hint)
     warned = set()
     for i in range(len(archive_contents)):
       curr = archive_contents[i]
@@ -1175,7 +1175,7 @@ def extract_archive_contents(f):
     safe_ensure_dirs(temp_dir)
     os.chdir(temp_dir)
     contents = filter(lambda x: len(x) > 0, Popen([LLVM_AR, 't', f], stdout=PIPE).communicate()[0].split('\n'))
-    warn_if_duplicate_entries(contents)
+    warn_if_duplicate_entries(contents, f)
     if len(contents) == 0:
       logging.debug('Archive %s appears to be empty (recommendation: link an .so instead of .a)' % f)
       return {
