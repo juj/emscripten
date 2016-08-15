@@ -25,7 +25,8 @@ THE SOFTWARE.
 
 <html>
 <head>
-<title>Swimlane using d3.js</title>
+<meta charset="UTF-8">
+<title>Emscripten toolchain profiler results</title>
 <script src="https://d3js.org/d3.v3.min.js"></script>
 <style>
 .chart {
@@ -75,7 +76,28 @@ THE SOFTWARE.
 </head>
 <body>
 
+<p>Show only blocks that took at least <input id='hideBlocksSmallerThan' value='10'></input> msecs (0=show all).<input type='button' value='Refresh' onclick='refresh()'></input>
+
 <script type="text/javascript">
+
+function getValueOfParam(param) {
+	var e = location.search.substr(1).split('&');
+	for(var i in e) {
+		var p = e[i].split('=');
+		if (p.length == 2 && p[0] == param) return p[1];
+	}
+}
+
+if (location.search.indexOf('hideBlocksSmallerThan') != -1) {
+	document.getElementById('hideBlocksSmallerThan').value = parseInt(getValueOfParam('hideBlocksSmallerThan'));
+}
+
+function refresh() {
+	var hideBlocksSmallerThan = parseInt(document.getElementById('hideBlocksSmallerThan').value);
+	var url = window.location.href;
+	if (url.indexOf('?') != -1) url = url.split('?')[0]
+	window.location.href = url + '?hideBlocksSmallerThan=' + hideBlocksSmallerThan;
+}
 
 var lanes = [];
 var items = [];
@@ -345,6 +367,35 @@ function createSwimlaneChart(data) {
 			label: laneOccupancy.length-1
 		});
 		return laneOccupancy.length-1;
+	}
+
+	// Filter items that took too little time and should not be displayed.
+	var hideBlocksSmallerThan = parseInt(document.getElementById('hideBlocksSmallerThan').value);
+	for(var i = 0; i < itemsOrdered.length; ++i) {
+		var p = itemsOrdered[i];
+		var duration = p.end - p.start;
+		if (duration < hideBlocksSmallerThan) { // Should this be hidden?
+			// removing this node, so connect the parent and children.
+			var parent = p.parent;
+			var children = p.children;
+
+			// Disconnect this node from the child list of its parent, and root up all children of this
+			// to be children of the parent, but be careful to preserve position, i.e. the children should
+			// appear in the place in array where the current node was.
+			if (parent) {
+				var parentIdx = parent.children.indexOf(p);
+				if (parentIdx < 0) throw 'internal error: inconsistent tree structure!';
+				var head = parent.children.slice(0, parentIdx);
+				var tail = parent.children.slice(parentIdx + 1, parent.children.length);
+				parent.children = head.concat(children).concat(tail);
+			}
+
+			// Update the parent node of each child.
+			for(var c in children) children[c].parent = parent;
+
+			itemsOrdered.splice(i, 1);
+			--i;
+		}
 	}
 
 	var id = 0;
