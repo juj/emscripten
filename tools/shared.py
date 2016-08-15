@@ -1225,7 +1225,19 @@ class Building:
   def get_multiprocessing_pool():
     if not Building.multiprocessing_pool:
       cores = int(os.environ.get('EMCC_CORES') or multiprocessing.cpu_count())
-      Building.multiprocessing_pool = multiprocessing.Pool(processes=cores)
+
+      # If running with one core only, create a mock instance of a pool that does not
+      # actually spawn any new subprocesses. Very useful for internal debugging.
+      if cores == 1:
+        class FakeMultiprocessor:
+          def map(self, func, tasks):
+            results = []
+            for t in tasks:
+              results += [func(t)]
+            return results
+        Building.multiprocessing_pool = FakeMultiprocessor()
+      else:
+        Building.multiprocessing_pool = multiprocessing.Pool(processes=cores)
     return Building.multiprocessing_pool
 
   @staticmethod
