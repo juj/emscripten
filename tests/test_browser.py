@@ -3018,6 +3018,10 @@ window.close = function() {
   def test_pthread_proxying_in_futex_wait(self):
     self.btest(path_from_root('tests', 'pthread', 'test_pthread_proxying_in_futex_wait.cpp'), expected='0', args=['-O3', '-s', 'USE_PTHREADS=2', '-s', 'PTHREAD_POOL_SIZE=1', '--separate-asm'], timeout=30)
 
+  # Test that the proxying operations of user code from pthreads to main thread work
+  def test_pthread_run_on_main_thread(self):
+    self.btest(path_from_root('tests', 'pthread', 'test_pthread_run_on_main_thread.cpp'), expected='0', args=['-O3', '-s', 'USE_PTHREADS=2', '-s', 'PTHREAD_POOL_SIZE=1', '--separate-asm'], timeout=30)
+
   # test atomicrmw i64
   def test_atomicrmw_i64(self):
     Popen([PYTHON, EMCC, path_from_root('tests', 'atomicrmw_i64.ll'), '-s', 'USE_PTHREADS=1', '-s', 'IN_TEST_HARNESS=1', '-o', 'test.html']).communicate()
