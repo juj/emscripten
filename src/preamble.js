@@ -2384,4 +2384,13 @@ function integrateWasmJS(Module) {
 integrateWasmJS(Module);
 #endif
 
+#if USE_PTHREADS
+#if PROXY_TO_WORKER
+// Initialize the synchronous message pipe between this Web Worker hosting the Emscripten runtime thread, and the browser's main thread.
+if (typeof SharedArrayBuffer !== 'undefined' && !ENVIRONMENT_IS_PTHREAD) {
+  postMessage({target: 'buffer', buffer: buffer}, [buffer]);
+}
+#endif
+#endif
+
 // === Body ===

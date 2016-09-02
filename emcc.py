@@ -2188,6 +2188,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         asm_mods = []
 
         if proxy_to_worker:
+          shutil.move(final.replace('.js', '.main.js'), target.replace('.js', '.main.js').replace('.html', '.main.js'))
           child_js = shared.Settings.PROXY_TO_WORKER_FILENAME or target_basename
           script_inline = '''
   if ((',' + window.location.search.substr(1) + ',').indexOf(',noProxy,') < 0) {

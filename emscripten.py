@@ -319,6 +319,9 @@ def function_tables_and_exports(funcs, metadata, mem_init, glue, forwarded_data,
 
     pre, post = glue.split('// EMSCRIPTEN_END_FUNCS')
 
+    proxied_funcs, post = post.split('// EMSCRIPTEN_END_PROXIED_FUNCS')
+    open(outfile.name.replace('.js', '.main.js'), 'w').write(proxied_funcs)
+
     #print >> sys.stderr, 'glue:', pre, '\n\n||||||||||||||||\n\n', post, '...............'
 
     # memory and global initializers
@@ -1540,6 +1543,10 @@ def emscript_wasm_backend(infile, settings, outfile, libraries=None, compiler_en
   forwarded_json = json.loads(forwarded_data)
 
   pre, post = glue.split('// EMSCRIPTEN_END_FUNCS')
+
+#  proxied_funcs, glue = glue.split('// EMSCRIPTEN_END_PROXIED_FUNCS')
+#  open(outfile.name.replace('.js', '.main.js'), 'w').write(proxied_funcs)
+#  open('C:/code/emsdk/emscripten/incoming/a.main.js', 'w').write(proxied_funcs)
 
   # memory and global initializers
 
