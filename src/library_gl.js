@@ -3417,9 +3417,15 @@ var LibraryGL = {
     // Error: Shader compile failed: ERROR: 0:149: 'symbol__name__with__double__underscores' : identifiers containing two consecutive underscores (__) are reserved as possible future keywords 
     source = source.replace(/__/g, "_X_");
 
-    // HACK to work around shaders that are missing default precision for floats:
+    // HACK to work around shaders that are missing default precision for floats: (or the default precision comes too late)
     if (source.indexOf("precision highp float;") == -1 && source.indexOf("precision medp float;") == -1 && source.indexOf("precision lowp float;") == -1) {
       source = source.replace("#version 100", "#version 100\nprecision highp float;");
+    } else if (source.indexOf("precision highp float;") != -1) {
+      source = source.replace("#version 100", "#version 100\nprecision highp float;");
+    } else if (source.indexOf("precision mediump float;") != -1) {
+      source = source.replace("#version 100", "#version 100\nprecision mediump float;");
+    } else if (source.indexOf("precision lowp float;") != -1) {
+      source = source.replace("#version 100", "#version 100\nprecision lowp float;");
     }
 
     GLctx.shaderSource(GL.shaders[shader], source);
