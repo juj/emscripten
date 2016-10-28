@@ -3412,6 +3412,11 @@ var LibraryGL = {
     GL.validateGLObjectID(GL.shaders, shader, 'glShaderSource', 'shader');
 #endif
     var source = GL.getSource(shader, count, string, length);
+
+    // HACK to work around WebGL GLSL specific restrictions:
+    // Error: Shader compile failed: ERROR: 0:149: 'symbol__name__with__double__underscores' : identifiers containing two consecutive underscores (__) are reserved as possible future keywords 
+    source = source.replace(/__/g, "_X_");
+
     GLctx.shaderSource(GL.shaders[shader], source);
   },
 
