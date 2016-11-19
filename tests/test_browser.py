@@ -2181,6 +2181,9 @@ Module["preRun"].push(function () {
   def test_webgl2_ubos(self):
     self.btest(path_from_root('tests', 'webgl2_ubos.cpp'), args=['-s', 'USE_WEBGL2=1'], expected='0')
 
+  def test_webgl2_garbage_free_entrypoints(self):
+    self.btest(path_from_root('tests', 'webgl2_garbage_free_entrypoints.cpp'), args=['-s', 'USE_WEBGL2=1'], expected='1')
+
   def test_webgl_with_closure(self):
     self.btest(path_from_root('tests', 'webgl_with_closure.cpp'), args=['-O2', '-s', 'USE_WEBGL2=1', '--closure', '1'], expected='0')
 
