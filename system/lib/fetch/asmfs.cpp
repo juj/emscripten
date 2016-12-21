@@ -617,6 +617,19 @@ long __syscall4(int which, ...) // write
 	return __syscall146(146/*writev*/, fd, &io, 1);
 }
 
+// TODO: Make thread-local storage.
+static emscripten_asmfs_open_t __emscripten_asmfs_file_open_behavior_mode = EMSCRIPTEN_ASMFS_OPEN_REMOTE_DISCOVER;
+
+void emscripten_asmfs_set_file_open_behavior(emscripten_asmfs_open_t behavior)
+{
+	__emscripten_asmfs_file_open_behavior_mode = behavior;
+}
+
+emscripten_asmfs_open_t emscripten_asmfs_get_file_open_behavior()
+{
+	return __emscripten_asmfs_file_open_behavior_mode;
+}
+
 static long open(const char *pathname, int flags, int mode)
 {
 	EM_ASM_INT({ Module['printErr']('open(pathname="' + Pointer_stringify($0) + '", flags=0x' + ($1).toString(16) + ', mode=0' + ($2).toString(8) + ')') },
@@ -679,6 +692,8 @@ static long open(const char *pathname, int flags, int mode)
 		if ((flags & O_CREAT) && (flags & O_EXCL)) RETURN_ERRNO(EEXIST, "pathname already exists and O_CREAT and O_EXCL were used");
 		if (node->type == INODE_DIR && accessMode != O_RDONLY) RETURN_ERRNO(EISDIR, "pathname refers to a directory and the access requested involved writing (that is, O_WRONLY or O_RDWR is set)");
 		if (node->type == INODE_DIR && (flags & O_TRUNC)) RETURN_ERRNO(EISDIR, "pathname refers to a directory and the access flags specified invalid flag O_TRUNC");
+
+		// A current download exists to the file? Then wait for it to complete.
 		if (node->fetch) emscripten_fetch_wait(node->fetch, INFINITY);
 	}
 
@@ -702,20 +717,39 @@ static long open(const char *pathname, int flags, int mode)
 	else if (!node || (node->type == INODE_FILE && !node->fetch && !node->data))
 	{
 		emscripten_fetch_t *fetch = 0;
-		if (!(flags & O_DIRECTORY) && accessMode != O_WRONLY)
+		if (!(flags & O_DIRECTORY) && accessMode != O_WRONLY) // Opening a file for reading?
 		{
-			// If not, we'll need to fetch it.
+			// If there's no inode entry, check if we're not even interested in downloading the file?
+			if (!node && __emscripten_asmfs_file_open_behavior_mode != EMSCRIPTEN_ASMFS_OPEN_REMOTE_DISCOVER)
+			{
+				RETURN_ERRNO(ENOENT, "O_CREAT is not set, the named file does not exist in local filesystem and EMSCRIPTEN_ASMFS_OPEN_REMOTE_DISCOVER is not specified");
+			}
+
+			// Report an error if there is an inode entry, but file data is not synchronously available and it should have been.
+			if (node && !node->data && __emscripten_asmfs_file_open_behavior_mode == EMSCRIPTEN_ASMFS_OPEN_MEMORY)
+			{
+				RETURN_ERRNO(ENOENT, "O_CREAT is not set, the named file exists, but file data is not synchronously available in memory (EMSCRIPTEN_ASMFS_OPEN_MEMORY specified)");
+			}
+
+			// Kick off the file download, either from IndexedDB or via an XHR.
 			emscripten_fetch_attr_t attr;
 			emscripten_fetch_attr_init(&attr);
 			strcpy(attr.requestMethod, "GET");
 			attr.attributes = EMSCRIPTEN_FETCH_APPEND | EMSCRIPTEN_FETCH_LOAD_TO_MEMORY | EMSCRIPTEN_FETCH_WAITABLE | EMSCRIPTEN_FETCH_PERSIST_FILE;
+			// If asked to only do a read from IndexedDB, don't perform an XHR.
+			if (__emscripten_asmfs_file_open_behavior_mode == EMSCRIPTEN_ASMFS_OPEN_INDEXEDDB)
+			{
+				attr.attributes |= EMSCRIPTEN_FETCH_NO_DOWNLOAD;
+			}
 			char uriEncodedPathName[3*PATH_MAX+4]; // times 3 because uri-encoding can expand the filename at most 3x.
 			uriEncode(uriEncodedPathName, 3*PATH_MAX+4, pathname);
 			fetch = emscripten_fetch(&attr, uriEncodedPathName);
 
-		// switch(fopen_mode)
-		// {
-		// case synchronous_fopen:
+			// Synchronously wait for the fetch to complete.
+			// NOTE: Theoretically could postpone blocking until the first read to the file, but the issue there is that
+			// we wouldn't be able to return ENOENT below if the file did not exist on the server, which could be harmful
+			// for some applications. Also fread()/fseek() very often immediately follows fopen(), so the win would not
+			// be too great anyways.
 			emscripten_fetch_wait(fetch, INFINITY);
 
 			if (!(flags & O_CREAT) && (fetch->status != 200 || fetch->totalBytes == 0))
@@ -723,10 +757,6 @@ static long open(const char *pathname, int flags, int mode)
 				emscripten_fetch_close(fetch);
 				RETURN_ERRNO(ENOENT, "O_CREAT is not set and the named file does not exist (attempted emscripten_fetch() XHR to download)");
 			}
-		//  break;
-		// case asynchronous_fopen:
-		//  break;
-		// }
 		}
 
 		if (node)
