@@ -193,6 +193,10 @@ void emscripten_asmfs_set_file_open_behavior(emscripten_asmfs_open_t behavior);
 // Returns the current file open behavior modein the calling thread.
 emscripten_asmfs_open_t emscripten_asmfs_get_file_open_behavior();
 
+void emscripten_asmfs_set_remote_url(const char *filename, const char *remoteUrl);
+
+void emscripten_asmfs_remote_url(const char *filename, char *outRemoteUrl, int maxBytesToWrite);
+
 #ifdef __cplusplus
 }
 #endif
