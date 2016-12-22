@@ -994,6 +994,9 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         next_arg_index += 1
         options.js_libraries.append(shared.path_from_root('src', 'library_fetch.js'))
 
+      if shared.Settings.ASMFS:
+        js_libraries.append(shared.path_from_root('src', 'library_asmfs.js'))
+
       forced_stdlibs = []
       if shared.Settings.DEMANGLE_SUPPORT:
         shared.Settings.EXPORTED_FUNCTIONS += ['___cxa_demangle']
