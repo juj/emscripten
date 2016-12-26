@@ -512,6 +512,21 @@ void EMSCRIPTEN_KEEPALIVE emscripten_asmfs_set_remote_url(const char *filename, 
 	node->remoteurl = strdup(remoteUrl);
 }
 
+void EMSCRIPTEN_KEEPALIVE emscripten_asmfs_set_file_data(const char *filename, char *data, size_t size)
+{
+	int err;
+	inode *node = find_inode(filename, &err);
+	if (!node) {
+		free(data);
+		return;
+	}
+	free(node->data);
+	node->data = (uint8_t*)data;
+	node->size = node->capacity = size;
+
+	EM_ASM_INT( { Module['print']('Node ' + Pointer_stringify($0) + ' (' + Pointer_stringify($1) + ') got file data ptr ' + $1 + ', size ' + $2) }, node->name, filename, node->data, node->size);
+}
+
 char *find_last_occurrence(char *str, char ch)
 {
 	char *o = 0;

@@ -30,6 +30,14 @@ var asmFS = {
       _emscripten_asmfs_set_remote_url(pathCString, remoteUrlCString);
       _free(pathCString);
       _free(remoteUrlCString);
+    },
+
+    setFileData: function(path, data) {
+      var dataInHeap = _malloc(data.length);
+      HEAPU8.set(data, dataInHeap);
+      var pathCString = allocate(intArrayFromString(path), 'i8', ALLOC_NORMAL);
+      _emscripten_asmfs_set_file_data(pathCString, dataInHeap, data.length);
+      _free(pathCString);
     }
   }
 };
