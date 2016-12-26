@@ -16,6 +16,7 @@
 #include "syscall_arch.h"
 #include <pthread.h>
 #include <emscripten/threading.h>
+#include <bits\ioctl.h>
 
 extern "C" {
 
@@ -699,7 +700,14 @@ static void print_stream(void *bytes, int numBytes, bool stdout)
 		if (buffer[i] == '\n')
 		{
 			buffer[i] = 0;
-			EM_ASM_INT( { Module['print'](Pointer_stringify($0)) }, buffer+new_buffer_start);
+			if (stdout)
+			{
+				EM_ASM_INT( { Module['print'](Pointer_stringify($0)) }, buffer+new_buffer_start);
+			}
+			else
+			{
+				EM_ASM_INT( { Module['printErr'](Pointer_stringify($0)) }, buffer+new_buffer_start);
+			}
 			new_buffer_start = i+1;
 		}
 	}
@@ -1256,8 +1264,32 @@ long __syscall54(int which, ...) // ioctl/sysctl
 	int request = va_arg(vl, int);
 	char *argp = va_arg(vl, char *);
 	va_end(vl);
-	EM_ASM(Module['printErr']('ioctl(fd=' + $0 + ', request=' + $1 + ', argp=0x' + $2 + ')'), fd, request, argp);
-	RETURN_ERRNO(ENOTSUP, "TODO: ioctl() is a stub and not yet implemented in ASMFS");
+
+	switch(request)
+	{
+		case TCGETS:
+			if (fd > 2) return -ENOTTY; // Currently hardcoded stdin, stdout and stderr fds 0, 1 and 2 (TODO)
+			EM_ASM(Module['printErr']('ioctl(fd=' + $0 + ', request=0x' + $1.toString(16) + ', argp=0x' + $2 + ') warning: not filling tio struct'), fd, request, argp);
+			return 0;
+		case TCSETS:
+			if (fd > 2) return -ENOTTY; // Currently hardcoded stdin, stdout and stderr fds 0, 1 and 2 (TODO)
+			EM_ASM(Module['printErr']('ioctl(fd=' + $0 + ', request=0x' + $1.toString(16) + ', argp=0x' + $2 + ') warning: not filling tio struct'), fd, request, argp);
+			return 0;
+		case TIOCGPGRP:
+			if (fd > 2) return -ENOTTY; // Currently hardcoded stdin, stdout and stderr fds 0, 1 and 2 (TODO)
+			*argp = 0;
+			return 0;
+		case TIOCSPGRP:
+			if (fd > 2) return -ENOTTY; // Currently hardcoded stdin, stdout and stderr fds 0, 1 and 2 (TODO)
+			return -EINVAL; // not supported
+		case FIONREAD:
+			*argp = 0;
+			EM_ASM(Module['printErr']('ioctl(fd=' + $0 + ', request=0x' + $1.toString(16) + ', argp=0x' + $2 + ') TODO: Returning hardcoded 0 bytes to read'), fd, request, argp);
+			return 0;
+		default:
+			EM_ASM(Module['printErr']('ioctl(fd=' + $0 + ', request=0x' + $1.toString(16) + ', argp=0x' + $2 + ')'), fd, request, argp);
+			RETURN_ERRNO(ENOTSUP, "TODO: ioctl() is a stub and not yet implemented in ASMFS");
+	}
 }
 
 // TODO: syscall60: mode_t umask(mode_t mask);
