@@ -197,6 +197,12 @@ void emscripten_asmfs_set_remote_url(const char *filename, const char *remoteUrl
 
 void emscripten_asmfs_remote_url(const char *filename, char *outRemoteUrl, int maxBytesToWrite);
 
+void emscripten_asmfs_unload_data(const char *pathname);
+
+// Computes the total amount of bytes in memory utilized by the filesystem at the moment.
+// Note: This function can be slow since it walks through the whole filesystem.
+uint64_t emscripten_asmfs_compute_memory_usage();
+
 #ifdef __cplusplus
 }
 #endif
