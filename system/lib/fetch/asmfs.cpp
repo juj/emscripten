@@ -287,7 +287,6 @@ static inode *create_directory_hierarchy_for_file(inode *root, const char *path_
 	{
 		bool is_directory = false;
 		const char *child_path = path_cmp(path_to_file, node->name, &is_directory);
-		EM_ASM_INT( { Module['printErr']('path_cmp ' + Pointer_stringify($0) + ', ' + Pointer_stringify($1) + ', ' + Pointer_stringify($2) + ' .') }, path_to_file, node->name, child_path);
 		if (child_path)
 		{
 			if (is_directory && node->type != INODE_DIR) return 0; // "A component used as a directory in pathname is not, in fact, a directory"
@@ -319,9 +318,7 @@ static inode *create_directory_hierarchy_for_file(inode *root, const char *path_
 			node = node->sibling;
 		}
 	}
-	EM_ASM_INT( { Module['printErr']('path_to_file ' + Pointer_stringify($0) + ' .') }, path_to_file);
 	const char *basename_pos = basename_part(path_to_file);
-	EM_ASM_INT( { Module['printErr']('basename_pos ' + Pointer_stringify($0) + ' .') }, basename_pos);
 	while(*path_to_file && path_to_file < basename_pos)
 	{
 		node = create_inode(INODE_DIR, mode);
@@ -881,7 +878,6 @@ static long open(const char *pathname, int flags, int mode)
 			}
 			char path[3*PATH_MAX+4]; // times 3 because uri-encoding can expand the filename at most 3x.
 			emscripten_asmfs_remote_url(pathname, path, 3*PATH_MAX+4);
-			EM_ASM_INT( { Module['print']('Node ' + Pointer_stringify($0) + ' has a remote url: ' + Pointer_stringify($1)) }, pathname, path);
 			fetch = emscripten_fetch(&attr, path);
 
 			// Synchronously wait for the fetch to complete.
@@ -919,7 +915,6 @@ static long open(const char *pathname, int flags, int mode)
 			RETURN_ERRNO(ENOENT, "O_CREAT is not set and the named file does not exist");
 		}
 		node->size = node->fetch->totalBytes;
-		emscripten_dump_fs_root();
 	}
 
 	FileDescriptor *desc = (FileDescriptor*)malloc(sizeof(FileDescriptor));
@@ -1188,6 +1183,31 @@ long EMSCRIPTEN_KEEPALIVE emscripten_asmfs_mkdir(const char *pathname, mode_t mo
 	strcpy(directory->name, basename_part(pathname));
 	link_inode(directory, parent_dir);
 	return 0;
+}
+
+void emscripten_asmfs_unload_data(const char *pathname)
+{
+	int err;
+	inode *node = find_inode(pathname, &err);
+	if (!node) return;
+
+	free(node->data);
+	node->data = 0;
+	node->size = node->capacity = 0;
+}
+
+uint64_t emscripten_asmfs_compute_memory_usage_at_node(inode *node)
+{
+	if (!node) return 0;
+	uint64_t sz = sizeof(inode);
+	if (node->data) sz += node->capacity > node->size ? node->capacity : node->size;
+	if (node->fetch && node->fetch->data) sz += node->fetch->numBytes;
+	return sz + emscripten_asmfs_compute_memory_usage_at_node(node->child) + emscripten_asmfs_compute_memory_usage_at_node(node->sibling);
+}
+
+uint64_t emscripten_asmfs_compute_memory_usage()
+{
+	return emscripten_asmfs_compute_memory_usage_at_node(filesystem_root());
 }
 
 long __syscall39(int which, ...) // mkdir
@@ -1704,7 +1724,7 @@ long __syscall220(int which, ...) // getdents64 (get directory entries 64-bit)
 	dirent *de = va_arg(vl, dirent*);
 	unsigned int count = va_arg(vl, unsigned int);
 	va_end(vl);
-	unsigned int dirents_size = count / sizeof(de); // The number of dirent structures that can fit into the provided buffer.
+	unsigned int dirents_size = count / sizeof(dirent); // The number of dirent structures that can fit into the provided buffer.
 	dirent *de_end = de + dirents_size;
 	EM_ASM_INT({ Module['printErr']('getdents64(fd=' + $0 + ', de=0x' + ($1).toString(16) + ', count=' + $2 + ')') }, fd, de, count);
 
