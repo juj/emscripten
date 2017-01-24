@@ -1153,7 +1153,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
 
       # If using GL state cache, compile in the C/C++ side caching mechanism.
       if shared.Settings.GL_STATE_CACHE and final_suffix in JS_CONTAINING_SUFFIXES:
-        input_files.append((next_arg_index, shared.path_from_root('system', 'lib', 'gl_cache.c')))
+        input_files.append((next_arg_index, shared.path_from_root('system', 'lib', 'gl_cache.cpp')))
         next_arg_index += 1
 
       forced_stdlibs = []
@@ -1223,7 +1223,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         shared.Settings.FORCE_FILESYSTEM = 1 # proxying of utime requires the filesystem
       else:
         js_libraries.append(shared.path_from_root('src', 'library_pthread_stub.js'))
-        input_files.append((next_arg_index, shared.path_from_root('system', 'lib', 'pthread', 'library_pthread_stub.c')))
+        input_files.append((next_arg_index, shared.path_from_root('system', 'lib', 'pthread', 'library_pthread_stub.cpp')))
         next_arg_index += 1
 
       if shared.Settings.USE_PTHREADS:
