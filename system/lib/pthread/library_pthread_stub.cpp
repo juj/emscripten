@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 
+extern "C" {
+
 int pthread_key_create(pthread_key_t *key, void (*destructor)(void *))
 {
 	void **ptr = (void**)malloc(sizeof(void*));
@@ -24,4 +26,6 @@ int pthread_setspecific(pthread_key_t key, const void *value)
 {
 	*(void**)key = (void*)value;
 	return 0;
+}
+
 }

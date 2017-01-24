@@ -4,6 +4,8 @@
 static GLuint _GL_ARRAY_BUFFER_BINDING = 0;
 static GLuint _GL_ELEMENT_ARRAY_BUFFER_BINDING = 0;
 
+extern "C" {
+
 GL_APICALL void GL_APIENTRY _emscripten_glBindBuffer(GLenum target, GLuint buffer);
 GL_APICALL void GL_APIENTRY _emscripten_glVertexAttribDivisor(GLuint index, GLuint divisor);
 GL_APICALL void GL_APIENTRY _emscripten_glEnableVertexAttribArray(GLuint index);
@@ -74,4 +76,6 @@ GL_APICALL void GL_APIENTRY glActiveTexture(GLenum texture)
   if (_GL_ACTIVE_TEXTURE == texture) return;
   _emscripten_glActiveTexture(texture);
   _GL_ACTIVE_TEXTURE = texture;
+}
+
 }
