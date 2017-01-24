@@ -1151,6 +1151,11 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         next_arg_index += 1
         js_libraries.append(shared.path_from_root('src', 'library_fetch.js'))
 
+      # If using GL state cache, compile in the C/C++ side caching mechanism.
+      if shared.Settings.GL_STATE_CACHE and final_suffix in JS_CONTAINING_SUFFIXES:
+        input_files.append((next_arg_index, shared.path_from_root('system', 'lib', 'gl_cache.c')))
+        next_arg_index += 1
+
       forced_stdlibs = []
       if shared.Settings.DEMANGLE_SUPPORT:
         shared.Settings.EXPORTED_FUNCTIONS += ['___cxa_demangle']

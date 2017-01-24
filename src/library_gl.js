@@ -3680,6 +3680,15 @@ var LibraryGL = {
 #endif
   },
 
+#if GL_STATE_CACHE
+  _emscripten_glBindBuffer: 'glBindBuffer',
+  _emscripten_glVertexAttribDivisor: 'glVertexAttribDivisor',
+  _emscripten_glEnableVertexAttribArray: 'glEnableVertexAttribArray',
+  _emscripten_glDisableVertexAttribArray: 'glDisableVertexAttribArray',
+  _emscripten_glUseProgram: 'glUseProgram',
+  _emscripten_glActiveTexture: 'glActiveTexture',
+#endif
+
 #if LEGACY_GL_EMULATION
 
   // GL emulation: provides misc. functionality not present in OpenGL ES 2.0 or WebGL
