@@ -23,4 +23,5 @@ void *pthread_getspecific(pthread_key_t key)
 int pthread_setspecific(pthread_key_t key, const void *value)
 {
 	*(void**)key = (void*)value;
+	return 0;
 }
