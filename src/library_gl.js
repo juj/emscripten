@@ -3685,8 +3685,16 @@ var LibraryGL = {
   _emscripten_glVertexAttribDivisor: 'glVertexAttribDivisor',
   _emscripten_glEnableVertexAttribArray: 'glEnableVertexAttribArray',
   _emscripten_glDisableVertexAttribArray: 'glDisableVertexAttribArray',
+  _emscripten_glVertexAttribPointer: 'glVertexAttribPointer',
   _emscripten_glUseProgram: 'glUseProgram',
   _emscripten_glActiveTexture: 'glActiveTexture',
+  _emscripten_glDrawArrays: 'glDrawArrays',
+  _emscripten_glDrawElements: 'glDrawElements',
+  _emscripten_glDrawRangeElements: 'glDrawRangeElements',
+  _emscripten_glDrawArraysInstanced: 'glDrawArraysInstanced',
+  _emscripten_glDrawElementsInstanced: 'glDrawElementsInstanced',
+  _emscripten_glDrawArraysIndirect: 'glDrawArraysIndirect',
+  _emscripten_glDrawElementsIndirect: 'glDrawElementsIndirect',
 #endif
 
 #if LEGACY_GL_EMULATION
