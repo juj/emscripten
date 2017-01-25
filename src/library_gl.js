@@ -3695,6 +3695,7 @@ var LibraryGL = {
   _emscripten_glDrawElementsInstanced: 'glDrawElementsInstanced',
   _emscripten_glDrawArraysIndirect: 'glDrawArraysIndirect',
   _emscripten_glDrawElementsIndirect: 'glDrawElementsIndirect',
+  _emscripten_glBindTexture: 'glBindTexture',
 #endif
 
 #if LEGACY_GL_EMULATION

@@ -20,6 +20,7 @@ GL_APICALL void GL_APIENTRY _emscripten_glDrawElementsInstanced(GLenum mode, GLs
 GL_APICALL void GL_APIENTRY _emscripten_glDrawArraysIndirect(GLenum mode, const void *indirect);
 GL_APICALL void GL_APIENTRY _emscripten_glDrawElementsIndirect(GLenum mode, GLenum type, const void *indirect);
 GL_APICALL void GL_APIENTRY _emscripten_glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer);
+GL_APICALL void GL_APIENTRY _emscripten_glBindTexture(GLenum target, GLuint texture);
 
 GL_APICALL void GL_APIENTRY glBindBuffer(GLenum target, GLuint buffer)
 {
@@ -105,12 +106,18 @@ GL_APICALL void GL_APIENTRY glUseProgram(GLuint program)
 }
 
 static GLenum _GL_ACTIVE_TEXTURE = 0;
+static GLenum _GL_pending_ACTIVE_TEXTURE = 0;
 
 GL_APICALL void GL_APIENTRY glActiveTexture(GLenum texture)
 {
-  if (_GL_ACTIVE_TEXTURE == texture) return;
-  _emscripten_glActiveTexture(texture);
-  _GL_ACTIVE_TEXTURE = texture;
+  _GL_pending_ACTIVE_TEXTURE = texture;
+}
+
+static inline void applyGlActiveTexture()
+{
+  if (_GL_ACTIVE_TEXTURE == _GL_pending_ACTIVE_TEXTURE) return;
+  _emscripten_glActiveTexture(_GL_pending_ACTIVE_TEXTURE);
+  _GL_ACTIVE_TEXTURE = _GL_pending_ACTIVE_TEXTURE;
 }
 
 GL_APICALL void GL_APIENTRY glDrawArrays(GLenum mode, GLint first, GLsizei count)
@@ -153,6 +160,18 @@ GL_APICALL void GL_APIENTRY glDrawElementsIndirect(GLenum mode, GLenum type, con
 {
   applyGlEnableVertexAttribArrays();
   _emscripten_glDrawElementsIndirect(mode, type, indirect);
+}
+
+#define _GL_MAX_TEXTURES 32
+
+static GLuint _GL_TEXTURE_BINDING[_GL_MAX_TEXTURES];
+
+GL_APICALL void GL_APIENTRY glBindTexture(GLenum target, GLuint texture)
+{
+  if (_GL_TEXTURE_BINDING[_GL_pending_ACTIVE_TEXTURE-GL_TEXTURE0] == texture) return;
+  applyGlActiveTexture();
+  _emscripten_glBindTexture(target, texture);
+  _GL_TEXTURE_BINDING[_GL_pending_ACTIVE_TEXTURE-GL_TEXTURE0] = texture;
 }
 
 }
