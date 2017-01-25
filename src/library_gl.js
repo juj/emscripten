@@ -3696,6 +3696,11 @@ var LibraryGL = {
   _emscripten_glDrawArraysIndirect: 'glDrawArraysIndirect',
   _emscripten_glDrawElementsIndirect: 'glDrawElementsIndirect',
   _emscripten_glBindTexture: 'glBindTexture',
+  _emscripten_glTexParameterf: 'glTexParameterf',
+  _emscripten_glTexParameterfv: 'glTexParameterfv',
+  _emscripten_glTexParameteri: 'glTexParameteri',
+  _emscripten_glTexParameteriv: 'glTexParameteriv',
+  _emscripten_glGenerateMipmap: 'glGenerateMipmap',
 #endif
 
 #if LEGACY_GL_EMULATION

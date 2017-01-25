@@ -21,6 +21,11 @@ GL_APICALL void GL_APIENTRY _emscripten_glDrawArraysIndirect(GLenum mode, const 
 GL_APICALL void GL_APIENTRY _emscripten_glDrawElementsIndirect(GLenum mode, GLenum type, const void *indirect);
 GL_APICALL void GL_APIENTRY _emscripten_glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer);
 GL_APICALL void GL_APIENTRY _emscripten_glBindTexture(GLenum target, GLuint texture);
+GL_APICALL void GL_APIENTRY _emscripten_glTexParameterf(GLenum target, GLenum pname, GLfloat param);
+GL_APICALL void GL_APIENTRY _emscripten_glTexParameterfv(GLenum target, GLenum pname, const GLfloat *params);
+GL_APICALL void GL_APIENTRY _emscripten_glTexParameteri(GLenum target, GLenum pname, GLint param);
+GL_APICALL void GL_APIENTRY _emscripten_glTexParameteriv(GLenum target, GLenum pname, const GLint *params);
+GL_APICALL void GL_APIENTRY _emscripten_glGenerateMipmap(GLenum target);
 
 GL_APICALL void GL_APIENTRY glBindBuffer(GLenum target, GLuint buffer)
 {
@@ -172,6 +177,36 @@ GL_APICALL void GL_APIENTRY glBindTexture(GLenum target, GLuint texture)
   applyGlActiveTexture();
   _emscripten_glBindTexture(target, texture);
   _GL_TEXTURE_BINDING[_GL_pending_ACTIVE_TEXTURE-GL_TEXTURE0] = texture;
+}
+
+GL_APICALL void GL_APIENTRY glTexParameterf(GLenum target, GLenum pname, GLfloat param)
+{
+  applyGlActiveTexture();
+  _emscripten_glTexParameterf(target, pname, param);
+}
+
+GL_APICALL void GL_APIENTRY glTexParameterfv(GLenum target, GLenum pname, const GLfloat *params)
+{
+  applyGlActiveTexture();
+  _emscripten_glTexParameterfv(target, pname, params);
+}
+
+GL_APICALL void GL_APIENTRY glTexParameteri(GLenum target, GLenum pname, GLint param)
+{
+  applyGlActiveTexture();
+  _emscripten_glTexParameteri(target, pname, param);
+}
+
+GL_APICALL void GL_APIENTRY glTexParameteriv(GLenum target, GLenum pname, const GLint *params)
+{
+  applyGlActiveTexture();
+  _emscripten_glTexParameteriv(target, pname, params);
+}
+
+GL_APICALL void GL_APIENTRY glGenerateMipmap(GLenum target)
+{
+  applyGlActiveTexture();
+  _emscripten_glGenerateMipmap(target);
 }
 
 }
