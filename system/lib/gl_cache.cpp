@@ -28,6 +28,7 @@ GL_APICALL void GL_APIENTRY _emscripten_glTexParameteriv(GLenum target, GLenum p
 GL_APICALL void GL_APIENTRY _emscripten_glGenerateMipmap(GLenum target);
 GL_APICALL void GL_APIENTRY _emscripten_glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void *pixels);
 GL_APICALL void GL_APIENTRY _emscripten_glTexStorage2D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
+GL_APICALL void GL_APIENTRY _emscripten_glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels);
 
 
 GL_APICALL void GL_APIENTRY glBindBuffer(GLenum target, GLuint buffer)
@@ -186,6 +187,12 @@ GL_APICALL void GL_APIENTRY glTexImage2D(GLenum target, GLint level, GLint inter
 {
   applyGlActiveTexture();
   _emscripten_glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
+}
+
+GL_APICALL void GL_APIENTRY glTexSubImage2D (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels)
+{
+  applyGlActiveTexture();
+  _emscripten_glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
 }
 
 GL_APICALL void GL_APIENTRY glTexStorage2D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
