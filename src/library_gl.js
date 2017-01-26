@@ -3696,6 +3696,8 @@ var LibraryGL = {
   _emscripten_glDrawArraysIndirect: 'glDrawArraysIndirect',
   _emscripten_glDrawElementsIndirect: 'glDrawElementsIndirect',
   _emscripten_glBindTexture: 'glBindTexture',
+  _emscripten_glTexImage2D: 'glTexImage2D',
+  _emscripten_glTexStorage2D: 'glTexStorage2D',
   _emscripten_glTexParameterf: 'glTexParameterf',
   _emscripten_glTexParameterfv: 'glTexParameterfv',
   _emscripten_glTexParameteri: 'glTexParameteri',

@@ -26,6 +26,9 @@ GL_APICALL void GL_APIENTRY _emscripten_glTexParameterfv(GLenum target, GLenum p
 GL_APICALL void GL_APIENTRY _emscripten_glTexParameteri(GLenum target, GLenum pname, GLint param);
 GL_APICALL void GL_APIENTRY _emscripten_glTexParameteriv(GLenum target, GLenum pname, const GLint *params);
 GL_APICALL void GL_APIENTRY _emscripten_glGenerateMipmap(GLenum target);
+GL_APICALL void GL_APIENTRY _emscripten_glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void *pixels);
+GL_APICALL void GL_APIENTRY _emscripten_glTexStorage2D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
+
 
 GL_APICALL void GL_APIENTRY glBindBuffer(GLenum target, GLuint buffer)
 {
@@ -177,6 +180,18 @@ GL_APICALL void GL_APIENTRY glBindTexture(GLenum target, GLuint texture)
   applyGlActiveTexture();
   _emscripten_glBindTexture(target, texture);
   _GL_TEXTURE_BINDING[_GL_pending_ACTIVE_TEXTURE-GL_TEXTURE0] = texture;
+}
+
+GL_APICALL void GL_APIENTRY glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void *pixels)
+{
+  applyGlActiveTexture();
+  _emscripten_glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
+}
+
+GL_APICALL void GL_APIENTRY glTexStorage2D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
+{
+  applyGlActiveTexture();
+  _emscripten_glTexStorage2D(target, levels, internalformat, width, height);
 }
 
 GL_APICALL void GL_APIENTRY glTexParameterf(GLenum target, GLenum pname, GLfloat param)
