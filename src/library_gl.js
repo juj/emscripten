@@ -75,6 +75,15 @@ var LibraryGL = {
       for (var i = 0; i < GL.MINI_TEMP_BUFFER_SIZE; i++) {
         GL.miniTempBufferViews[i] = GL.miniTempBuffer.subarray(0, i+1);
       }
+
+#if USE_WEBGL2
+      // For glInvalidateFramebuffer and glInvalidateSubFramebuffer, create a set of short fixed-length arrays to avoid
+      // having to generate any garbage in those functions.
+      GL.tempFixedLengthArray = [];
+      for (var i = 0; i < 32; i++) {
+        GL.tempFixedLengthArray.push(new Array(i).fill(0));
+      }
+#endif
     },
 
     // Records a GL error condition that occurred, stored until user calls glGetError() to fetch it. As per GLES2 spec, only the first error 
@@ -1769,18 +1778,26 @@ var LibraryGL = {
 #if USE_WEBGL2
   glInvalidateFramebuffer__sig: 'viii',
   glInvalidateFramebuffer: function(target, numAttachments, attachments) {
-    var list = [];
-    for (var i = 0; i < numAttachments; i++)
-      list.push({{{ makeGetValue('attachments', 'i*4', 'i32') }}});
+#if GL_ASSERTIONS
+    assert(numAttachments < GL.tempFixedLengthArray.length, 'Invalid count of numAttachments='+numAttachments+' passed to glInvalidateFramebuffer (that many attachment points do not exist in GL)';
+#endif
+    var list = GL.tempFixedLengthArray[numAttachments];
+    for (var i = 0; i < numAttachments; i++) {
+      list[i] = {{{ makeGetValue('attachments', 'i*4', 'i32') }}};
+    }
 
     GLctx['invalidateFramebuffer'](target, list);
   },
 
   glInvalidateSubFramebuffer__sig: 'viiiiiii',
   glInvalidateSubFramebuffer: function(target, numAttachments, attachments, x, y, width, height) {
-    var list = [];
-    for (var i = 0; i < numAttachments; i++)
-      list.push({{{ makeGetValue('attachments', 'i*4', 'i32') }}});
+#if GL_ASSERTIONS
+    assert(numAttachments < GL.tempFixedLengthArray.length, 'Invalid count of numAttachments='+numAttachments+' passed to glInvalidateSubFramebuffer (that many attachment points do not exist in GL)';
+#endif
+    var list = GL.tempFixedLengthArray[numAttachments];
+    for (var i = 0; i < numAttachments; i++) {
+      list[i] = {{{ makeGetValue('attachments', 'i*4', 'i32') }}};
+    }
 
     GLctx['invalidateSubFramebuffer'](target, list, x, y, width, height);
   },
