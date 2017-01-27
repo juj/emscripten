@@ -62,6 +62,7 @@ var LibraryGL = {
     stringCache: {},
 #if USE_WEBGL2
     stringiCache: {},
+    tempFixedLengthArray: [],
 #endif
 
     packAlignment: 4,   // default alignment is 4 bytes
@@ -79,10 +80,10 @@ var LibraryGL = {
 #if USE_WEBGL2
       // For glInvalidateFramebuffer and glInvalidateSubFramebuffer, create a set of short fixed-length arrays to avoid
       // having to generate any garbage in those functions.
-      GL.tempFixedLengthArray = [];
       for (var i = 0; i < 32; i++) {
         GL.tempFixedLengthArray.push(new Array(i).fill(0));
       }
+#endif
 #endif
     },
 
@@ -1779,7 +1780,7 @@ var LibraryGL = {
   glInvalidateFramebuffer__sig: 'viii',
   glInvalidateFramebuffer: function(target, numAttachments, attachments) {
 #if GL_ASSERTIONS
-    assert(numAttachments < GL.tempFixedLengthArray.length, 'Invalid count of numAttachments='+numAttachments+' passed to glInvalidateFramebuffer (that many attachment points do not exist in GL)';
+    assert(numAttachments < GL.tempFixedLengthArray.length, 'Invalid count of numAttachments=' + numAttachments + ' passed to glInvalidateFramebuffer (that many attachment points do not exist in GL)';
 #endif
     var list = GL.tempFixedLengthArray[numAttachments];
     for (var i = 0; i < numAttachments; i++) {
@@ -1792,7 +1793,7 @@ var LibraryGL = {
   glInvalidateSubFramebuffer__sig: 'viiiiiii',
   glInvalidateSubFramebuffer: function(target, numAttachments, attachments, x, y, width, height) {
 #if GL_ASSERTIONS
-    assert(numAttachments < GL.tempFixedLengthArray.length, 'Invalid count of numAttachments='+numAttachments+' passed to glInvalidateSubFramebuffer (that many attachment points do not exist in GL)';
+    assert(numAttachments < GL.tempFixedLengthArray.length, 'Invalid count of numAttachments=' + numAttachments + ' passed to glInvalidateSubFramebuffer (that many attachment points do not exist in GL)';
 #endif
     var list = GL.tempFixedLengthArray[numAttachments];
     for (var i = 0; i < numAttachments; i++) {
