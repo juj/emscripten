@@ -1294,7 +1294,7 @@ var LibraryGL = {
 #endif
 
   glTexImage2D__sig: 'viiiiiiiii',
-  glTexImage2D__deps: ['$emscriptenWebGLGetTexPixelData'],
+  glTexImage2D__deps: ['$emscriptenWebGLGetTexPixelData', '$emscriptenWebGLGetHeapForType', '$emscriptenWebGLGetShiftForType'],
   glTexImage2D: function(target, level, internalFormat, width, height, border, format, type, pixels) {
 #if USE_WEBGL2
     if (GL.currentContext.version >= 2) { // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
@@ -1315,7 +1315,7 @@ var LibraryGL = {
   },
 
   glTexSubImage2D__sig: 'viiiiiiiii',
-  glTexSubImage2D__deps: ['$emscriptenWebGLGetTexPixelData'],
+  glTexSubImage2D__deps: ['$emscriptenWebGLGetTexPixelData', '$emscriptenWebGLGetHeapForType', '$emscriptenWebGLGetShiftForType'],
   glTexSubImage2D: function(target, level, xoffset, yoffset, width, height, format, type, pixels) {
 #if USE_WEBGL2
     if (GL.currentContext.version >= 2) { // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
@@ -1335,7 +1335,7 @@ var LibraryGL = {
   },
 
   glReadPixels__sig: 'viiiiiii',
-  glReadPixels__deps: ['$emscriptenWebGLGetTexPixelData'],
+  glReadPixels__deps: ['$emscriptenWebGLGetTexPixelData', '$emscriptenWebGLGetHeapForType', '$emscriptenWebGLGetShiftForType'],
   glReadPixels: function(x, y, width, height, format, type, pixels) {
 #if USE_WEBGL2
     if (GL.currentContext.version >= 2) { // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
@@ -1803,6 +1803,7 @@ var LibraryGL = {
   },
 
   glTexImage3D__sig: 'viiiiiiiiii',
+  glTexImage3D__deps: ['$emscriptenWebGLGetTexPixelData', '$emscriptenWebGLGetHeapForType', '$emscriptenWebGLGetShiftForType'],
   glTexImage3D: function(target, level, internalFormat, width, height, depth, border, format, type, pixels) {
     if (GLctx.currentPixelUnpackBufferBinding) {
       GLctx['texImage3D'](target, level, internalFormat, width, height, depth, border, format, type, pixels);
@@ -1814,6 +1815,7 @@ var LibraryGL = {
   },
 
   glTexSubImage3D__sig: 'viiiiiiiiiii',
+  glTexSubImage3D__deps: ['$emscriptenWebGLGetTexPixelData', '$emscriptenWebGLGetHeapForType', '$emscriptenWebGLGetShiftForType'],
   glTexSubImage3D: function(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels) {
     if (GLctx.currentPixelUnpackBufferBinding) {
       GLctx['texSubImage3D'](target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
