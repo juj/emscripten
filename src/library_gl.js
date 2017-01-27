@@ -1296,6 +1296,25 @@ var LibraryGL = {
   glTexImage2D__sig: 'viiiiiiiii',
   glTexImage2D__deps: ['$emscriptenWebGLGetTexPixelData', '$emscriptenWebGLGetHeapForType', '$emscriptenWebGLGetShiftForType'],
   glTexImage2D: function(target, level, internalFormat, width, height, border, format, type, pixels) {
+    if (target == 0x0de1 /* GL_TEXTURE_2D */) {
+      var e = GL.textures[GL.currentlyBoundTexture[GL.currentlyActiveTexture]];
+      if (typeof e !== 'undefined') {
+        var l = e[level];
+        if (typeof l !== 'undefined' && l.width == width && l.height == height && l.internalFormat == internalFormat && l.format == format && l.type == type && pixels) {
+          _glTexSubImage2D(target, level, 0, 0, width, height, format, type, pixels);
+          return;
+        }
+      }
+
+      if (typeof GL.textures[GL.currentlyBoundTexture[GL.currentlyActiveTexture]] === 'undefined') {
+        GL.textures[GL.currentlyBoundTexture[GL.currentlyActiveTexture]] = {};
+      }
+
+      GL.textures[GL.currentlyBoundTexture[GL.currentlyActiveTexture]][level] = {
+        width: width, height: height, internalFormat: internalFormat, format: format, type: type
+      };
+    }
+
 #if USE_WEBGL2
     if (GL.currentContext.version >= 2) { // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
       if (GLctx.currentPixelUnpackBufferBinding) {
@@ -1358,11 +1377,25 @@ var LibraryGL = {
     GLctx.readPixels(x, y, width, height, format, type, pixelData);
   },
 
+  glActiveTexture: function(unit) {
+    GL.currentlyActiveTexture = unit;
+    GLctx.activeTexture(unit);
+  },
+
   glBindTexture__sig: 'vii',
   glBindTexture: function(target, texture) {
 #if GL_ASSERTIONS
     GL.validateGLObjectID(GL.textures, texture, 'glBindTexture', 'texture');
 #endif
+
+    if (typeof GL.currentlyBoundTexture === 'undefined') {
+      GL.currentlyBoundTexture = {};
+    }
+
+    if (target == 0x0de1 /* GL_TEXTURE_2D */) {
+      GL.currentlyBoundTexture[GL.currentlyActiveTexture] = texture;
+    }
+
     GLctx.bindTexture(target, texture ? GL.textures[texture] : null);
   },
 
@@ -7518,7 +7551,7 @@ var LibraryGL = {
 
 // Simple pass-through functions. Starred ones have return values. [X] ones have X in the C name but not in the JS name
 var glFuncs = [[0, 'finish flush'],
- [1, 'clearDepth clearDepth[f] depthFunc enable disable frontFace cullFace clear lineWidth clearStencil stencilMask checkFramebufferStatus* generateMipmap activeTexture blendEquation isEnabled*'],
+ [1, 'clearDepth clearDepth[f] depthFunc enable disable frontFace cullFace clear lineWidth clearStencil stencilMask checkFramebufferStatus* generateMipmap blendEquation isEnabled*'],
  [2, 'blendFunc blendEquationSeparate depthRange depthRange[f] stencilMaskSeparate hint polygonOffset vertexAttrib1f'],
  [3, 'texParameteri texParameterf vertexAttrib2f stencilFunc stencilOp'],
  [4, 'viewport clearColor scissor vertexAttrib3f renderbufferStorage blendFuncSeparate blendColor stencilFuncSeparate stencilOpSeparate'],
