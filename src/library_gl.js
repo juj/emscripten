@@ -84,7 +84,6 @@ var LibraryGL = {
         GL.tempFixedLengthArray.push(new Array(i).fill(0));
       }
 #endif
-#endif
     },
 
     // Records a GL error condition that occurred, stored until user calls glGetError() to fetch it. As per GLES2 spec, only the first error 
