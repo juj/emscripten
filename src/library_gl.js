@@ -1296,6 +1296,7 @@ var LibraryGL = {
   glTexImage2D__sig: 'viiiiiiiii',
   glTexImage2D__deps: ['$emscriptenWebGLGetTexPixelData', '$emscriptenWebGLGetHeapForType', '$emscriptenWebGLGetShiftForType'],
   glTexImage2D: function(target, level, internalFormat, width, height, border, format, type, pixels) {
+#if GL_STATE_CACHE
     if (target == 0x0de1 /* GL_TEXTURE_2D */) {
       var e = GL.textures[GL.currentlyBoundTexture[GL.currentlyActiveTexture]];
       if (typeof e !== 'undefined') {
@@ -1314,6 +1315,7 @@ var LibraryGL = {
         width: width, height: height, internalFormat: internalFormat, format: format, type: type
       };
     }
+#endif
 
 #if USE_WEBGL2
     if (GL.currentContext.version >= 2) { // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
@@ -1378,7 +1380,9 @@ var LibraryGL = {
   },
 
   glActiveTexture: function(unit) {
+#if GL_STATE_CACHE
     GL.currentlyActiveTexture = unit;
+#endif
     GLctx.activeTexture(unit);
   },
 
@@ -1388,6 +1392,7 @@ var LibraryGL = {
     GL.validateGLObjectID(GL.textures, texture, 'glBindTexture', 'texture');
 #endif
 
+#if GL_STATE_CACHE
     if (typeof GL.currentlyBoundTexture === 'undefined') {
       GL.currentlyBoundTexture = {};
     }
@@ -1395,6 +1400,7 @@ var LibraryGL = {
     if (target == 0x0de1 /* GL_TEXTURE_2D */) {
       GL.currentlyBoundTexture[GL.currentlyActiveTexture] = texture;
     }
+#endif
 
     GLctx.bindTexture(target, texture ? GL.textures[texture] : null);
   },
