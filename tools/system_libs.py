@@ -47,6 +47,7 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
   libcxx_symbols = read_symbols(shared.path_from_root('system', 'lib', 'libcxx', 'symbols'))
   libcxxabi_symbols = read_symbols(shared.path_from_root('system', 'lib', 'libcxxabi', 'symbols'))
   gl_symbols = read_symbols(shared.path_from_root('system', 'lib', 'gl.symbols'))
+  gl_cache_symbols = read_symbols(shared.path_from_root('system', 'lib', 'gl_cache.symbols'))
   compiler_rt_symbols = read_symbols(shared.path_from_root('system', 'lib', 'compiler-rt.symbols'))
   pthreads_symbols = read_symbols(shared.path_from_root('system', 'lib', 'pthreads.symbols'))
   wasm_libc_symbols = read_symbols(shared.path_from_root('system', 'lib', 'wasm-libc.symbols'))
@@ -194,6 +195,11 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
   def create_gl(libname): # libname is ignored, this is just one .o file
     o = in_temp('gl.o')
     check_call([shared.PYTHON, shared.EMCC, shared.path_from_root('system', 'lib', 'gl.c'), '-o', o])
+    return o
+
+  def create_gl_cache(libname): # libname is ignored, this is just one .o file
+    o = in_temp('gl_cache.o')
+    check_call([shared.PYTHON, shared.EMCC, shared.path_from_root('system', 'lib', 'gl_cache.c'), '-o', o])
     return o
 
   def create_compiler_rt(libname):
@@ -355,6 +361,10 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
       else:
         system_libs += [('dlmalloc', 'bc', create_dlmalloc_singlethreaded, [], [], False)]
         force.add('dlmalloc')
+
+  if shared.Settings.GL_STATE_CACHE:
+    system_libs += [('gl_cache',    'bc', create_gl_cache,    [],            [],   False)]
+    force.add('gl_cache')
 
   # if building to wasm, we need more math code, since we have less builtins
   if shared.Settings.BINARYEN:
