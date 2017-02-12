@@ -269,6 +269,9 @@
          T ccoshf
          T ccoshl
          T ccosl
+         T ceil
+         T ceilf
+         T ceill
          T cexp
          T cexpf
          T cexpl
@@ -437,8 +440,9 @@
          T finite
          T finitef
          T flockfile
-         U floor
-         U floorf
+         T floor
+         T floorf
+         T floorl
          T fma
          T fmaf
          T fmal

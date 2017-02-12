@@ -1544,12 +1544,6 @@ LibraryManager.library = {
   fabsl: 'Math_abs',
   llvm_fabs_f32: 'Math_abs',
   llvm_fabs_f64: 'Math_abs',
-  ceil: 'Math_ceil',
-  ceilf: 'Math_ceil',
-  ceill: 'Math_ceil',
-  floor: 'Math_floor',
-  floorf: 'Math_floor',
-  floorl: 'Math_floor',
   pow: 'Math_pow',
   powf: 'Math_pow',
   powl: 'Math_pow',
@@ -1569,12 +1563,12 @@ LibraryManager.library = {
   llvm_sin_f64: 'Math_sin',
   llvm_trunc_f32: 'Math_trunc',
   llvm_trunc_f64: 'Math_trunc',
-  llvm_ceil_f32: 'Math_ceil',
-  llvm_ceil_f64: 'Math_ceil',
-  llvm_floor_f32: 'Math_floor',
-  llvm_floor_f64: 'Math_floor',
-  llvm_round_f32: 'Math_round',
-  llvm_round_f64: 'Math_round',
+  llvm_ceil_f32: 'ceilf',
+  llvm_ceil_f64: 'ceil',
+  llvm_floor_f32: 'floorf',
+  llvm_floor_f64: 'floor',
+  llvm_round_f32: 'roundf',
+  llvm_round_f64: 'round',
 
   llvm_exp2_f32: function(x) {
     return Math.pow(2, x);
@@ -1597,20 +1591,6 @@ LibraryManager.library = {
 
   llvm_copysign_f64: function(x, y) {
     return y < 0 || (y === 0 && 1/y < 0) ? -Math_abs(x) : Math_abs(x);
-  },
-
-  round__asm: true,
-  round__sig: 'dd',
-  round: function(d) {
-    d = +d;
-    return d >= +0 ? +Math_floor(d + +0.5) : +Math_ceil(d - +0.5);
-  },
-
-  roundf__asm: true,
-  roundf__sig: 'dd',
-  roundf: function(f) {
-    f = +f;
-    return f >= +0 ? +Math_floor(f + +0.5) : +Math_ceil(f - +0.5); // TODO: use fround?
   },
 
   _reallyNegative: function(x) {
