@@ -185,6 +185,10 @@ var LibraryOpenAL = {
       return 0;
     } else {
       AL.currentContext = AL.contexts[context - 1];
+      // EMTIMER
+      Module['AL'] = AL;
+      Module['ALctx'] = AL.currentContext;
+      // EMTIMER
       return 1;
     }
   },

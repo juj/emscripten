@@ -1014,6 +1014,11 @@ var LibraryBrowser = {
   },
 
   emscripten_set_main_loop_timing: function(mode, value) {
+    // EMTIMER
+    var forceNoVsync = location.search.indexOf('novsync') != -1;
+    if (forceNoVsync) mode = 2/*EM_TIMING_SETIMMEDIATE*/;
+    // EMTIMER
+
     Browser.mainLoop.timingMode = mode;
     Browser.mainLoop.timingValue = value;
 
@@ -1145,7 +1150,16 @@ var LibraryBrowser = {
         Browser.mainLoop.method = ''; // just warn once per call to set main loop
       }
 
+
+      // EMTIMER
+      if (Module['referenceTestPreTick']) Module['referenceTestPreTick']();
+      // EMTIMER
+
       Browser.mainLoop.runIter(browserIterationFunc);
+      // EMTIMER
+      if (Module['referenceTestTick']) Module['referenceTestTick']();
+      // EMTIMER
+
 
 #if STACK_OVERFLOW_CHECK
       checkStackCookie();

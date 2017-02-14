@@ -427,7 +427,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       shrink_level = 0
       requested_debug = ''
       profiling = False
-      profiling_funcs = False
+      profiling_funcs = True
       tracing = False
       emit_symbol_map = False
       js_opts = None
