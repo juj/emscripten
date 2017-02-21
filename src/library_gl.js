@@ -433,7 +433,13 @@ var LibraryGL = {
       try {
         canvas.addEventListener('webglcontextcreationerror', onContextCreationError, false);
         try {
-          if (webGLContextAttributes['majorVersion'] == 1 && webGLContextAttributes['minorVersion'] == 0) {
+          // XXXXXXXXXXXX
+          if (Module['preinitializedWebGLContext']) { // Main html file may have already preinitialized the GL context in advance.
+            ctx = Module['preinitializedWebGLContext'];
+            GL.uniforms = Module['precompiledUniforms']; // Grab the GL uniform locations that have been precompiled by main html page.
+            GL.counter = Math.max(GL.counter, Module['glIDCounter']); // Sync next free GL name counter to make sure we don't create GL name IDs with pre-existing names.
+            // XXXXXXXXXXXX
+          } else if (webGLContextAttributes['majorVersion'] == 1 && webGLContextAttributes['minorVersion'] == 0) {
             ctx = canvas.getContext("webgl", webGLContextAttributes) || canvas.getContext("experimental-webgl", webGLContextAttributes);
           } else if (webGLContextAttributes['majorVersion'] == 2 && webGLContextAttributes['minorVersion'] == 0) {
             ctx = canvas.getContext("webgl2", webGLContextAttributes) || canvas.getContext("experimental-webgl2", webGLContextAttributes);
@@ -3484,6 +3490,13 @@ var LibraryGL = {
   glCreateShader__sig: 'ii',
   glCreateShader: function(shaderType) {
     var id = GL.getNewId(GL.shaders);
+
+ // XXXXXXXXXXXXXXXXXX
+ GL.shaders[id] = Module['precompiledPrograms'] ? {} : GLctx.createShader(shaderType);
+ GL.shaders[id].isVertexShader = (shaderType == 0x8B31);
+ return id;
+ // XXXXXXXXXXXXXXXXXX
+
     GL.shaders[id] = GLctx.createShader(shaderType);
     return id;
   },
@@ -3569,6 +3582,18 @@ var LibraryGL = {
     }
 #endif
 
+  // XXXXXXXXXXXXXXXX
+  GL.shaders[shader].source = source;
+  if (Module['precompiledPrograms']) return; 
+  // recording?
+  if (!Module['shaders']) Module['shaders'] = [];
+   var recordedShader = {
+    name: shader,
+    code: source
+   };
+   Module['shaders'].push(recordedShader);
+  // XXXXXXXXXXXXXXXX
+
     GLctx.shaderSource(GL.shaders[shader], source);
   },
 
@@ -3592,7 +3617,9 @@ var LibraryGL = {
 #if GL_ASSERTIONS
     GL.validateGLObjectID(GL.shaders, shader, 'glCompileShader', 'shader');
 #endif
-    GLctx.compileShader(GL.shaders[shader]);
+ if (Module['precompiledPrograms']) return; // XXXXXXXXXXXXXXXXXXXXX
+
+     GLctx.compileShader(GL.shaders[shader]);
   },
 
   glGetShaderInfoLog__sig: 'viiii',
@@ -3621,6 +3648,16 @@ var LibraryGL = {
       GL.recordError(0x0501 /* GL_INVALID_VALUE */);
       return;
     }
+
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+ if (pname == 0x8B81) {
+  HEAP32[p >> 2] = 1; // Pretend shader compilation succeeded.
+  return;
+ }
+ // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+
+
 #if GL_ASSERTIONS
     GL.validateGLObjectID(GL.shaders, shader, 'glGetShaderiv', 'shader');
 #endif
@@ -3734,6 +3771,13 @@ var LibraryGL = {
     GL.validateGLObjectID(GL.programs, program, 'glAttachShader', 'program');
     GL.validateGLObjectID(GL.shaders, shader, 'glAttachShader', 'shader');
 #endif
+
+ // XXXXXXXXXXXXXXXXXXXXXXXXXX
+ if (GL.shaders[shader].isVertexShader) GL.programs[program].vs = GL.shaders[shader];
+ else GL.programs[program].fs = GL.shaders[shader];
+ if (Module['precompiledPrograms']) return;
+ // XXXXXXXXXXXXXXXXXXXXXXXXXX
+
     GLctx.attachShader(GL.programs[program],
                             GL.shaders[shader]);
   },
@@ -3760,6 +3804,44 @@ var LibraryGL = {
 #if GL_ASSERTIONS
     GL.validateGLObjectID(GL.programs, program, 'glLinkProgram', 'program');
 #endif
+
+
+  // XXXXXXXXXXXXXXXXXXXXXXXXX
+ if (Module['precompiledPrograms']) {
+   var vs = GL.programs[program].vs.source;
+   var fs = GL.programs[program].fs.source;
+   for(var i = 0; i < Module['precompiledPrograms'].length; ++i) {
+    var p = Module['precompiledPrograms'][i];
+    if (vs == p.vs && fs == p.fs) {
+      if (GLctx.getParameter(GLctx.CURRENT_PROGRAM) == GL.programs[program]) {
+        GLctx.useProgram(p.program);
+      }
+      GL.programs[program] = p.program;
+      GL.programs[program].isPrelinked = true;
+      GL.programInfos[program] = p.programInfos;
+      Module['precompiledPrograms'].splice(i, 1);
+      return;
+    }
+   }
+  } else {
+
+// recording??
+ if (!Module['programs']) Module['programs'] = {};
+ if (!Module['programs'][program]) Module['programs'][program] = {};
+ if (!Module['programs'][program]['attribs']) Module['programs'][program]['attribs'] = {};
+ if (!Module['programs'][program]['pendingAttribs']) Module['programs'][program]['pendingAttribs'] = {};
+ var shaders = GLctx.getAttachedShaders(GL.programs[program]);
+ Module['programs'][program].vs = (shaders && shaders.length >= 1) ? GLctx.getShaderSource(shaders[0]) : '';
+ Module['programs'][program].fs = (shaders && shaders.length >= 2) ? GLctx.getShaderSource(shaders[1]) : '';
+ for(var i in Module['programs'][program]['pendingAttribs']) Module['programs'][program]['attribs'][i] = Module['programs'][program]['pendingAttribs'][i];
+ Module['programs'][program]['pendingAttribs'] = {};
+}
+// recording??
+// XXXXXXXXXXXXXXXXXXXXXXXXX
+
+
+
+
     GLctx.linkProgram(GL.programs[program]);
     GL.programInfos[program] = null; // uniforms no longer keep the same names after linking
     GL.populateUniformTable(program);
@@ -3836,6 +3918,14 @@ var LibraryGL = {
     GL.validateGLObjectID(GL.programs, program, 'glBindAttribLocation', 'program');
 #endif
     name = Pointer_stringify(name);
+
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX recording?
+ if (!Module['programs']) Module['programs'] = {};
+ if (!Module['programs'][program]) Module['programs'][program] = {};
+ if (!Module['programs'][program]['pendingAttribs']) Module['programs'][program]['pendingAttribs'] = {};
+ Module['programs'][program]['pendingAttribs'][name] = index;
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX recording?
+
     GLctx.bindAttribLocation(GL.programs[program], index, name);
   },
 
@@ -7561,6 +7651,7 @@ var LibraryGL = {
 
   glGetError__sig: 'i',
   glGetError: function() {
+      if (Module['precompiledPrograms']) return 0; // XXXXXXXXXXXXXXXXXXX
     // First return any GL error generated by the emscripten library_gl.js interop layer.
     if (GL.lastError) {
       var error = GL.lastError;

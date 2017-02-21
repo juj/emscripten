@@ -2212,15 +2212,19 @@ function integrateWasmJS(Module) {
 #if BINARYEN_ASYNC_COMPILATION
     Module['printErr']('asynchronously preparing wasm');
     addRunDependency('wasm-instantiate'); // we can't run yet
-    WebAssembly.instantiate(getBinary(), info).then(function(output) {
-      // receiveInstance() will swap in the exports (to Module.asm) so they can be called
-      receiveInstance(output.instance);
-      removeRunDependency('wasm-instantiate');
-    }).catch(function(reason) {
-      Module['printErr']('failed to asynchronously prepare wasm:\n  ' + reason);
-    });
+    if (Module['manualWasmInstantiate']) {
+      Module['manualWasmInstantiate'](info, receiveInstance);
+    } else {
+      WebAssembly.instantiate(getBinary(), info).then(function(output) {
+        // receiveInstance() will swap in the exports (to Module.asm) so they can be called
+        receiveInstance(output.instance);
+        removeRunDependency('wasm-instantiate');
+      }).catch(function(reason) {
+        Module['printErr']('failed to asynchronously prepare wasm:\n  ' + reason);
+      });
+    }
     return {}; // no exports yet; we'll fill them in later
-#endif
+#else
     var instance;
     try {
       instance = new WebAssembly.Instance(new WebAssembly.Module(getBinary()), info)
@@ -2233,6 +2237,7 @@ function integrateWasmJS(Module) {
     }
     receiveInstance(instance);
     return exports;
+#endif
   }
 
   function doWasmPolyfill(global, env, providedBuffer, method) {

@@ -778,14 +778,19 @@ if has_preloaded:
     # Only tricky bit is the fetch is async, but also when runWithFS is called is async, so we handle both orderings.
     ret += r'''
       var fetched = null, fetchedCallback = null;
-      fetchRemotePackage(REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE, function(data) {
-        if (fetchedCallback) {
-          fetchedCallback(data);
-          fetchedCallback = null;
-        } else {
-          fetched = data;
-        }
-      }, handleError);
+
+      if (Module['preloadedPackages'] && Module['preloadedPackages'][REMOTE_PACKAGE_NAME]) {
+        fetched = Module['preloadedPackages'][REMOTE_PACKAGE_NAME];
+      } else {
+        fetchRemotePackage(REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE, function(data) {
+          if (fetchedCallback) {
+            fetchedCallback(data);
+            fetchedCallback = null;
+          } else {
+            fetched = data;
+          }
+        }, handleError);
+      }
     '''
 
     code += r'''
