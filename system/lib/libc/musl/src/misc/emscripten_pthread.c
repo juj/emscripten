@@ -8,8 +8,3 @@ pthread_t pthread_self(void) {
     return &__main_pthread;
 }
 #endif
-
-__attribute__((constructor))
-void __emscripten_pthread_data_constructor(void) {
-    pthread_self()->locale = &libc.global_locale;
-}

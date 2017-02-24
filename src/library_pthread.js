@@ -416,7 +416,8 @@ var LibraryPThread = {
     Atomics.store(HEAPU32, (pthread.threadInfoStruct + {{{ C_STRUCTS.pthread.attr }}} + 20) >> 2, threadParams.schedPolicy);
     Atomics.store(HEAPU32, (pthread.threadInfoStruct + {{{ C_STRUCTS.pthread.attr }}} + 24) >> 2, threadParams.schedPrio);
 
-    Module['_emscripten_setup_pthread'](pthread.threadInfoStruct);
+    var global_libc = emscripten_get_global_libc();
+    Atomics.store(HEAPU32, (pthread.threadInfoStruct + {{{ C_STRUCTS.pthread.locale }}}) >> 2, global_libc + {{{ C_STRUCTS_libc.global_locale }}});
 
 #if PTHREADS_PROFILING
     PThread.createProfilerBlock(pthread.threadInfoStruct);

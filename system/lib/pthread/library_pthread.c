@@ -889,7 +889,3 @@ uint64_t __atomic_fetch_xor_8(void *ptr, uint64_t value, int memmodel)
 }
 
 weak_alias(__pthread_testcancel, pthread_testcancel);
-
-void EMSCRIPTEN_KEEPALIVE emscripten_setup_pthread(pthread_t thread) {
-	thread->locale = &libc.global_locale;
-}
