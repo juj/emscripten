@@ -1241,7 +1241,7 @@ def warn_if_duplicate_entries(archive_contents, archive_filename_hint=''):
 def extract_archive_contents(f):
   try:
     cwd = os.getcwd()
-    temp_dir = os.path.join(tempfile.gettempdir(), 'emscripten_temp_' + f.replace('/', '_').replace('\\', '_').replace(':', '_') + '.archive_contents') # TODO: Make sure this is nice and sane
+    temp_dir = tempfile.mkdtemp('_archive_contents', 'emscripten_temp_')
     safe_ensure_dirs(temp_dir)
     os.chdir(temp_dir)
     contents = filter(lambda x: len(x) > 0, Popen([LLVM_AR, 't', f], stdout=PIPE).communicate()[0].split('\n'))
