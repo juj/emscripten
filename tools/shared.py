@@ -1259,9 +1259,12 @@ def extract_archive_contents(f):
       dirname = os.path.dirname(content)
       if dirname:
         safe_ensure_dirs(dirname)
-    Popen([LLVM_AR, 'xo', f], stdout=PIPE).communicate() # if absolute paths, files will appear there. otherwise, in this directory
-    contents = filter(os.path.exists, map(os.path.abspath, contents))
-    contents = filter(Building.is_bitcode, contents)
+    proc = Popen([LLVM_AR, 'xo', f], stdout=PIPE, stderr=PIPE)
+    stdout, stderr = proc.communicate() # if absolute paths, files will appear there. otherwise, in this directory
+    contents = map(os.path.abspath, contents)
+    nonexisting_contents = filter(lambda x: not os.path.exists(x), contents)
+    if len(nonexisting_contents) != 0:
+      raise Exception('llvm-ar failed to extract file(s) ' + str(nonexisting_contents) + ' from archive file ' + f + '! Error:' + str(stdout) + str(stderr))
     return {
       'dir': temp_dir,
       'files': contents
