@@ -1249,6 +1249,7 @@ def extract_archive_contents(f):
     if len(contents) == 0:
       logging.debug('Archive %s appears to be empty (recommendation: link an .so instead of .a)' % f)
       return {
+        'returncode': 0,
         'dir': temp_dir,
         'files': []
       }
@@ -1266,6 +1267,7 @@ def extract_archive_contents(f):
     if len(nonexisting_contents) != 0:
       raise Exception('llvm-ar failed to extract file(s) ' + str(nonexisting_contents) + ' from archive file ' + f + '! Error:' + str(stdout) + str(stderr))
     return {
+      'returncode': 0,
       'dir': temp_dir,
       'files': contents
     }
@@ -1275,6 +1277,7 @@ def extract_archive_contents(f):
     os.chdir(cwd)
 
   return {
+    'returncode': 1,
     'dir': None,
     'files': []
   }
@@ -1644,6 +1647,8 @@ class Building:
         if directory: atexit.register(clean_at_exit)
 
       for n in range(len(archive_names)):
+        if object_names_in_archives[n]['returncode'] != 0:
+          raise Exception('llvm-ar failed on archive ' + archive_names[n] + '!')
         Building.ar_contents[archive_names[n]] = object_names_in_archives[n]['files']
         clean_temporary_archive_contents_directory(object_names_in_archives[n]['dir'])
 
