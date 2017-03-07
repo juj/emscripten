@@ -1236,10 +1236,12 @@ def warn_if_duplicate_entries(archive_contents, archive_filename_hint=''):
         logging.warning('   duplicate: %s' % curr)
         warned.add(curr)
 
+# N.B. This function creates a temporary directory specified by the 'dir' field in the returned dictionary. Caller
+# is responsible for cleaning up those files after done.
 def extract_archive_contents(f):
   try:
     cwd = os.getcwd()
-    temp_dir = os.path.join(tempfile.gettempdir(), f.replace('/', '_').replace('\\', '_').replace(':', '_') + '.archive_contents') # TODO: Make sure this is nice and sane
+    temp_dir = os.path.join(tempfile.gettempdir(), 'emscripten_temp_' + f.replace('/', '_').replace('\\', '_').replace(':', '_') + '.archive_contents') # TODO: Make sure this is nice and sane
     safe_ensure_dirs(temp_dir)
     os.chdir(temp_dir)
     contents = filter(lambda x: len(x) > 0, Popen([LLVM_AR, 't', f], stdout=PIPE).communicate()[0].split('\n'))
@@ -1629,9 +1631,14 @@ class Building:
       # Archives contain objects, so process all archives first in parallel to obtain the object files in them.
       pool = Building.get_multiprocessing_pool()
       object_names_in_archives = pool.map(extract_archive_contents, archive_names)
+      def clean_temporary_archive_contents_directory(dir):
+	def clean_at_exit():
+          try_delete(dir)
+        if dir: atexit.register(clean_at_exit)
 
       for n in range(len(archive_names)):
         Building.ar_contents[archive_names[n]] = object_names_in_archives[n]['files']
+        clean_temporary_archive_contents_directory(object_names_in_archives[n]['dir'])
 
       for o in object_names_in_archives:
         for f in o['files']:
