@@ -1635,10 +1635,10 @@ class Building:
       # Archives contain objects, so process all archives first in parallel to obtain the object files in them.
       pool = Building.get_multiprocessing_pool()
       object_names_in_archives = pool.map(extract_archive_contents, archive_names)
-      def clean_temporary_archive_contents_directory(dir):
-	def clean_at_exit():
-          try_delete(dir)
-        if dir: atexit.register(clean_at_exit)
+      def clean_temporary_archive_contents_directory(directory):
+        def clean_at_exit():
+          try_delete(directory)
+        if directory: atexit.register(clean_at_exit)
 
       for n in range(len(archive_names)):
         Building.ar_contents[archive_names[n]] = object_names_in_archives[n]['files']
