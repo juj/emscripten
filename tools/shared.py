@@ -1277,7 +1277,9 @@ def extract_archive_contents(f):
   }
 
 class ObjectFileInfo:
-  def __init__(self, defs, undefs, commons):
+  def __init__(self, returncode, output, defs=set(), undefs=set(), commons=set()):
+    self.returncode = returncode
+    self.output = output
     self.defs = defs
     self.undefs = undefs
     self.commons = commons
@@ -1285,7 +1287,7 @@ class ObjectFileInfo:
 # Due to a python pickling issue, the following two functions must be at top level, or multiprocessing pool spawn won't find them.
 
 def g_llvm_nm_uncached(filename):
-  return Building.llvm_nm_uncached(filename, stdout=PIPE, stderr=None)
+  return Building.llvm_nm_uncached(filename)
 
 def g_multiprocessing_initializer(*args):
   for item in args:
@@ -1610,6 +1612,8 @@ class Building:
       object_contents = pool.map(g_llvm_nm_uncached, files)
 
       for i in range(len(files)):
+        if object_contents[i].returncode != 0:
+          raise Exception('llvm-nm failed on file ' + files[i] + ': return code ' + str(object_contents[i].returncode) + ', error: ' + object_contents[i].output)
         Building.uninternal_nm_cache[files[i]] = object_contents[i]
       return object_contents
 
@@ -1880,26 +1884,33 @@ class Building:
              (    include_internal and status in ['W', 't', 'T', 'd', 'D']): # FIXME: using WTD in the previous line fails due to llvm-nm behavior on OS X,
                                                                              #        so for now we assume all uppercase are normally defined external symbols
           defs.append(symbol)
-    return ObjectFileInfo(set(defs), set(undefs), set(commons))
+    return ObjectFileInfo(0, None, set(defs), set(undefs), set(commons))
 
   internal_nm_cache = {} # cache results of nm - it can be slow to run
   uninternal_nm_cache = {}
   ar_contents = {} # Stores the object files contained in different archive files passed as input
 
   @staticmethod
-  def llvm_nm_uncached(filename, stdout=PIPE, stderr=None, include_internal=False):
+  def llvm_nm_uncached(filename, stdout=PIPE, stderr=PIPE, include_internal=False):
     # LLVM binary ==> list of symbols
-    output = Popen([LLVM_NM, filename], stdout=stdout, stderr=stderr).communicate()[0]
-    return Building.parse_symbols(output, include_internal)
+    proc = Popen([LLVM_NM, filename], stdout=stdout, stderr=stderr)
+    stdout, stderr = proc.communicate()
+    if proc.returncode == 0:
+      return Building.parse_symbols(stdout, include_internal)
+    else:
+      return ObjectFileInfo(proc.returncode, str(stdout) + str(stderr))
 
   @staticmethod
-  def llvm_nm(filename, stdout=PIPE, stderr=None, include_internal=False):
+  def llvm_nm(filename, stdout=PIPE, stderr=PIPE, include_internal=False):
     if include_internal and filename in Building.internal_nm_cache:
       return Building.internal_nm_cache[filename]
     elif not include_internal and filename in Building.uninternal_nm_cache:
       return Building.uninternal_nm_cache[filename]
 
     ret = Building.llvm_nm_uncached(filename, stdout, stderr, include_internal)
+
+    if ret.returncode != 0:
+      raise Exception('llvm-nm failed on file ' + filename + ': return code ' + str(ret.returncode) + ', error: ' + ret.output)
 
     if include_internal: Building.internal_nm_cache[filename] = ret
     else: Building.uninternal_nm_cache[filename] = ret
