@@ -353,6 +353,10 @@ var LibraryOpenAL = {
   },
 
   alDeleteSources: function(count, sources) {
+    /// XXX EMTIMER
+    if (Module['disableAudio']) return;
+    /// XXX EMTIMER
+
     if (!AL.currentContext) {
 #if OPENAL_DEBUG
       console.error("alDeleteSources called without a valid context");
@@ -478,6 +482,10 @@ var LibraryOpenAL = {
   },
 
   alSourcei: function(source, param, value) {
+    /// XXX EMTIMER
+    if (Module['disableAudio']) return;
+    /// XXX EMTIMER
+
     if (!AL.currentContext) {
 #if OPENAL_DEBUG
       console.error("alSourcei called without a valid context");
@@ -640,6 +648,10 @@ var LibraryOpenAL = {
   },
 
   alSource3f: function(source, param, v1, v2, v3) {
+    /// XXX EMTIMER
+    if (Module['disableAudio']) return;
+    /// XXX EMTIMER
+
     if (!AL.currentContext) {
 #if OPENAL_DEBUG
       console.error("alSource3f called without a valid context");
@@ -688,6 +700,10 @@ var LibraryOpenAL = {
   },
 
   alSourceQueueBuffers: function(source, count, buffers) {
+    /// XXX EMTIMER
+    if (Module['disableAudio']) return;
+    /// XXX EMTIMER
+
     if (!AL.currentContext) {
 #if OPENAL_DEBUG
       console.error("alSourceQueueBuffers called without a valid context");
@@ -723,6 +739,10 @@ var LibraryOpenAL = {
   },
 
   alSourceUnqueueBuffers: function(source, count, buffers) {
+    /// XXX EMTIMER
+    if (Module['disableAudio']) return;
+    /// XXX EMTIMER
+
     if (!AL.currentContext) {
 #if OPENAL_DEBUG
       console.error("alSourceUnqueueBuffers called without a valid context");
@@ -759,8 +779,11 @@ var LibraryOpenAL = {
     AL.updateSource(src);
   },
 
-  alDeleteBuffers: function(count, buffers)
-  {
+  alDeleteBuffers: function(count, buffers) {
+    /// XXX EMTIMER
+    if (Module['disableAudio']) return;
+    /// XXX EMTIMER
+
     if (!AL.currentContext) {
 #if OPENAL_DEBUG
       console.error("alDeleteBuffers called without a valid context");
@@ -832,6 +855,10 @@ var LibraryOpenAL = {
   },
 
   alBufferData: function(buffer, format, data, size, freq) {
+    /// XXX EMTIMER
+    if (Module['disableAudio']) return;
+    /// XXX EMTIMER
+
     if (!AL.currentContext) {
 #if OPENAL_DEBUG
       console.error("alBufferData called without a valid context");
@@ -951,6 +978,10 @@ var LibraryOpenAL = {
   },
 
   alSourcePlay: function(source) {
+    /// XXX EMTIMER
+    if (Module['disableAudio']) return;
+    /// XXX EMTIMER
+
     if (!AL.currentContext) {
 #if OPENAL_DEBUG
       console.error("alSourcePlay called without a valid context");
@@ -969,6 +1000,10 @@ var LibraryOpenAL = {
   },
 
   alSourceStop: function(source) {
+    /// XXX EMTIMER
+    if (Module['disableAudio']) return;
+    /// XXX EMTIMER
+
     if (!AL.currentContext) {
 #if OPENAL_DEBUG
       console.error("alSourceStop called without a valid context");
@@ -1008,6 +1043,10 @@ var LibraryOpenAL = {
   },
 
   alSourcePause: function(source) {
+    /// XXX EMTIMER
+    if (Module['disableAudio']) return;
+    /// XXX EMTIMER
+
     if (!AL.currentContext) {
 #if OPENAL_DEBUG
       console.error("alSourcePause called without a valid context");
