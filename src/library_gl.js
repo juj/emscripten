@@ -436,6 +436,8 @@ var LibraryGL = {
           // XXXXXXXXXXXX
           if (Module['preinitializedWebGLContext']) { // Main html file may have already preinitialized the GL context in advance.
             ctx = Module['preinitializedWebGLContext'];
+            if (typeof WebGL2RenderingContext !== 'undefined' && ctx instanceof WebGL2RenderingContext) webGLContextAttributes['majorVersion'] = 2;
+            else webGLContextAttributes['majorVersion'] = 1;
             GL.uniforms = Module['precompiledUniforms']; // Grab the GL uniform locations that have been precompiled by main html page.
             GL.counter = Math.max(GL.counter, Module['glIDCounter']); // Sync next free GL name counter to make sure we don't create GL name IDs with pre-existing names.
             // XXXXXXXXXXXX
