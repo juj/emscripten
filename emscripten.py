@@ -243,6 +243,10 @@ def function_tables_and_exports(funcs, metadata, mem_init, glue, forwarded_data,
 
   pre, post = glue.split('// EMSCRIPTEN_END_FUNCS')
 
+  # Find the proxied runtime functions
+  proxied_funcs, post = post.split('// EMSCRIPTEN_END_PROXIED_FUNCS')
+  open(outfile.name.replace('.js', '.main.js'), 'w').write(proxied_funcs)
+
   #print >> sys.stderr, 'glue:', pre, '\n\n||||||||||||||||\n\n', post, '...............'
 
   pre = memory_and_global_initializers(pre, metadata, mem_init, settings)
