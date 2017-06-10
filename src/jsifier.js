@@ -16,6 +16,15 @@ var INDENTATION = ' ';
 
 var functionStubSigs = {};
 
+// Some JS-implemented library functions are proxied to be called on the main browser thread, if the Emscripten runtime is executing in a Web Worker.
+// Each such proxied function is identified via an ordinal number (this is not the same namespace as function pointers in general).
+var proxiedFunctionOrdinal = 1;
+var proxiedFunctionTable = ["null" /* Reserve index 0 for an undefined function*/];
+
+// Body of the library code that is proxied to run on the main browser thread (when the rest of the application runs in a Worker)
+var proxyJsContent = '';
+
+
 // JSifier
 function JSify(data, functionsOnly) {
   //B.start('jsifier');
@@ -223,7 +232,22 @@ function JSify(data, functionsOnly) {
       var depsText = (deps ? '\n' + deps.map(addFromLibrary).filter(function(x) { return x != '' }).join('\n') : '');
       var contentText;
       if (isFunction) {
-        contentText = snippet;
+        // Emit the body of a JS library function.
+        var proxyingMode = LibraryManager.library[ident + '__proxy'];
+        if (PROXY_TO_WORKER && proxyingMode === 'main') {
+          // Code for the Worker thread: a JS function that needs to be executed in the main browser thread (to e.g. access the DOM or other APIs not available in Workers)
+          contentText = "function " + finalName + "(param1) {\n"
+          + "  assert(ENVIRONMENT_IS_WORKER);\n"
+          + "  assert(runtimeInitialized);\n"
+          + "  return _emscripten_sync_run_in_browser_thread_1(" + proxiedFunctionOrdinal++ + "/*" + finalName + "()*/, param1);\n"
+          + "}";
+
+          // Code for the main browser thread:
+          proxyJsContent += snippet;
+          proxiedFunctionTable.push(finalName);
+        } else {
+          contentText = snippet; // Regular JS function that will be executed in the context of the calling thread.
+        }
       } else if (typeof snippet === 'string' && snippet.indexOf(';') == 0) {
         contentText = 'var ' + finalName + snippet;
         if (snippet[snippet.length-1] != ';' && snippet[snippet.length-1] != '}') contentText += ';';
@@ -419,6 +443,10 @@ function JSify(data, functionsOnly) {
     // rest of the output that we started to print out earlier (see comment on the
     // "Final shape that will be created").
     print('// EMSCRIPTEN_END_FUNCS\n');
+
+    print(proxyJsContent);
+    print('\nvar proxiedFunctionTable = [' + proxiedFunctionTable.join() + '];\n');
+    print('// EMSCRIPTEN_END_PROXIED_FUNCS\n');
 
     if (HEADLESS) {
       print('if (!ENVIRONMENT_IS_WEB) {');
