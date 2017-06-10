@@ -3598,3 +3598,7 @@ window.close = function() {
     ]:
       print "Testing with: ", args
       self.btest('pthread/test_pthread_locale.c', expected='1', args=args)
+
+  def test_emscripten_get_device_pixel_ratio(self):
+    for args in [[], ['-s', 'USE_PTHREADS=1', '--proxy-to-worker']]:
+      self.btest('emscripten_get_device_pixel_ratio.c', expected='1', args=args)
