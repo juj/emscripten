@@ -1201,7 +1201,8 @@ keydown(100);keyup(100); // trigger the end
     self.btest('preinitialized_webgl_context.cpp', '5', args=['-s', 'GL_PREINITIALIZED_CONTEXT=1', '--shell-file', path_from_root('tests/preinitialized_webgl_context.html')])
 
   def test_emscripten_get_now(self):
-    self.btest('emscripten_get_now.cpp', '1')
+    for args in [[], ['-s', 'USE_PTHREADS=1', '--proxy-to-worker']]:
+      self.btest('emscripten_get_now.cpp', '1', args=args)
 
   def test_fflush(self):
     return self.skip('Skipping due to https://github.com/kripken/emscripten/issues/2770')
