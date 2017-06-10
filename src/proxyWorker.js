@@ -497,6 +497,14 @@ if (!ENVIRONMENT_IS_PTHREAD) {
 }
 #endif
 
+function _emscripten_sync_run_in_browser_thread_1(func, param1) {
+  var syncReturnValueAddress = allocate(2, 'i32', ALLOC_STACK);
+  Atomics.store(HEAP32, (syncReturnValueAddress+4)>>2, 0);
+  postMessage({ target: 'proxiedCall', syncReturnValueAddress: syncReturnValueAddress, func: func, param1: param1 });
+  Atomics.wait(HEAP32, (syncReturnValueAddress+4)>>2, 0);
+  return Atomics.load(HEAP32, syncReturnValueAddress>>2);
+}
+
 function postCustomMessage(data) {
   postMessage({ target: 'custom', userData: data });
 }

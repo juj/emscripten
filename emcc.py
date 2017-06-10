@@ -1650,6 +1650,10 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         shutil.copyfile(shared.path_from_root('src', 'pthread-main.js'),
                         os.path.join(target_dir, 'pthread-main.js'))
 
+        # Deploy the main runtime file that contains all proxied runtime functions.
+        if options.proxy_to_worker:
+          shutil.move(final.replace('.js', '.main.js'), target.replace('.js', '.main.js').replace('.html', '.main.js'))
+
       # Generate the fetch-worker.js script for multithreaded emscripten_fetch() support if targeting pthreads.
       if shared.Settings.FETCH and shared.Settings.USE_PTHREADS:
         shared.make_fetch_worker(final, os.path.join(os.path.dirname(os.path.abspath(target)), 'fetch-worker.js'))
@@ -2478,6 +2482,11 @@ def generate_html(target, options, js_target, target_basename,
 
   html = open(target, 'wb')
   html_contents = shell.replace('{{{ SCRIPT }}}', script.replacement())
+  # Load the proxied runtime script
+  if shared.Settings.USE_PTHREADS and shared.Settings.PROXY_TO_WORKER:
+    html_contents = html_contents.replace('{{{ PROXY_MAIN_SCRIPT }}}', '<script src="' + os.path.basename(js_target).replace('.js', '.main.js') + '"></script>')
+  else:
+    html_contents = html_contents.replace('{{{ PROXY_MAIN_SCRIPT }}}', '')
   html_contents = tools.line_endings.convert_line_endings(html_contents, '\n', options.output_eol)
   html.write(html_contents)
   html.close()
