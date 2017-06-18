@@ -3616,3 +3616,8 @@ window.close = function() {
     ]:
       print "Testing with: ", args
       self.btest('pthread/test_pthread_locale.c', expected='1', args=args)
+
+  # Tests that emscripten_run_script() variants of functions work in pthreads.
+  def test_pthread_run_script(self):
+    for args in [[], ['-s', 'USE_PTHREADS=1']]:
+      self.btest(path_from_root('tests', 'pthread', 'test_pthread_run_script.cpp'), expected='1', args=['-O3', '--separate-asm'] + args, timeout=30)

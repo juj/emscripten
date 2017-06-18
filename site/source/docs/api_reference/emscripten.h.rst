@@ -114,6 +114,8 @@ Functions
 
 	Interface to the underlying JavaScript engine. This function will ``eval()`` the given script. Note: If -s NO_DYNAMIC_EXECUTION=1 is set, this function will not be available.
 
+	This function can be called from a pthread, and it is executed in the scope of the Web Worker that is hosting the pthread. To evaluate a function in the scope of the main runtime thread, see the function emscripten_sync_run_in_main_runtime_thread().
+
 	:param script: The script to evaluate.
 	:type script: const char* 
 	:rtype: void
@@ -122,6 +124,8 @@ Functions
 .. c:function:: int emscripten_run_script_int(const char *script)
 
 	Interface to the underlying JavaScript engine. This function will ``eval()`` the given script. Note: If -s NO_DYNAMIC_EXECUTION=1 is set, this function will not be available.
+
+	This function can be called from a pthread, and it is executed in the scope of the Web Worker that is hosting the pthread. To evaluate a function in the scope of the main runtime thread, see the function emscripten_sync_run_in_main_runtime_thread().
 
 	:param script: The script to evaluate.
 	:type script: const char* 
@@ -133,6 +137,8 @@ Functions
 
 	Interface to the underlying JavaScript engine. This function will ``eval()`` the given script. Note that this overload uses a single buffer shared between calls. Note: If -s NO_DYNAMIC_EXECUTION=1 is set, this function will not be available.
 
+	This function can be called from a pthread, and it is executed in the scope of the Web Worker that is hosting the pthread. To evaluate a function in the scope of the main runtime thread, see the function emscripten_sync_run_in_main_runtime_thread().
+
 	:param script: The script to evaluate.
 	:type script: const char* 
 	:return: The result of the evaluation, as a string.
@@ -142,6 +148,8 @@ Functions
 .. c:function:: void emscripten_async_run_script(const char *script, int millis) 
 
 	Asynchronously run a script, after a specified amount of time.
+
+	This function can be called from a pthread, and it is executed in the scope of the Web Worker that is hosting the pthread. To evaluate a function in the scope of the main runtime thread, see the function emscripten_sync_run_in_main_runtime_thread().
 
 	:param script: The script to evaluate.
 	:type script: const char* 
@@ -154,6 +162,8 @@ Functions
 	Asynchronously loads a script from a URL.
 	
 	This integrates with the run dependencies system, so your script can call ``addRunDependency`` multiple times, prepare various asynchronous tasks, and call ``removeRunDependency`` on them; when all are complete (or if there were no run dependencies to begin with), ``onload`` is called. An example use for this is to load an asset module, that is, the output of the file packager.
+
+	This function is currently only available in main browser thread, and it will immediately fail by calling the supplied onerror() handler if called in a pthread.
 
 	:param script: The script to evaluate.
 	:type script: const char* 
