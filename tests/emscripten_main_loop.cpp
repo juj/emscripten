@@ -8,9 +8,10 @@ int frame = 0;
 
 void final(void*) {
   assert(frame == 100);
+  int result = 0;
 #ifdef REPORT_RESULT
   printf("Test passed.\n");
-  REPORT_RESULT(0);
+  REPORT_RESULT();
 #endif
 }
 
@@ -61,6 +62,9 @@ void looper() {
   }
 }
 
-int main() {
+#include <emscripten/pthread_proxy_main.h>
+int emscripten_main(int argc, char **argv) {
+  printf("Main!\n");
   emscripten_set_main_loop(looper, 5, 1);
+  return 0;
 }
