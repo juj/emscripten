@@ -1342,7 +1342,8 @@ keydown(100);keyup(100); // trigger the end
     self.btest(path_from_root('tests', 'idbstore_sync_worker.c'), '6', force_c=True, args=['-lidbstore.js', '-DSECRET=\"' + secret + '\"', '-s', 'EMTERPRETIFY=1', '-s', 'EMTERPRETIFY_ASYNC=1', '--memory-init-file', '1', '-O3', '-g2', '--proxy-to-worker', '-s', 'TOTAL_MEMORY=80MB'])
 
   def test_force_exit(self):
-    self.btest('force_exit.c', force_c=True, expected='17')
+    for args in [[], ['-s', 'USE_PTHREADS=1']]:
+      self.btest('force_exit.c', force_c=True, expected='17')
 
   def test_sdl_pumpevents(self):
     # key events should be detected using SDL_PumpEvents

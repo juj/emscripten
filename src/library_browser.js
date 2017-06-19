@@ -1238,6 +1238,8 @@ var LibraryBrowser = {
     throw 'SimulateInfiniteLoop';
   },
 
+  emscripten_force_exit__proxy: 'main',
+  emscripten_force_exit__sig: 'vi',
   emscripten_force_exit: function(status) {
     Module['noExitRuntime'] = false;
     Module['exit'](status);
