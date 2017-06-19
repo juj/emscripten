@@ -1252,6 +1252,8 @@ var LibraryBrowser = {
     return window.devicePixelRatio || 1.0;
   },
 
+  emscripten_hide_mouse__proxy: 'main',
+  emscripten_hide_mouse__sig: 'v',
   emscripten_hide_mouse: function() {
     var styleSheet = document.styleSheets[0];
     var rules = styleSheet.cssRules;
