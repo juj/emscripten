@@ -1148,6 +1148,8 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_get_mouse_status__proxy: 'main',
+  emscripten_get_mouse_status__sig: 'ii',
   emscripten_get_mouse_status: function(mouseState) {
     if (!JSEvents.mouseEvent) return {{{ cDefine('EMSCRIPTEN_RESULT_NO_DATA') }}};
     // HTML5 does not really have a polling API for mouse events, so implement one manually by
@@ -1214,11 +1216,15 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_deviceorientation_callback__proxy: 'main',
+  emscripten_set_deviceorientation_callback__sig: 'iiii',
   emscripten_set_deviceorientation_callback: function(userData, useCapture, callbackfunc) {
     JSEvents.registerDeviceOrientationEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_DEVICEORIENTATION') }}}, "deviceorientation");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_get_deviceorientation_status__proxy: 'main',
+  emscripten_get_deviceorientation_status__sig: 'ii',
   emscripten_get_deviceorientation_status: function(orientationState) {
     if (!JSEvents.deviceOrientationEvent) return {{{ cDefine('EMSCRIPTEN_RESULT_NO_DATA') }}};
     // HTML5 does not really have a polling API for device orientation events, so implement one manually by
@@ -1228,11 +1234,15 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_devicemotion_callback__proxy: 'main',
+  emscripten_set_devicemotion_callback__sig: 'iiii',
   emscripten_set_devicemotion_callback: function(userData, useCapture, callbackfunc) {
     JSEvents.registerDeviceMotionEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_DEVICEMOTION') }}}, "devicemotion");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_get_devicemotion_status__proxy: 'main',
+  emscripten_get_devicemotion_status__sig: 'ii',
   emscripten_get_devicemotion_status: function(motionState) {
     if (!JSEvents.deviceMotionEvent) return {{{ cDefine('EMSCRIPTEN_RESULT_NO_DATA') }}};
     // HTML5 does not really have a polling API for device motion events, so implement one manually by
@@ -1242,18 +1252,24 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_orientationchange_callback__proxy: 'main',
+  emscripten_set_orientationchange_callback__sig: 'iiii',
   emscripten_set_orientationchange_callback: function(userData, useCapture, callbackfunc) {
     if (!window.screen || !window.screen.addEventListener) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     JSEvents.registerOrientationChangeEventCallback(window.screen, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_ORIENTATIONCHANGE') }}}, "orientationchange");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
+  emscripten_get_orientation_status__proxy: 'main',
+  emscripten_get_orientation_status__sig: 'ii',
   emscripten_get_orientation_status: function(orientationChangeEvent) {
     if (!JSEvents.screenOrientation() && typeof window.orientation === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     JSEvents.fillOrientationChangeEventData(orientationChangeEvent);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_lock_orientation__proxy: 'main',
+  emscripten_lock_orientation__sig: 'ii',
   emscripten_lock_orientation: function(allowedOrientations) {
     var orientations = [];
     if (allowedOrientations & 1) orientations.push("portrait-primary");
@@ -1279,6 +1295,8 @@ var LibraryJSEvents = {
     }
   },
   
+  emscripten_unlock_orientation__proxy: 'main',
+  emscripten_unlock_orientation__sig: 'i',
   emscripten_unlock_orientation: function() {
     if (window.screen.unlockOrientation) {
       window.screen.unlockOrientation();
@@ -1310,6 +1328,8 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_get_fullscreen_status__proxy: 'main',
+  emscripten_get_fullscreen_status__sig: 'ii',
   emscripten_get_fullscreen_status: function(fullscreenStatus) {
     if (typeof JSEvents.fullscreenEnabled() === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     JSEvents.fillFullscreenChangeEventData(fullscreenStatus);
@@ -1486,8 +1506,8 @@ var LibraryJSEvents = {
   },
 
   // https://developer.mozilla.org/en-US/docs/Web/Guide/API/DOM/Using_full_screen_mode  
-  emscripten_do_request_fullscreen__deps: ['_setLetterbox'],
-  emscripten_do_request_fullscreen: function(target, strategy) {
+  _emscripten_do_request_fullscreen__deps: ['_setLetterbox'],
+  _emscripten_do_request_fullscreen: function(target, strategy) {
     if (typeof JSEvents.fullscreenEnabled() === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     if (!JSEvents.fullscreenEnabled()) return {{{ cDefine('EMSCRIPTEN_RESULT_INVALID_TARGET') }}};
     if (!target) target = '#canvas';
@@ -1513,7 +1533,9 @@ var LibraryJSEvents = {
     return JSEvents.requestFullscreen(target, strategy);
   },
 
-  emscripten_request_fullscreen__deps: ['emscripten_do_request_fullscreen'],
+  emscripten_request_fullscreen__deps: ['_emscripten_do_request_fullscreen'],
+  emscripten_request_fullscreen__proxy: 'main',
+  emscripten_request_fullscreen__sig: 'iii',
   emscripten_request_fullscreen: function(target, deferUntilInEventHandler) {
     var strategy = {};
     // These options perform no added logic, but just bare request fullscreen.
@@ -1522,10 +1544,12 @@ var LibraryJSEvents = {
     strategy.filteringMode = {{{ cDefine('EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT') }}};
     strategy.deferUntilInEventHandler = deferUntilInEventHandler;
 
-    return _emscripten_do_request_fullscreen(target, strategy);
+    return __emscripten_do_request_fullscreen(target, strategy);
   },
 
-  emscripten_request_fullscreen_strategy__deps: ['emscripten_do_request_fullscreen', '_currentFullscreenStrategy', '_registerRestoreOldStyle'],
+  emscripten_request_fullscreen_strategy__deps: ['_emscripten_do_request_fullscreen', '_currentFullscreenStrategy', '_registerRestoreOldStyle'],
+  emscripten_request_fullscreen_strategy__proxy: 'main',
+  emscripten_request_fullscreen_strategy__sig: 'iiii',
   emscripten_request_fullscreen_strategy: function(target, deferUntilInEventHandler, fullscreenStrategy) {
     var strategy = {};
     strategy.scaleMode = {{{ makeGetValue('fullscreenStrategy', C_STRUCTS.EmscriptenFullscreenStrategy.scaleMode, 'i32') }}};
@@ -1536,10 +1560,12 @@ var LibraryJSEvents = {
     strategy.canvasResizedCallbackUserData = {{{ makeGetValue('fullscreenStrategy', C_STRUCTS.EmscriptenFullscreenStrategy.canvasResizedCallbackUserData, 'i32') }}};
     __currentFullscreenStrategy = strategy;
 
-    return _emscripten_do_request_fullscreen(target, strategy);
+    return __emscripten_do_request_fullscreen(target, strategy);
   },
 
   emscripten_enter_soft_fullscreen__deps: ['_setLetterbox', '_hideEverythingExceptGivenElement', '_restoreOldWindowedStyle', '_registerRestoreOldStyle', '_restoreHiddenElements', '_currentFullscreenStrategy', '_softFullscreenResizeWebGLRenderTarget'],
+  emscripten_enter_soft_fullscreen__proxy: 'main',
+  emscripten_enter_soft_fullscreen__sig: 'iii',
   emscripten_enter_soft_fullscreen: function(target, fullscreenStrategy) {
     if (!target) target = '#canvas';
     target = JSEvents.findEventTarget(target);
@@ -1583,6 +1609,8 @@ var LibraryJSEvents = {
   },
 
   emscripten_exit_soft_fullscreen__deps: ['_restoreOldWindowedStyle'],
+  emscripten_exit_soft_fullscreen__proxy: 'main',
+  emscripten_exit_soft_fullscreen__sig: 'i',
   emscripten_exit_soft_fullscreen: function() {
     if (__restoreOldWindowedStyle) __restoreOldWindowedStyle();
     __restoreOldWindowedStyle = null;
@@ -1591,6 +1619,8 @@ var LibraryJSEvents = {
   },
 
   emscripten_exit_fullscreen__deps: ['_currentFullscreenStrategy'],
+  emscripten_exit_fullscreen__proxy: 'main',
+  emscripten_exit_fullscreen__sig: 'i',
   emscripten_exit_fullscreen: function() {
     if (typeof JSEvents.fullscreenEnabled() === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     // Make sure no queued up calls will fire after this.
@@ -1653,6 +1683,8 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_get_pointerlock_status__proxy: 'main',
+  emscripten_get_pointerlock_status__sig: 'ii',
   emscripten_get_pointerlock_status: function(pointerlockStatus) {
     if (pointerlockStatus) JSEvents.fillPointerlockChangeEventData(pointerlockStatus);
     if (!document.body || (!document.body.requestPointerLock && !document.body.mozRequestPointerLock && !document.body.webkitRequestPointerLock && !document.body.msRequestPointerLock)) {
@@ -1661,6 +1693,8 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_request_pointerlock__proxy: 'main',
+  emscripten_request_pointerlock__sig: 'iii',
   emscripten_request_pointerlock: function(target, deferUntilInEventHandler) {
     if (!target) target = '#canvas';
     target = JSEvents.findEventTarget(target);
@@ -1684,6 +1718,8 @@ var LibraryJSEvents = {
     return JSEvents.requestPointerLock(target);
   },
 
+  emscripten_exit_pointerlock__proxy: 'main',
+  emscripten_exit_pointerlock__sig: 'i',
   emscripten_exit_pointerlock: function() {
     // Make sure no queued up calls will fire after this.
     JSEvents.removeDeferredCalls(JSEvents.requestPointerLock);
@@ -1702,12 +1738,16 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
+  emscripten_vibrate__proxy: 'main',
+  emscripten_vibrate__sig: 'ii',
   emscripten_vibrate: function(msecs) {
     if (!navigator.vibrate) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};    
     navigator.vibrate(msecs);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
+  emscripten_vibrate_pattern__proxy: 'main',
+  emscripten_vibrate_pattern__sig: 'iii',
   emscripten_vibrate_pattern: function(msecsArray, numEntries) {
     if (!navigator.vibrate) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
 
@@ -1720,11 +1760,15 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_visibilitychange_callback__proxy: 'main',
+  emscripten_set_visibilitychange_callback__sig: 'iiii',
   emscripten_set_visibilitychange_callback: function(userData, useCapture, callbackfunc) {
     JSEvents.registerVisibilityChangeEventCallback(document, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_VISIBILITYCHANGE') }}}, "visibilitychange");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_get_visibility_status__proxy: 'main',
+  emscripten_get_visibility_status__sig: 'ii',
   emscripten_get_visibility_status: function(visibilityStatus) {
     if (typeof document.visibilityState === 'undefined' && typeof document.hidden === 'undefined') {
       return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
@@ -1761,12 +1805,16 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
+  emscripten_set_gamepadconnected_callback__proxy: 'main',
+  emscripten_set_gamepadconnected_callback__sig: 'iiii',
   emscripten_set_gamepadconnected_callback: function(userData, useCapture, callbackfunc) {
     if (!navigator.getGamepads && !navigator.webkitGetGamepads) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     JSEvents.registerGamepadEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_GAMEPADCONNECTED') }}}, "gamepadconnected");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
+  emscripten_set_gamepaddisconnected_callback__proxy: 'main',
+  emscripten_set_gamepaddisconnected_callback__sig: 'iiii',
   emscripten_set_gamepaddisconnected_callback: function(userData, useCapture, callbackfunc) {
     if (!navigator.getGamepads && !navigator.webkitGetGamepads) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     JSEvents.registerGamepadEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_GAMEPADDISCONNECTED') }}}, "gamepaddisconnected");
@@ -1785,6 +1833,8 @@ var LibraryJSEvents = {
   },
 
   emscripten_get_num_gamepads__deps: ['_emscripten_sample_gamepad_data'],
+  emscripten_get_num_gamepads__proxy: 'main',
+  emscripten_get_num_gamepads__sig: 'i',
   emscripten_get_num_gamepads: function() {
     // Polling gamepads generates garbage, so don't do it when we know there are no gamepads connected.
     if (!JSEvents.numGamepadsConnected) return 0;
@@ -1795,6 +1845,8 @@ var LibraryJSEvents = {
   },
   
   emscripten_get_gamepad_status__deps: ['_emscripten_sample_gamepad_data'],
+  emscripten_get_gamepad_status__proxy: 'main',
+  emscripten_get_gamepad_status__sig: 'iii',
   emscripten_get_gamepad_status: function(index, gamepadState) {
     __emscripten_sample_gamepad_data();
     if (!JSEvents.lastGamepadState) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
@@ -1812,30 +1864,39 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
+  emscripten_set_beforeunload_callback__proxy: 'main',
+  emscripten_set_beforeunload_callback__sig: 'iii',
   emscripten_set_beforeunload_callback: function(userData, callbackfunc) {
     if (typeof window.onbeforeunload === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     JSEvents.registerBeforeUnloadEventCallback(window, userData, true, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BEFOREUNLOAD') }}}, "beforeunload"); 
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
+  emscripten_set_batterychargingchange_callback__proxy: 'main',
+  emscripten_set_batterychargingchange_callback__sig: 'iii',
   emscripten_set_batterychargingchange_callback: function(userData, callbackfunc) {
     if (!JSEvents.battery()) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}}; 
     JSEvents.registerBatteryEventCallback(JSEvents.battery(), userData, true, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BATTERYCHARGINGCHANGE') }}}, "chargingchange");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_batterylevelchange_callback__proxy: 'main',
+  emscripten_set_batterylevelchange_callback__sig: 'iii',
   emscripten_set_batterylevelchange_callback: function(userData, callbackfunc) {
     if (!JSEvents.battery()) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}}; 
     JSEvents.registerBatteryEventCallback(JSEvents.battery(), userData, true, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BATTERYLEVELCHANGE') }}}, "levelchange");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
+  emscripten_get_battery_status__proxy: 'main',
+  emscripten_get_battery_status__sig: 'ii',
   emscripten_get_battery_status: function(batteryState) {
     if (!JSEvents.battery()) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}}; 
     JSEvents.fillBatteryEventData(batteryState, JSEvents.battery());
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
-  
+
+  // Execute in calling thread without proxying needed.
   emscripten_webgl_init_context_attributes: function(attributes) {
     {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.alpha, 1, 'i32') }}};
     {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.depth, 1, 'i32') }}};
@@ -1852,6 +1913,8 @@ var LibraryJSEvents = {
   },
 
   emscripten_webgl_create_context__deps: ['$GL'],
+  emscripten_webgl_create_context__proxy: 'main',
+  emscripten_webgl_create_context__sig: 'iii',
   emscripten_webgl_create_context: function(target, attributes) {
     var contextAttributes = {};
     contextAttributes['alpha'] = !!{{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.alpha, 'i32') }}};
@@ -1906,15 +1969,21 @@ var LibraryJSEvents = {
     return contextHandle;
   },
 
+  emscripten_webgl_make_context_current__proxy: 'main',
+  emscripten_webgl_make_context_current__sig: 'ii',
   emscripten_webgl_make_context_current: function(contextHandle) {
     var success = GL.makeContextCurrent(contextHandle);
     return success ? {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}} : {{{ cDefine('EMSCRIPTEN_RESULT_INVALID_PARAM') }}};
   },
 
+  emscripten_webgl_get_current_context__proxy: 'main',
+  emscripten_webgl_get_current_context__sig: 'i',
   emscripten_webgl_get_current_context: function() {
     return GL.currentContext ? GL.currentContext.handle : 0;
   },
 
+  emscripten_webgl_get_drawing_buffer_size__proxy: 'main',
+  emscripten_webgl_get_drawing_buffer_size__sig: 'iiii',
   emscripten_webgl_get_drawing_buffer_size: function(contextHandle, width, height) {
     var GLContext = GL.getContext(contextHandle);
 
@@ -1926,6 +1995,8 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_webgl_commit_frame__proxy: 'main',
+  emscripten_webgl_commit_frame__sig: 'i',
   emscripten_webgl_commit_frame: function() {
     if (!GL.currentContext || !GL.currentContext.GLctx) {
 #if GL_DEBUG
@@ -1949,10 +2020,14 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_webgl_destroy_context__proxy: 'main',
+  emscripten_webgl_destroy_context__sig: 'vi',
   emscripten_webgl_destroy_context: function(contextHandle) {
     GL.deleteContext(contextHandle);
   },
 
+  emscripten_webgl_enable_extension__proxy: 'main',
+  emscripten_webgl_enable_extension__sig: 'iii',
   emscripten_webgl_enable_extension: function(contextHandle, extension) {
     var context = GL.getContext(contextHandle);
     var extString = Pointer_stringify(extension);
@@ -1975,6 +2050,8 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_is_webgl_context_lost__proxy: 'main',
+  emscripten_is_webgl_context_lost__sig: 'ii',
   emscripten_is_webgl_context_lost: function(target) {
     // TODO: In the future if multiple GL contexts are supported, use the 'target' parameter to find the canvas to query.
     if (!Module['ctx']) return true; // No context ~> lost context.
@@ -2001,6 +2078,8 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_element_css_size__proxy: 'main',
+  emscripten_set_element_css_size__sig: 'iiii',
   emscripten_set_element_css_size: function(target, width, height) {
     if (!target) {
       target = Module['canvas'];
@@ -2016,6 +2095,8 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_get_element_css_size__proxy: 'main',
+  emscripten_get_element_css_size__sig: 'iiii',
   emscripten_get_element_css_size: function(target, width, height) {
     if (!target) {
       target = Module['canvas'];
