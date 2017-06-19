@@ -1673,7 +1673,8 @@ keydown(100);keyup(100); // trigger the end
     self.btest('emscripten_fs_api_browser2.cpp', '1', args=['-s', "ASSERTIONS=1"])
 
   def test_emscripten_main_loop(self):
-    self.btest('emscripten_main_loop.cpp', '0')
+    for args in [[], ['-s', 'USE_PTHREADS=1']]:
+      self.btest('emscripten_main_loop.cpp', '0', args=args)
 
   def test_emscripten_main_loop_settimeout(self):
     self.btest('emscripten_main_loop_settimeout.cpp', '1')

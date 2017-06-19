@@ -5,22 +5,13 @@
 #include <emscripten/emscripten.h>
 #include <emscripten/threading.h>
 
-void ReportResult(int result)
-{
-  printf("Test finished, result: %d\n", result);
-#ifdef REPORT_RESULT
-  REPORT_RESULT();
-#endif
-}
-
 extern "C"
 {
 void EMSCRIPTEN_KEEPALIVE FinishTest(int result)
 {
-#if __EMSCRIPTEN_PTHREADS__
-  emscripten_async_run_in_main_runtime_thread(EM_FUNC_SIG_VI, ReportResult, result);
-#else
-  ReportResult(result);
+  printf("Test finished, result: %d\n", result);
+#ifdef REPORT_RESULT
+  REPORT_RESULT(result);
 #endif
 }
 }
