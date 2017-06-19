@@ -2537,6 +2537,16 @@ if (typeof SharedArrayBuffer !== 'undefined' && !ENVIRONMENT_IS_PTHREAD) {
   postMessage({target: 'buffer', buffer: buffer});
 }
 #endif
+
+function _emscripten_sync_run_in_browser_thread_d(func) {
+  var returnValue = allocate(2, 'f64', ALLOC_STACK);
+  var waitAddress = returnValue + 8;
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_d', returnValue: returnValue, func: func });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+  return HEAPF64[returnValue >> 3];
+}
+
 #endif
 
 // === Body ===

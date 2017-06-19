@@ -247,6 +247,12 @@ function JSify(data, functionsOnly) {
           // Code for the main browser thread:
           proxyJsContent += snippet;
           proxiedFunctionTable.push(finalName);
+        } else if (USE_PTHREADS && proxyingMode === 'main') {
+          var sig = LibraryManager.library[ident + '__sig'];
+          if (!sig) throw 'Missing function signature field "' + ident + '__sig"! (Using proxying mode requires specifying the signature of the function)';
+          snippet = snippet.replace(/function (.*)? {/g, 'function $1 {\nif (ENVIRONMENT_IS_PTHREAD) { return _emscripten_sync_run_in_browser_thread_' + sig + '(' + proxiedFunctionOrdinal++ + '); }');
+          contentText = snippet;
+          proxiedFunctionTable.push(finalName);
         } else {
           contentText = snippet; // Regular JS function that will be executed in the context of the calling thread.
         }
@@ -414,7 +420,10 @@ function JSify(data, functionsOnly) {
     legalizedI64s = legalizedI64sDefault;
 
     if (!BUILD_AS_SHARED_LIB && !SIDE_MODULE) {
-      if (USE_PTHREADS) print('if (!ENVIRONMENT_IS_PTHREAD) {\n // Only main thread initializes these, pthreads copy them over at thread worker init time (in pthread-main.js)');
+      if (USE_PTHREADS) {
+        print('\nvar proxiedFunctionTable = [' + proxiedFunctionTable.join() + '];\n');
+        print('if (!ENVIRONMENT_IS_PTHREAD) {\n // Only main thread initializes these, pthreads copy them over at thread worker init time (in pthread-main.js)');
+      }
       print('DYNAMICTOP_PTR = allocate(1, "i32", ALLOC_STATIC);\n');
       print('STACK_BASE = STACKTOP = Runtime.alignMemory(STATICTOP);\n');
       if (STACK_START > 0) print('if (STACKTOP < ' + STACK_START + ') STACK_BASE = STACKTOP = Runtime.alignMemory(' + STACK_START + ');\n');

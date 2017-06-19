@@ -3626,7 +3626,7 @@ window.close = function() {
     for args in [[], ['-s', 'USE_PTHREADS=1']]:
       self.btest(path_from_root('tests', 'pthread', 'test_pthread_run_script.cpp'), expected='1', args=['-O3', '--separate-asm'] + args, timeout=30)
 
-  # Test that emscripten_get_device_pixel_ratio() is callable from pthreads.
+  # Test that emscripten_get_device_pixel_ratio() is callable from pthreads (and proxies to main thread to obtain the proper window.devicePixelRatio value).
   def test_emscripten_get_device_pixel_ratio(self):
-    for args in [[], ['-s', 'USE_PTHREADS=1', '--proxy-to-worker']]:
+    for args in [[], ['-s', 'USE_PTHREADS=1']]:
       self.btest('emscripten_get_device_pixel_ratio.c', expected='1', args=args)
