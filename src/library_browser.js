@@ -1045,28 +1045,28 @@ var LibraryBrowser = {
       };
       Browser.mainLoop.method = 'rAF';
     } else if (mode == 2 /*EM_TIMING_SETIMMEDIATE*/) {
-      if (!window['setImmediate']) {
+      if (typeof setImmediate === 'undefined') {
         // Emulate setImmediate. (note: not a complete polyfill, we don't emulate clearImmediate() to keep code size to minimum, since not needed)
         var setImmediates = [];
         var emscriptenMainLoopMessageId = 'setimmediate';
         function Browser_setImmediate_messageHandler(event) {
-          if (event.source === window && event.data === emscriptenMainLoopMessageId) {
+          if (event.data === emscriptenMainLoopMessageId || event.data.target === emscriptenMainLoopMessageId) {
             event.stopPropagation();
             setImmediates.shift()();
           }
         }
-        window.addEventListener("message", Browser_setImmediate_messageHandler, true);
-        window['setImmediate'] = function Browser_emulated_setImmediate(func) {
+        addEventListener("message", Browser_setImmediate_messageHandler, true);
+        setImmediate = function Browser_emulated_setImmediate(func) {
           setImmediates.push(func);
           if (ENVIRONMENT_IS_WORKER) {
             if (Module['setImmediates'] === undefined) Module['setImmediates'] = [];
             Module['setImmediates'].push(func);
-            window.postMessage({target: emscriptenMainLoopMessageId}); // In --proxy-to-worker, route the message via proxyClient.js
-          } else window.postMessage(emscriptenMainLoopMessageId, "*"); // On the main thread, can just send the message to itself.
+            postMessage({target: emscriptenMainLoopMessageId}); // In --proxy-to-worker, route the message via proxyClient.js
+          } else postMessage(emscriptenMainLoopMessageId, "*"); // On the main thread, can just send the message to itself.
         }
       }
       Browser.mainLoop.scheduler = function Browser_mainLoop_scheduler_setImmediate() {
-        window['setImmediate'](Browser.mainLoop.runner);
+        setImmediate(Browser.mainLoop.runner);
       };
       Browser.mainLoop.method = 'immediate';
     }
