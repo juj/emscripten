@@ -292,7 +292,8 @@ void report_result(void *arg)
 }
 #endif
 
-int main()
+#include <emscripten/pthread_proxy_main.h>
+int emscripten_main(int argc, char **argv)
 {
 
   EMSCRIPTEN_RESULT ret = emscripten_set_keypress_callback(0, 0, 1, key_callback);
