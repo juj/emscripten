@@ -307,6 +307,12 @@ var LibraryPThread = {
             PThread.receiveObjectTransfer(e.data);
           } else if (e.data.target === 'setimmediate') {
             worker.postMessage(e.data); // Worker wants to postMessage() to itself to implement setImmediate() emulation.
+          } else if (e.data.target === 'proxiedCall_d') {
+            var retValue = proxiedFunctionTable[e.data.func]();
+            var waitAddress = e.data.returnValue + 8;
+            HEAPF64[e.data.returnValue >> 3] = retValue;
+            Atomics.store(HEAP32, waitAddress >> 2, 1);
+            Atomics.wake(HEAP32, waitAddress >> 2, 1);
           } else {
             Module['printErr']("worker sent an unknown command " + e.data.cmd);
             console.error(e.data);
