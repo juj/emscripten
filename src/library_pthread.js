@@ -307,10 +307,21 @@ var LibraryPThread = {
             PThread.receiveObjectTransfer(e.data);
           } else if (e.data.target === 'setimmediate') {
             worker.postMessage(e.data); // Worker wants to postMessage() to itself to implement setImmediate() emulation.
+          } else if (e.data.target === 'proxiedCall_v') {
+            proxiedFunctionTable[e.data.func]();
+            Atomics.store(HEAP32, e.data.waitAddress >> 2, 1);
+            Atomics.wake(HEAP32, e.data.waitAddress >> 2, 1);
           } else if (e.data.target === 'proxiedCall_d') {
             var retValue = proxiedFunctionTable[e.data.func]();
             var waitAddress = e.data.returnValue + 8;
             HEAPF64[e.data.returnValue >> 3] = retValue;
+            Atomics.store(HEAP32, waitAddress >> 2, 1);
+            Atomics.wake(HEAP32, waitAddress >> 2, 1);
+          } else if (e.data.target === 'proxiedCall_iiiii') {
+            console.log('proxiedCall_iiiii ' + e.data.func);
+            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3);
+            var waitAddress = e.data.returnValue + 4;
+            HEAP32[e.data.returnValue >> 2] = retValue;
             Atomics.store(HEAP32, waitAddress >> 2, 1);
             Atomics.wake(HEAP32, waitAddress >> 2, 1);
           } else {

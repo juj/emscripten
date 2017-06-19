@@ -1064,61 +1064,85 @@ var LibraryJSEvents = {
     },
   },
 
+  emscripten_set_keypress_callback__proxy: 'main',
+  emscripten_set_keypress_callback__sig: 'iiiii',
   emscripten_set_keypress_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_KEYPRESS') }}}, "keypress");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_keydown_callback__proxy: 'main',
+  emscripten_set_keydown_callback__sig: 'iiiii',
   emscripten_set_keydown_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_KEYDOWN') }}}, "keydown");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_keyup_callback__proxy: 'main',
+  emscripten_set_keyup_callback__sig: 'iiiii',
   emscripten_set_keyup_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_KEYUP') }}}, "keyup");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_click_callback__proxy: 'main',
+  emscripten_set_click_callback__sig: 'iiiii',
   emscripten_set_click_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_CLICK') }}}, "click");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_mousedown_callback__proxy: 'main',
+  emscripten_set_mousedown_callback__sig: 'iiiii',
   emscripten_set_mousedown_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEDOWN') }}}, "mousedown");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_mouseup_callback__proxy: 'main',
+  emscripten_set_mouseup_callback__sig: 'iiiii',
   emscripten_set_mouseup_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEUP') }}}, "mouseup");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_dblclick_callback__proxy: 'main',
+  emscripten_set_dblclick_callback__sig: 'iiiii',
   emscripten_set_dblclick_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_DBLCLICK') }}}, "dblclick");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_mousemove_callback__proxy: 'main',
+  emscripten_set_mousemove_callback__sig: 'iiiii',
   emscripten_set_mousemove_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEMOVE') }}}, "mousemove");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_mouseenter_callback__proxy: 'main',
+  emscripten_set_mouseenter_callback__sig: 'iiiii',
   emscripten_set_mouseenter_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEENTER') }}}, "mouseenter");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_mouseleave_callback__proxy: 'main',
+  emscripten_set_mouseleave_callback__sig: 'iiiii',
   emscripten_set_mouseleave_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSELEAVE') }}}, "mouseleave");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_mouseover_callback__proxy: 'main',
+  emscripten_set_mouseover_callback__sig: 'iiiii',
   emscripten_set_mouseover_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEOVER') }}}, "mouseover");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_mouseout_callback__proxy: 'main',
+  emscripten_set_mouseout_callback__sig: 'iiiii',
   emscripten_set_mouseout_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEOUT') }}}, "mouseout");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
@@ -1133,6 +1157,8 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_wheel_callback__proxy: 'main',
+  emscripten_set_wheel_callback__sig: 'iiiii',
   emscripten_set_wheel_callback: function(target, userData, useCapture, callbackfunc) {
     target = JSEvents.findEventTarget(target);
     if (typeof target.onwheel !== 'undefined') {
@@ -1146,31 +1172,43 @@ var LibraryJSEvents = {
     }
   },
 
+  emscripten_set_resize_callback__proxy: 'main',
+  emscripten_set_resize_callback__sig: 'iiiii',
   emscripten_set_resize_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerUiEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_RESIZE') }}}, "resize");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_scroll_callback__proxy: 'main',
+  emscripten_set_scroll_callback__sig: 'iiiii',
   emscripten_set_scroll_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerUiEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_SCROLL') }}}, "scroll");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_blur_callback__proxy: 'main',
+  emscripten_set_blur_callback__sig: 'iiiii',
   emscripten_set_blur_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BLUR') }}}, "blur");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_focus_callback__proxy: 'main',
+  emscripten_set_focus_callback__sig: 'iiiii',
   emscripten_set_focus_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FOCUS') }}}, "focus");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_focusin_callback__proxy: 'main',
+  emscripten_set_focusin_callback__sig: 'iiiii',
   emscripten_set_focusin_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FOCUSIN') }}}, "focusin");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_focusout_callback__proxy: 'main',
+  emscripten_set_focusout_callback__sig: 'iiiii',
   emscripten_set_focusout_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FOCUSOUT') }}}, "focusout");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
@@ -1256,6 +1294,8 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_fullscreenchange_callback__proxy: 'main',
+  emscripten_set_fullscreenchange_callback__sig: 'iiiii',
   emscripten_set_fullscreenchange_callback: function(target, userData, useCapture, callbackfunc) {
     if (typeof JSEvents.fullscreenEnabled() === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     if (!target) target = document;
@@ -1575,6 +1615,8 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_pointerlockchange_callback__proxy: 'main',
+  emscripten_set_pointerlockchange_callback__sig: 'iiiii',
   emscripten_set_pointerlockchange_callback: function(target, userData, useCapture, callbackfunc) {
     // TODO: Currently not supported in pthreads or in --proxy-to-worker mode. (In pthreads mode, document object is not defined)
     if (!document || !document.body || (!document.body.requestPointerLock && !document.body.mozRequestPointerLock && !document.body.webkitRequestPointerLock && !document.body.msRequestPointerLock)) {
@@ -1592,6 +1634,8 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_pointerlockerror_callback__proxy: 'main',
+  emscripten_set_pointerlockerror_callback__sig: 'iiiii',
   emscripten_set_pointerlockerror_callback: function(target, userData, useCapture, callbackfunc) {
     // TODO: Currently not supported in pthreads or in --proxy-to-worker mode. (In pthreads mode, document object is not defined)
     if (!document || !document.body.requestPointerLock && !document.body.mozRequestPointerLock && !document.body.webkitRequestPointerLock && !document.body.msRequestPointerLock) {
@@ -1689,21 +1733,29 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
+  emscripten_set_touchstart_callback__proxy: 'main',
+  emscripten_set_touchstart_callback__sig: 'iiiii',
   emscripten_set_touchstart_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHSTART') }}}, "touchstart");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
+  emscripten_set_touchend_callback__proxy: 'main',
+  emscripten_set_touchend_callback__sig: 'iiiii',
   emscripten_set_touchend_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHEND') }}}, "touchend");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
+  emscripten_set_touchmove_callback__proxy: 'main',
+  emscripten_set_touchmove_callback__sig: 'iiiii',
   emscripten_set_touchmove_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHMOVE') }}}, "touchmove");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
+  emscripten_set_touchcancel_callback__proxy: 'main',
+  emscripten_set_touchcancel_callback__sig: 'iiiii',
   emscripten_set_touchcancel_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHCANCEL') }}}, "touchcancel");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
@@ -1909,11 +1961,15 @@ var LibraryJSEvents = {
     return ext ? 1 : 0;
   },
 
+  emscripten_set_webglcontextlost_callback__proxy: 'main',
+  emscripten_set_webglcontextlost_callback__sig: 'iiiii',
   emscripten_set_webglcontextlost_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerWebGlEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_WEBGLCONTEXTLOST') }}}, "webglcontextlost");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_set_webglcontextrestored_callback__proxy: 'main',
+  emscripten_set_webglcontextrestored_callback__sig: 'iiiii',
   emscripten_set_webglcontextrestored_callback: function(target, userData, useCapture, callbackfunc) {
     JSEvents.registerWebGlEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_WEBGLCONTEXTRESTORED') }}}, "webglcontextrestored");
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
