@@ -733,6 +733,8 @@ var LibraryBrowser = {
   },
 
   emscripten_async_wget__deps: ['$PATH'],
+  emscripten_async_wget__proxy: 'main',
+  emscripten_async_wget__sig: 'viiii',
   emscripten_async_wget: function(url, file, onload, onerror) {
     Module['noExitRuntime'] = true;
 
@@ -770,6 +772,8 @@ var LibraryBrowser = {
     );
   },
 
+  emscripten_async_wget_data__proxy: 'main',
+  emscripten_async_wget_data__sig: 'viiii',
   emscripten_async_wget_data: function(url, arg, onload, onerror) {
     Browser.asyncLoad(Pointer_stringify(url), function(byteArray) {
       var buffer = _malloc(byteArray.length);
@@ -781,6 +785,8 @@ var LibraryBrowser = {
     }, true /* no need for run dependency, this is async but will not do any prepare etc. step */ );
   },
 
+  emscripten_async_wget2__proxy: 'main',
+  emscripten_async_wget2__sig: 'iiiiiiiii',
   emscripten_async_wget2: function(url, file, request, param, arg, onload, onerror, onprogress) {
     Module['noExitRuntime'] = true;
 
@@ -860,6 +866,8 @@ var LibraryBrowser = {
     return handle;
   },
 
+  emscripten_async_wget2_data__proxy: 'main',
+  emscripten_async_wget2_data__sig: 'iiiiiiiii',
   emscripten_async_wget2_data: function(url, request, param, arg, free, onload, onerror, onprogress) {
     var _url = Pointer_stringify(url);
     var _request = Pointer_stringify(request);
@@ -922,6 +930,8 @@ var LibraryBrowser = {
     return handle;
   },
 
+  emscripten_async_wget2_abort__proxy: 'main',
+  emscripten_async_wget2_abort__sig: 'vi',
   emscripten_async_wget2_abort: function(handle) {
     var http = Browser.wgetRequests[handle];
     if (http) {
@@ -930,6 +940,8 @@ var LibraryBrowser = {
   },
 
   emscripten_run_preload_plugins__deps: ['$PATH'],
+  emscripten_run_preload_plugins__proxy: 'main',
+  emscripten_run_preload_plugins__sig: 'iiii',
   emscripten_run_preload_plugins: function(file, onload, onerror) {
     Module['noExitRuntime'] = true;
 
@@ -951,6 +963,8 @@ var LibraryBrowser = {
     return 0;
   },
 
+  emscripten_run_preload_plugins_data__proxy: 'main',
+  emscripten_run_preload_plugins_data__sig: 'viiiiii',
   emscripten_run_preload_plugins_data: function(data, size, suffix, arg, onload, onerror) {
     Module['noExitRuntime'] = true;
 
@@ -973,9 +987,9 @@ var LibraryBrowser = {
       },
       true // don'tCreateFile - it's already there
     );
-    return 0;
   },
 
+  // Callable from pthread, executes in pthread context.
   emscripten_async_run_script__deps: ['emscripten_run_script'],
   emscripten_async_run_script: function(script, millis) {
     Module['noExitRuntime'] = true;
@@ -986,6 +1000,7 @@ var LibraryBrowser = {
     }, millis);
   },
 
+  // TODO: currently not callable from a pthread, but immediately calls onerror() if not on main thread.
   emscripten_async_load_script: function(url, onload, onerror) {
     onload = Runtime.getFuncWrapper(onload, 'v');
     onerror = Runtime.getFuncWrapper(onerror, 'v');
@@ -1014,11 +1029,13 @@ var LibraryBrowser = {
     document.body.appendChild(script);
   },
 
+  // Runs natively in pthread, no __proxy needed.
   emscripten_get_main_loop_timing: function(mode, value) {
     if (mode) {{{ makeSetValue('mode', 0, 'Browser.mainLoop.timingMode', 'i32') }}};
     if (value) {{{ makeSetValue('value', 0, 'Browser.mainLoop.timingValue', 'i32') }}};
   },
 
+  // Runs natively in pthread, no __proxy needed.
   emscripten_set_main_loop_timing: function(mode, value) {
     Browser.mainLoop.timingMode = mode;
     Browser.mainLoop.timingValue = value;
@@ -1070,6 +1087,7 @@ var LibraryBrowser = {
     return 0;
   },
 
+  // Runs natively in pthread, no __proxy needed.
   emscripten_set_main_loop__deps: ['emscripten_set_main_loop_timing', 'emscripten_get_now'],
   emscripten_set_main_loop: function(func, fps, simulateInfiniteLoop, arg, noSetTiming) {
     Module['noExitRuntime'] = true;
@@ -1181,24 +1199,29 @@ var LibraryBrowser = {
     }
   },
 
+  // Runs natively in pthread, no __proxy needed.
   emscripten_set_main_loop_arg__deps: ['emscripten_set_main_loop'],
   emscripten_set_main_loop_arg: function(func, arg, fps, simulateInfiniteLoop) {
     _emscripten_set_main_loop(func, fps, simulateInfiniteLoop, arg);
   },
 
+  // Runs natively in pthread, no __proxy needed.
   emscripten_cancel_main_loop: function() {
     Browser.mainLoop.pause();
     Browser.mainLoop.func = null;
   },
 
+  // Runs natively in pthread, no __proxy needed.
   emscripten_pause_main_loop: function() {
     Browser.mainLoop.pause();
   },
 
+  // Runs natively in pthread, no __proxy needed.
   emscripten_resume_main_loop: function() {
     Browser.mainLoop.resume();
   },
 
+  // Runs natively in pthread, no __proxy needed.
   _emscripten_push_main_loop_blocker: function(func, arg, name) {
     Browser.mainLoop.queue.push({ func: function() {
       Module['dynCall_vi'](func, arg);
@@ -1206,6 +1229,7 @@ var LibraryBrowser = {
     Browser.mainLoop.updateStatus();
   },
 
+  // Runs natively in pthread, no __proxy needed.
   _emscripten_push_uncounted_main_loop_blocker: function(func, arg, name) {
     Browser.mainLoop.queue.push({ func: function() {
       Module['dynCall_vi'](func, arg);
@@ -1213,12 +1237,14 @@ var LibraryBrowser = {
     Browser.mainLoop.updateStatus();
   },
 
+  // Runs natively in pthread, no __proxy needed.
   emscripten_set_main_loop_expected_blockers: function(num) {
     Browser.mainLoop.expectedBlockers = num;
     Browser.mainLoop.remainingBlockers = num;
     Browser.mainLoop.updateStatus();
   },
 
+  // Runs natively in pthread, no __proxy needed.
   emscripten_async_call: function(func, arg, millis) {
     Module['noExitRuntime'] = true;
 
@@ -1233,6 +1259,7 @@ var LibraryBrowser = {
     }
   },
 
+  // Callable in pthread without __proxy needed.
   emscripten_exit_with_live_runtime: function() {
     Module['noExitRuntime'] = true;
     throw 'SimulateInfiniteLoop';
@@ -1265,10 +1292,14 @@ var LibraryBrowser = {
     styleSheet.insertRule('canvas.emscripten { border: 1px solid black; cursor: none; }', 0);
   },
 
+  emscripten_set_canvas_size__proxy: 'main',
+  emscripten_set_canvas_size__sig: 'vii',
   emscripten_set_canvas_size: function(width, height) {
     Browser.setCanvasSize(width, height);
   },
   
+  emscripten_get_canvas_size__proxy: 'main',
+  emscripten_get_canvas_size__sig: 'viii',
   emscripten_get_canvas_size: function(width, height, isFullscreen) {
     var canvas = Module['canvas'];
     {{{ makeSetValue('width', '0', 'canvas.width', 'i32') }}};
@@ -1276,6 +1307,9 @@ var LibraryBrowser = {
     {{{ makeSetValue('isFullscreen', '0', 'Browser.isFullscreen ? 1 : 0', 'i32') }}};
   },
 
+  // To avoid creating worker parent->child chains, always proxies to execute on the main thread.
+  emscripten_create_worker__proxy: 'main',
+  emscripten_create_worker__sig: 'ii',
   emscripten_create_worker: function(url) {
     url = Pointer_stringify(url);
     var id = Browser.workers.length;
@@ -1316,6 +1350,8 @@ var LibraryBrowser = {
     return id;
   },
 
+  emscripten_destroy_worker__proxy: 'main',
+  emscripten_destroy_worker__sig: 'vi',
   emscripten_destroy_worker: function(id) {
     var info = Browser.workers[id];
     info.worker.terminate();
@@ -1323,6 +1359,8 @@ var LibraryBrowser = {
     Browser.workers[id] = null;
   },
 
+  emscripten_call_worker__proxy: 'main',
+  emscripten_call_worker__sig: 'viiiiii',
   emscripten_call_worker: function(id, funcName, data, size, callback, arg) {
     Module['noExitRuntime'] = true; // should we only do this if there is a callback?
 
@@ -1349,6 +1387,8 @@ var LibraryBrowser = {
     }
   },
 
+  emscripten_worker_respond_provisionally__proxy: 'main',
+  emscripten_worker_respond_provisionally__sig: 'vii',
   emscripten_worker_respond_provisionally: function(data, size) {
     if (workerResponded) throw 'already responded with final response!';
     var transferObject = {
@@ -1363,6 +1403,8 @@ var LibraryBrowser = {
     }
   },
 
+  emscripten_worker_respond__proxy: 'main',
+  emscripten_worker_respond__sig: 'vii',
   emscripten_worker_respond: function(data, size) {
     if (workerResponded) throw 'already responded with final response!';
     workerResponded = true;
@@ -1378,6 +1420,8 @@ var LibraryBrowser = {
     }
   },
 
+  emscripten_get_worker_queue_size__proxy: 'main',
+  emscripten_get_worker_queue_size__sig: 'i',
   emscripten_get_worker_queue_size: function(id) {
     var info = Browser.workers[id];
     if (!info) return -1;
@@ -1385,6 +1429,8 @@ var LibraryBrowser = {
   },
 
   emscripten_get_preloaded_image_data__deps: ['$PATH'],
+  emscripten_get_preloaded_image_data__proxy: 'main',
+  emscripten_get_preloaded_image_data__sig: 'iiii',
   emscripten_get_preloaded_image_data: function(path, w, h) {
     if (typeof path === "number") {
       path = Pointer_stringify(path);
@@ -1409,6 +1455,8 @@ var LibraryBrowser = {
   },
 
   emscripten_get_preloaded_image_data_from_FILE__deps: ['emscripten_get_preloaded_image_data'],
+  emscripten_get_preloaded_image_data_from_FILE__proxy: 'main',
+  emscripten_get_preloaded_image_data_from_FILE__sig: 'iiii',
   emscripten_get_preloaded_image_data_from_FILE: function(file, w, h) {
     var fd = Module['_fileno'](file);
     var stream = FS.getStream(fd);
