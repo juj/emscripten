@@ -24,7 +24,9 @@ void looper() {
   }
 }
 
-int main() {
+#include <emscripten/pthread_proxy_main.h>
+int emscripten_main(int argc, char **argv) {
   emscripten_set_main_loop(looper, 1, 0);
   emscripten_set_main_loop_timing(EM_TIMING_SETIMMEDIATE, 0);
+  return 0;
 }
