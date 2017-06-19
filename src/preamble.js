@@ -2675,6 +2675,15 @@ function _emscripten_sync_run_in_browser_thread_iiiiiiiii(func, p0, p1, p2, p3, 
   return HEAP32[returnValue >> 2];
 }
 
+function _emscripten_sync_run_in_browser_thread_iiiiiiiiii(func, p0, p1, p2, p3, p4, p5, p6, p7, p8) {
+  var returnValue = allocate(2, 'i32', ALLOC_STACK);
+  var waitAddress = returnValue + 4;
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_iiiiiiiiii', func: func, returnValue: returnValue, p0: p0, p1: p1, p2: p2, p3: p3, p4: p4, p5: p5, p6: p6, p7: p7, p8: p8 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+  return HEAP32[returnValue >> 2];
+}
+
 function _emscripten_sync_run_in_browser_thread_d(func) {
   var returnValue = allocate(2, 'f64', ALLOC_STACK);
   var waitAddress = returnValue + 8;

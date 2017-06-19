@@ -88,7 +88,8 @@ void never() {
   REPORT_RESULT(0);
 }
 
-int main() {
+#include <emscripten/pthread_proxy_main.h>
+int emscripten_main(int argc, char **argv) {
   SDL_Init(0);
   last = SDL_GetTicks();
   printf("frist! %d\n", last);
