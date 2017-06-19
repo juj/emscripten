@@ -1677,13 +1677,15 @@ keydown(100);keyup(100); // trigger the end
       self.btest('emscripten_main_loop.cpp', '0', args=args)
 
   def test_emscripten_main_loop_settimeout(self):
-    self.btest('emscripten_main_loop_settimeout.cpp', '1')
+    for args in [[], ['-s', 'USE_PTHREADS=1']]:
+      self.btest('emscripten_main_loop_settimeout.cpp', '1', args=args)
 
   def test_emscripten_main_loop_and_blocker(self):
-    self.btest('emscripten_main_loop_and_blocker.cpp', '0')
+    for args in [[], ['-s', 'USE_PTHREADS=1']]:
+      self.btest('emscripten_main_loop_and_blocker.cpp', '0', args=args)
 
   def test_emscripten_main_loop_setimmediate(self):
-    for args in [[], ['--proxy-to-worker']]:
+    for args in [[], ['--proxy-to-worker'], ['-s', 'USE_PTHREADS=1']]:
       self.btest('emscripten_main_loop_setimmediate.cpp', '1', args=args)
 
   def test_sdl_quit(self):

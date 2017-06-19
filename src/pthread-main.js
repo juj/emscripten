@@ -120,7 +120,10 @@ this.onmessage = function(e) {
     if (threadInfoStruct && PThread.thisThreadCancelState == 0/*PTHREAD_CANCEL_ENABLE*/) {
       PThread.threadCancel();
     }
+  } else if (e.data.target === 'setimmediate') {
+    // no-op
   } else {
     Module['printErr']('pthread-main.js received unknown command ' + e.data.cmd);
+    console.error(e.data);
   }
 }

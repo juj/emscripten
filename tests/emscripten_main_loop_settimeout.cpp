@@ -30,7 +30,9 @@ void looper() {
   }
 }
 
-int main() {
+#include <emscripten/pthread_proxy_main.h>
+int emscripten_main(int argc, char **argv) {
   // Want to run at 2 fps, or 500msecs/frame.
   emscripten_set_main_loop(looper, 2, 0);
+  return 0;
 }
