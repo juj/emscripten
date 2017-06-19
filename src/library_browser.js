@@ -1244,6 +1244,7 @@ var LibraryBrowser = {
   },
 
   emscripten_get_device_pixel_ratio__proxy: 'main',
+  emscripten_get_device_pixel_ratio__sig: 'd',
   emscripten_get_device_pixel_ratio: function() {
     return window.devicePixelRatio || 1.0;
   },
