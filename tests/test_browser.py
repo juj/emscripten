@@ -1641,7 +1641,8 @@ keydown(100);keyup(100); // trigger the end
                        '--preload-file', 'basemap.tga', '--preload-file', 'lightmap.tga', '--preload-file', 'smoke.tga'])
 
   def test_emscripten_api(self):
-    self.btest('emscripten_api_browser.cpp', '1', args=['-s', '''EXPORTED_FUNCTIONS=['_main', '_third']''', '-lSDL'])
+    for args in [[], ['-s', 'USE_PTHREADS=1']]:
+      self.btest('emscripten_api_browser.cpp', '1', args=['-s', '''EXPORTED_FUNCTIONS=['_main', '_third']''', '-lSDL'])
 
   def test_emscripten_api2(self):
     def setup():
@@ -2266,7 +2267,7 @@ Module["preRun"].push(function () {
     self.btest('doublestart.c', args=['--pre-js', 'pre.js', '-o', 'test.html'], expected='1')
 
   def test_html5(self):
-    for opts in [[], ['-O2', '-g1', '--closure', '1']], ['-s', 'USE_PTHREADS=1']]:
+    for opts in [[], ['-O2', '-g1', '--closure', '1'], ['-s', 'USE_PTHREADS=1']]:
       print opts
       self.btest(path_from_root('tests', 'test_html5.c'), args=opts, expected='0', timeout=20)
 
