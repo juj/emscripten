@@ -2552,20 +2552,82 @@ function _emscripten_sync_run_in_browser_thread_v(func) {
   Atomics.wait(HEAP32, waitAddress >> 2, 0);
 }
 
-function _emscripten_sync_run_in_browser_thread_d(func) {
-  var returnValue = allocate(2, 'f64', ALLOC_STACK);
-  var waitAddress = returnValue + 8;
-  Atomics.store(HEAP32, waitAddress >> 2, 0);
-  postMessage({ target: 'proxiedCall_d', func: func, returnValue: returnValue });
-  Atomics.wait(HEAP32, waitAddress >> 2, 0);
-  return HEAPF64[returnValue >> 3];
-}
-
 function _emscripten_sync_run_in_browser_thread_vi(func, p0) {
   var waitAddress = allocate(1, 'i32', ALLOC_STACK);
   Atomics.store(HEAP32, waitAddress >> 2, 0);
   postMessage({ target: 'proxiedCall_vi', func: func, waitAddress: waitAddress, p0: p0 });
   Atomics.wait(HEAP32, waitAddress >> 2, 0);
+}
+
+function _emscripten_sync_run_in_browser_thread_vii(func, p0, p1) {
+  var waitAddress = allocate(1, 'i32', ALLOC_STACK);
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_vii', func: func, waitAddress: waitAddress, p0: p0, p1: p1 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+}
+
+function _emscripten_sync_run_in_browser_thread_viii(func, p0, p1, p2) {
+  var waitAddress = allocate(1, 'i32', ALLOC_STACK);
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_viii', func: func, waitAddress: waitAddress, p0: p0, p1: p1, p2: p2 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+}
+
+function _emscripten_sync_run_in_browser_thread_viiii(func, p0, p1, p2, p3) {
+  var waitAddress = allocate(1, 'i32', ALLOC_STACK);
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_viiii', func: func, waitAddress: waitAddress, p0: p0, p1: p1, p2: p2, p3: p3 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+}
+
+function _emscripten_sync_run_in_browser_thread_viiiii(func, p0, p1, p2, p3, p4) {
+  var waitAddress = allocate(1, 'i32', ALLOC_STACK);
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_viiiii', func: func, waitAddress: waitAddress, p0: p0, p1: p1, p2: p2, p3: p3, p4: p4 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+}
+
+function _emscripten_sync_run_in_browser_thread_viiiiii(func, p0, p1, p2, p3, p4, p5) {
+  var waitAddress = allocate(1, 'i32', ALLOC_STACK);
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_viiiiii', func: func, waitAddress: waitAddress, p0: p0, p1: p1, p2: p2, p3: p3, p4: p4, p5: p5 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+}
+
+function _emscripten_sync_run_in_browser_thread_i(func) {
+  var returnValue = allocate(2, 'i32', ALLOC_STACK);
+  var waitAddress = returnValue + 4;
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_i', func: func, returnValue: returnValue });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+  return HEAP32[returnValue >> 2];
+}
+
+function _emscripten_sync_run_in_browser_thread_ii(func, p0) {
+  var returnValue = allocate(2, 'i32', ALLOC_STACK);
+  var waitAddress = returnValue + 4;
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_ii', func: func, returnValue: returnValue, p0: p0 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+  return HEAP32[returnValue >> 2];
+}
+
+function _emscripten_sync_run_in_browser_thread_iii(func, p0, p1) {
+  var returnValue = allocate(2, 'i32', ALLOC_STACK);
+  var waitAddress = returnValue + 4;
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_iii', func: func, returnValue: returnValue, p0: p0, p1: p1 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+  return HEAP32[returnValue >> 2];
+}
+
+function _emscripten_sync_run_in_browser_thread_iiii(func, p0, p1, p2) {
+  var returnValue = allocate(2, 'i32', ALLOC_STACK);
+  var waitAddress = returnValue + 4;
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_iiii', func: func, returnValue: returnValue, p0: p0, p1: p1, p2: p2 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+  return HEAP32[returnValue >> 2];
 }
 
 function _emscripten_sync_run_in_browser_thread_iiiii(func, p0, p1, p2, p3) {
@@ -2575,6 +2637,51 @@ function _emscripten_sync_run_in_browser_thread_iiiii(func, p0, p1, p2, p3) {
   postMessage({ target: 'proxiedCall_iiiii', func: func, returnValue: returnValue, p0: p0, p1: p1, p2: p2, p3: p3 });
   Atomics.wait(HEAP32, waitAddress >> 2, 0);
   return HEAP32[returnValue >> 2];
+}
+
+function _emscripten_sync_run_in_browser_thread_iiiiii(func, p0, p1, p2, p3, p4) {
+  var returnValue = allocate(2, 'i32', ALLOC_STACK);
+  var waitAddress = returnValue + 4;
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_iiiiii', func: func, returnValue: returnValue, p0: p0, p1: p1, p2: p2, p3: p3, p4: p4 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+  return HEAP32[returnValue >> 2];
+}
+
+function _emscripten_sync_run_in_browser_thread_iiiiiii(func, p0, p1, p2, p3, p4, p5) {
+  var returnValue = allocate(2, 'i32', ALLOC_STACK);
+  var waitAddress = returnValue + 4;
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_iiiiiii', func: func, returnValue: returnValue, p0: p0, p1: p1, p2: p2, p3: p3, p4: p4, p5: p5 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+  return HEAP32[returnValue >> 2];
+}
+
+function _emscripten_sync_run_in_browser_thread_iiiiiiii(func, p0, p1, p2, p3, p4, p5, p6) {
+  var returnValue = allocate(2, 'i32', ALLOC_STACK);
+  var waitAddress = returnValue + 4;
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_iiiiiiii', func: func, returnValue: returnValue, p0: p0, p1: p1, p2: p2, p3: p3, p4: p4, p5: p5, p6: p6 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+  return HEAP32[returnValue >> 2];
+}
+
+function _emscripten_sync_run_in_browser_thread_iiiiiiiii(func, p0, p1, p2, p3, p4, p5, p6, p7) {
+  var returnValue = allocate(2, 'i32', ALLOC_STACK);
+  var waitAddress = returnValue + 4;
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_iiiiiiiii', func: func, returnValue: returnValue, p0: p0, p1: p1, p2: p2, p3: p3, p4: p4, p5: p5, p6: p6, p7: p7 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+  return HEAP32[returnValue >> 2];
+}
+
+function _emscripten_sync_run_in_browser_thread_d(func) {
+  var returnValue = allocate(2, 'f64', ALLOC_STACK);
+  var waitAddress = returnValue + 8;
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_d', func: func, returnValue: returnValue });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+  return HEAPF64[returnValue >> 3];
 }
 
 #endif
