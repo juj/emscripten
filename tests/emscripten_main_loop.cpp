@@ -8,10 +8,9 @@ int frame = 0;
 
 void final(void*) {
   assert(frame == 100);
-  int result = 0;
 #ifdef REPORT_RESULT
   printf("Test passed.\n");
-  REPORT_RESULT();
+  REPORT_RESULT(0);
 #endif
 }
 

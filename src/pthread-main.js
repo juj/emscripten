@@ -27,6 +27,11 @@ var ENVIRONMENT_IS_PTHREAD = true;
 // Therefore implement custom logging facility for threads running in a worker, which queue the messages to main thread to print.
 var Module = {};
 
+this.addEventListener('error', function(e) {
+  if (e.message.indexOf('SimulateInfiniteLoop') != -1) return e.preventDefault();
+  // Other errors propagate back to main browser thread's .onerror handler.
+});
+
 function threadPrint() {
   var text = Array.prototype.slice.call(arguments).join(' ');
   console.log(text);
@@ -76,6 +81,10 @@ this.onmessage = function(e) {
     assert(STACK_BASE != 0);
     assert(STACK_MAX > STACK_BASE);
     Runtime.establishStackSpace(e.data.stackBase, e.data.stackBase + e.data.stackSize);
+// TODO: Preprocess pthread-main.js
+//#if STACK_OVERFLOW_CHECK
+    if (typeof writeStackCookie !== 'undefined') writeStackCookie();
+//#endif
     var result = 0;
 
     PThread.receiveObjectTransfer(e.data);
@@ -93,6 +102,8 @@ this.onmessage = function(e) {
     } catch(e) {
       if (e === 'Canceled!') {
         PThread.threadCancel();
+        return;
+      } else if (e === 'SimulateInfiniteLoop') {
         return;
       } else {
         Atomics.store(HEAPU32, (threadInfoStruct + 4 /*{{{ C_STRUCTS.pthread.threadExitCode }}}*/ ) >> 2, -2 /*A custom entry specific to Emscripten denoting that the thread crashed.*/);
