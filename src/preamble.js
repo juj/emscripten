@@ -2538,6 +2538,13 @@ if (typeof SharedArrayBuffer !== 'undefined' && !ENVIRONMENT_IS_PTHREAD) {
 }
 #endif
 
+function _emscripten_sync_run_in_browser_thread_v(func) {
+  var waitAddress = allocate(1, 'i32', ALLOC_STACK);
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_v', func: func, waitAddress: waitAddress });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+}
+
 function _emscripten_sync_run_in_browser_thread_d(func) {
   var returnValue = allocate(2, 'f64', ALLOC_STACK);
   var waitAddress = returnValue + 8;
@@ -2545,6 +2552,15 @@ function _emscripten_sync_run_in_browser_thread_d(func) {
   postMessage({ target: 'proxiedCall_d', returnValue: returnValue, func: func });
   Atomics.wait(HEAP32, waitAddress >> 2, 0);
   return HEAPF64[returnValue >> 3];
+}
+
+function _emscripten_sync_run_in_browser_thread_iiiii(func, p0, p1, p2, p3) {
+  var returnValue = allocate(2, 'i32', ALLOC_STACK);
+  var waitAddress = returnValue + 4;
+  Atomics.store(HEAP32, waitAddress >> 2, 0);
+  postMessage({ target: 'proxiedCall_iiiii', returnValue: returnValue, func: func, p0: p0, p1: p1, p2: p2, p3: p3 });
+  Atomics.wait(HEAP32, waitAddress >> 2, 0);
+  return HEAP32[returnValue >> 2];
 }
 
 #endif

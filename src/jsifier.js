@@ -250,7 +250,14 @@ function JSify(data, functionsOnly) {
         } else if (USE_PTHREADS && proxyingMode === 'main') {
           var sig = LibraryManager.library[ident + '__sig'];
           if (!sig) throw 'Missing function signature field "' + ident + '__sig"! (Using proxying mode requires specifying the signature of the function)';
-          snippet = snippet.replace(/function (.*)? {/g, 'function $1 {\nif (ENVIRONMENT_IS_PTHREAD) { return _emscripten_sync_run_in_browser_thread_' + sig + '(' + proxiedFunctionOrdinal++ + '); }');
+          if (sig.length > 1) {
+            // If the function takes parameters, forward those to the proxied function call
+            snippet = snippet.replace(/function\s+(.*)?\s*\((.*?)\)\s*{/g, 'function $1($2) {\nif (ENVIRONMENT_IS_PTHREAD) return _emscripten_sync_run_in_browser_thread_' + sig + '(' + proxiedFunctionOrdinal++ + ', $2);');
+            printErr(snippet);
+          } else {
+            // No parameters to the function
+            snippet = snippet.replace(/function (.*)? {/g, 'function $1 {\nif (ENVIRONMENT_IS_PTHREAD) return _emscripten_sync_run_in_browser_thread_' + sig + '(' + proxiedFunctionOrdinal++ + ');');
+          }
           contentText = snippet;
           proxiedFunctionTable.push(finalName);
         } else {
