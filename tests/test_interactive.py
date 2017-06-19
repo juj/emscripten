@@ -154,3 +154,8 @@ class interactive(BrowserCore):
 
   def test_threadprofiler(self):
     self.btest('pthread/test_pthread_mandelbrot.cpp', expected='0', args=['-O2', '--threadprofiler', '-s', 'USE_PTHREADS=1', '-DTEST_THREAD_PROFILING=1', '-msse', '-s', 'PTHREAD_POOL_SIZE=16', '--shell-file', path_from_root('tests', 'pthread', 'test_pthread_mandelbrot_shell.html')])
+
+  # Test that emscripten_hide_mouse() is callable from pthreads (and proxies to main thread to obtain the proper window.devicePixelRatio value).
+  def test_emscripten_hide_mouse(self):
+    for args in [[], ['-s', 'USE_PTHREADS=1']]:
+      self.btest('emscripten_hide_mouse.c', expected='0', args=args)
