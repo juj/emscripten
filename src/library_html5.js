@@ -2004,6 +2004,10 @@ var LibraryJSEvents = {
 #endif
       return {{{ cDefine('EMSCRIPTEN_RESULT_INVALID_TARGET') }}};
     }
+
+#if OFFSCREEN_FRAMEBUFFER
+    GL.blitDefaultFramebuffer(GL.currentContext);
+#else
     if (!GL.currentContext.GLctx.commit) {
 #if GL_DEBUG
       console.error('emscripten_webgl_commit_frame() failed: OffscreenCanvas is not supported by the current GL context!');
@@ -2017,6 +2021,7 @@ var LibraryJSEvents = {
       return {{{ cDefine('EMSCRIPTEN_RESULT_INVALID_TARGET') }}};
     }
     GL.currentContext.GLctx.commit();
+#endif
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
