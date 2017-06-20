@@ -40,7 +40,10 @@ int main(int argc, char **argv)
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-    pthread_attr_setstacksize(&attr, EMSCRIPTEN_PTHREAD_STACK_SIZE);
+    pthread_attr_setstacksize(&attr, (EMSCRIPTEN_PTHREAD_STACK_SIZE));
+#ifdef EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES
+    emscripten_pthread_attr_settransferredcanvases(&attr, (EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES));
+#endif
     args.argc = argc;
     args.argv = argv;
     pthread_t thread;

@@ -204,6 +204,7 @@ static void _do_call(em_queued_call *q)
 		case EM_PROXIED_TZSET: tzset(); break;
 		case EM_PROXIED_PTHREAD_CREATE: q->returnValue.i = pthread_create(q->args[0].vp, q->args[1].vp, q->args[2].vp, q->args[3].vp); break;
 		case EM_PROXIED_SYSCALL: q->returnValue.i = emscripten_syscall(q->args[0].i, q->args[1].vp); break;
+		case EM_PROXIED_CREATE_CONTEXT: q->returnValue.i = emscripten_webgl_create_context(q->args[0].cp, q->args[1].vp); break;
 		case EM_FUNC_SIG_V: ((em_func_v)q->functionPtr)(); break;
 		case EM_FUNC_SIG_VI: ((em_func_vi)q->functionPtr)(q->args[0].i); break;
 		case EM_FUNC_SIG_VII: ((em_func_vii)q->functionPtr)(q->args[0].i, q->args[1].i); break;
