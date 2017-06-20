@@ -2273,7 +2273,7 @@ Module["preRun"].push(function () {
       self.btest(path_from_root('tests', 'test_html5.c'), args=opts, expected='0', timeout=20)
 
   def test_html5_webgl_create_context(self):
-    for opts in [[], ['-O2', '-g1', '--closure', '1'], ['-s', 'FULL_ES2=1']]:
+    for opts in [[], ['-O2', '-g1', '--closure', '1'], ['-s', 'FULL_ES2=1'], ['-s', 'USE_PTHREADS=1']]:
       print opts
       self.btest(path_from_root('tests', 'webgl_create_context.cpp'), args=opts + ['-lGL'], expected='0', timeout=20)
 
@@ -3532,6 +3532,10 @@ window.close = function() {
   def test_webgl_offscreen_canvas_in_mainthread_after_pthread(self):
     for args in [[], ['-DTEST_MAIN_THREAD_EXPLICIT_COMMIT']]:
       self.btest('gl_in_mainthread_after_pthread.cpp', expected='0', args=args+['-s', 'USE_PTHREADS=1', '-s', 'PTHREAD_POOL_SIZE=2', '-s', 'OFFSCREENCANVAS_SUPPORT=1', '-lGL'])
+
+  def test_webgl_offscreen_canvas_in_proxied_pthread(self):
+    for args in [[], ['-DTEST_OFFSCREEN_CANVAS=1']]:
+      self.btest('gl_in_proxy_pthread.cpp', expected='1', args=args + ['-s', 'USE_PTHREADS=1', '-s', 'OFFSCREENCANVAS_SUPPORT=1', '-lGL'])
 
   # Tests the feature that shell html page can preallocate the typed array and place it to Module.buffer before loading the script page.
   # In this build mode, the -s TOTAL_MEMORY=xxx option will be ignored.

@@ -247,17 +247,18 @@ function JSify(data, functionsOnly) {
           // Code for the main browser thread:
           proxyJsContent += snippet;
           proxiedFunctionTable.push(finalName);
-        } else if (USE_PTHREADS && proxyingMode === 'main') {
+        } else if (USE_PTHREADS && (proxyingMode === 'main' || proxyingMode === 'main_gl')) {
           var sig = LibraryManager.library[ident + '__sig'];
           sig = sig.replace(/f/g, 'i'); // TODO: Implement float signatures.
           if (!sig) throw 'Missing function signature field "' + ident + '__sig"! (Using proxying mode requires specifying the signature of the function)';
+          var proxyingCondition = (proxyingMode === 'main_gl') ? 'GLctxIsOnParentThread' : 'ENVIRONMENT_IS_PTHREAD';
           if (sig.length > 1) {
             // If the function takes parameters, forward those to the proxied function call
-            snippet = snippet.replace(/function\s+(.*)?\s*\((.*?)\)\s*{/g, 'function $1($2) {\nif (ENVIRONMENT_IS_PTHREAD) return _emscripten_sync_run_in_browser_thread_' + sig + '(' + proxiedFunctionOrdinal++ + ', $2);');
+            snippet = snippet.replace(/function\s+(.*)?\s*\((.*?)\)\s*{/g, 'function $1($2) {\nif (' + proxyingCondition + ') return _emscripten_sync_run_in_browser_thread_' + sig + '(' + proxiedFunctionOrdinal++ + ', $2);');
             printErr(snippet);
           } else {
             // No parameters to the function
-            snippet = snippet.replace(/function (.*)? {/g, 'function $1 {\nif (ENVIRONMENT_IS_PTHREAD) return _emscripten_sync_run_in_browser_thread_' + sig + '(' + proxiedFunctionOrdinal++ + ');');
+            snippet = snippet.replace(/function (.*)? {/g, 'function $1 {\nif (' + proxyingCondition + ') return _emscripten_sync_run_in_browser_thread_' + sig + '(' + proxiedFunctionOrdinal++ + ');');
           }
           contentText = snippet;
           proxiedFunctionTable.push(finalName);

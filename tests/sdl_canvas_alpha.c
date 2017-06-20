@@ -6,7 +6,8 @@
 #include <emscripten.h>
 
 
-int main(int argc, char **argv) {
+#include <emscripten/pthread_proxy_main.h>
+int emscripten_main(int argc, char **argv) {
   Uint32 SRC_FLAG = SDL_SRCALPHA;
 
   SDL_Init(SDL_INIT_VIDEO);
