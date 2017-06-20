@@ -249,6 +249,7 @@ function JSify(data, functionsOnly) {
           proxiedFunctionTable.push(finalName);
         } else if (USE_PTHREADS && proxyingMode === 'main') {
           var sig = LibraryManager.library[ident + '__sig'];
+          sig = sig.replace(/f/g, 'i'); // TODO: Implement float signatures.
           if (!sig) throw 'Missing function signature field "' + ident + '__sig"! (Using proxying mode requires specifying the signature of the function)';
           if (sig.length > 1) {
             // If the function takes parameters, forward those to the proxied function call
