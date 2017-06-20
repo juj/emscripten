@@ -1713,7 +1713,8 @@ keydown(100);keyup(100); // trigger the end
     self.btest('gl_teximage.c', '1', args=['-lGL', '-lSDL'])
 
   def test_gl_textures(self):
-    self.btest('gl_textures.cpp', '0', args=['-lGL'])
+    for args in [[], ['-s', 'USE_PTHREADS=1']]:
+      self.btest('gl_textures.cpp', '0', args=['-lGL'])
 
   def test_gl_ps(self):
     # pointers and a shader

@@ -10,6 +10,7 @@ int emscripten_main(int argc, char **argv);
 #include <emscripten/emscripten.h>
 #include <emscripten/threading.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 typedef struct __main_args
 {
@@ -28,6 +29,10 @@ void *__emscripten_thread_main(void *param)
 
 static volatile __main_args args;
 
+#ifndef EMSCRIPTEN_PTHREAD_STACK_SIZE
+#define EMSCRIPTEN_PTHREAD_STACK_SIZE (128*1024)
+#endif
+
 int main(int argc, char **argv)
 {
   if (emscripten_has_threading_support())
@@ -35,6 +40,7 @@ int main(int argc, char **argv)
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+    pthread_attr_setstacksize(&attr, EMSCRIPTEN_PTHREAD_STACK_SIZE);
     args.argc = argc;
     args.argv = argv;
     pthread_t thread;
