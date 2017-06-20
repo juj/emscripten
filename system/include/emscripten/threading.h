@@ -247,6 +247,7 @@ struct thread_profiler_block
 #define EM_PROXIED_TZSET 119
 #define EM_PROXIED_PTHREAD_CREATE 137
 #define EM_PROXIED_SYSCALL 138
+#define EM_PROXIED_CREATE_CONTEXT 200
 
 #ifdef __cplusplus
 }

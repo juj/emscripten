@@ -1226,7 +1226,11 @@
 
             "EM_HTML5_SHORT_STRING_LEN_BYTES",
             "EM_HTML5_MEDIUM_STRING_LEN_BYTES",
-            "EM_HTML5_LONG_STRING_LEN_BYTES"
+            "EM_HTML5_LONG_STRING_LEN_BYTES",
+
+            "EMSCRIPTEN_WEBGL_CONTEXT_PROXY_DISALLOW",
+            "EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK",
+            "EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS"
         ],
         "structs": {
             "EmscriptenKeyboardEvent": [
@@ -1380,7 +1384,8 @@
               "majorVersion",
               "minorVersion",
               "enableExtensionsByDefault",
-              "explicitSwapControl"
+              "explicitSwapControl",
+              "proxyContextToMainThread"
             ],
             "EmscriptenFullscreenStrategy": [
               "scaleMode",
@@ -1463,6 +1468,7 @@
             "EM_PROXIED_TZSET",
             "EM_PROXIED_PTHREAD_CREATE",
             "EM_PROXIED_SYSCALL",
+            "EM_PROXIED_CREATE_CONTEXT",
             "EM_THREAD_STATUS_NOTSTARTED",
             "EM_THREAD_STATUS_RUNNING",
             "EM_THREAD_STATUS_SLEEPING",
