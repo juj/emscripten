@@ -1385,7 +1385,8 @@
               "minorVersion",
               "enableExtensionsByDefault",
               "explicitSwapControl",
-              "proxyContextToMainThread"
+              "proxyContextToMainThread",
+              "renderViaOffscreenBackBuffer"
             ],
             "EmscriptenFullscreenStrategy": [
               "scaleMode",
