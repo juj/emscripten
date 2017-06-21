@@ -886,7 +886,7 @@ var LibraryGL = {
     }
   },
 
-  glPixelStorei__proxy: 'main_gl',
+  glPixelStorei__proxy: 'async_gl',
   glPixelStorei__sig: 'vii',
   glPixelStorei: function(pname, param) {
     if (pname == 0x0D05 /* GL_PACK_ALIGNMENT */) {
@@ -1581,7 +1581,7 @@ var LibraryGL = {
     GLctx.readPixels(x, y, width, height, format, type, pixelData);
   },
 
-  glBindTexture__proxy: 'main_gl',
+  glBindTexture__proxy: 'async_gl',
   glBindTexture__sig: 'vii',
   glBindTexture: function(target, texture) {
 #if GL_ASSERTIONS
@@ -1799,7 +1799,7 @@ var LibraryGL = {
     return GLctx.disjointTimerQueryExt['isQueryEXT'](query);
   },
 
-  glBeginQueryEXT__proxy: 'main_gl',
+  glBeginQueryEXT__proxy: 'async_gl',
   glBeginQueryEXT__sig: 'vii',
   glBeginQueryEXT: function(target, id) {
 #if GL_ASSERTIONS
@@ -1808,13 +1808,13 @@ var LibraryGL = {
     GLctx.disjointTimerQueryExt['beginQueryEXT'](target, id ? GL.timerQueriesEXT[id] : null);
   },
 
-  glEndQueryEXT__proxy: 'main_gl',
+  glEndQueryEXT__proxy: 'async_gl',
   glEndQueryEXT__sig: 'vi',
   glEndQueryEXT: function(target) {
     GLctx.disjointTimerQueryExt['endQueryEXT'](target);
   },
 
-  glQueryCounterEXT__proxy: 'main_gl',
+  glQueryCounterEXT__proxy: 'async_gl',
   glQueryCounterEXT__sig: 'vii',
   glQueryCounterEXT: function(id, target) {
 #if GL_ASSERTIONS
@@ -2131,7 +2131,7 @@ var LibraryGL = {
     return GLctx['isQuery'](query);
   },
 
-  glBeginQuery__proxy: 'main_gl',
+  glBeginQuery__proxy: 'async_gl',
   glBeginQuery__sig: 'vii',
   glBeginQuery: function(target, id) {
 #if GL_ASSERTIONS
@@ -2223,7 +2223,7 @@ var LibraryGL = {
     return GLctx['isSampler'](sampler);
   },
 
-  glBindSampler__proxy: 'main_gl',
+  glBindSampler__proxy: 'async_gl',
   glBindSampler__sig: 'vii',
   glBindSampler: function(unit, sampler) {
 #if GL_ASSERTIONS
@@ -2344,7 +2344,7 @@ var LibraryGL = {
     return GLctx['isTransformFeedback'](transformFeedback);
   },
 
-  glBindTransformFeedback__proxy: 'main_gl',
+  glBindTransformFeedback__proxy: 'async_gl',
   glBindTransformFeedback__sig: 'vii',
   glBindTransformFeedback: function(target, id) {
 #if GL_ASSERTIONS
@@ -2471,7 +2471,7 @@ var LibraryGL = {
 #endif
 
   // Uniform Buffer objects
-  glBindBufferBase__proxy: 'main_gl',
+  glBindBufferBase__proxy: 'async_gl',
   glBindBufferBase__sig: 'viii',
   glBindBufferBase: function(target, index, buffer) {
 #if GL_ASSERTIONS
@@ -2481,7 +2481,7 @@ var LibraryGL = {
     GLctx['bindBufferBase'](target, index, bufferObj);
   },
 
-  glBindBufferRange__proxy: 'main_gl',
+  glBindBufferRange__proxy: 'async_gl',
   glBindBufferRange__sig: 'viiiii',
   glBindBufferRange: function(target, index, buffer, offset, ptrsize) {
 #if GL_ASSERTIONS
@@ -2622,7 +2622,7 @@ var LibraryGL = {
     }
   },
 
-  glUniformBlockBinding__proxy: 'main_gl',
+  glUniformBlockBinding__proxy: 'async_gl',
   glUniformBlockBinding__sig: 'viii',
   glUniformBlockBinding: function(program, uniformBlockIndex, uniformBlockBinding) {
 #if GL_ASSERTIONS
@@ -2818,7 +2818,7 @@ var LibraryGL = {
     }
   },
 
-  glBindRenderbuffer__proxy: 'main_gl',
+  glBindRenderbuffer__proxy: 'async_gl',
   glBindRenderbuffer__sig: 'vii',
   glBindRenderbuffer: function(target, renderbuffer) {
 #if GL_ASSERTIONS
@@ -3063,7 +3063,7 @@ var LibraryGL = {
     if (type) {{{ makeSetValue('type', '0', 'info.type', 'i32') }}};
   },
 
-  glUniform1f__proxy: 'main_gl',
+  glUniform1f__proxy: 'async_gl',
   glUniform1f__sig: 'vif',
   glUniform1f: function(location, v0) {
 #if GL_ASSERTIONS
@@ -3072,7 +3072,7 @@ var LibraryGL = {
     GLctx.uniform1f(GL.uniforms[location], v0);
   },
 
-  glUniform2f__proxy: 'main_gl',
+  glUniform2f__proxy: 'async_gl',
   glUniform2f__sig: 'viff',
   glUniform2f: function(location, v0, v1) {
 #if GL_ASSERTIONS
@@ -3081,7 +3081,7 @@ var LibraryGL = {
     GLctx.uniform2f(GL.uniforms[location], v0, v1);
   },
 
-  glUniform3f__proxy: 'main_gl',
+  glUniform3f__proxy: 'async_gl',
   glUniform3f__sig: 'vifff',
   glUniform3f: function(location, v0, v1, v2) {
 #if GL_ASSERTIONS
@@ -3090,7 +3090,7 @@ var LibraryGL = {
     GLctx.uniform3f(GL.uniforms[location], v0, v1, v2);
   },
 
-  glUniform4f__proxy: 'main_gl',
+  glUniform4f__proxy: 'async_gl',
   glUniform4f__sig: 'viffff',
   glUniform4f: function(location, v0, v1, v2, v3) {
 #if GL_ASSERTIONS
@@ -3099,7 +3099,7 @@ var LibraryGL = {
     GLctx.uniform4f(GL.uniforms[location], v0, v1, v2, v3);
   },
 
-  glUniform1i__proxy: 'main_gl',
+  glUniform1i__proxy: 'async_gl',
   glUniform1i__sig: 'vii',
   glUniform1i: function(location, v0) {
 #if GL_ASSERTIONS
@@ -3108,7 +3108,7 @@ var LibraryGL = {
     GLctx.uniform1i(GL.uniforms[location], v0);
   },
 
-  glUniform2i__proxy: 'main_gl',
+  glUniform2i__proxy: 'async_gl',
   glUniform2i__sig: 'viii',
   glUniform2i: function(location, v0, v1) {
 #if GL_ASSERTIONS
@@ -3117,7 +3117,7 @@ var LibraryGL = {
     GLctx.uniform2i(GL.uniforms[location], v0, v1);
   },
 
-  glUniform3i__proxy: 'main_gl',
+  glUniform3i__proxy: 'async_gl',
   glUniform3i__sig: 'viiii',
   glUniform3i: function(location, v0, v1, v2) {
 #if GL_ASSERTIONS
@@ -3126,7 +3126,7 @@ var LibraryGL = {
     GLctx.uniform3i(GL.uniforms[location], v0, v1, v2);
   },
 
-  glUniform4i__proxy: 'main_gl',
+  glUniform4i__proxy: 'async_gl',
   glUniform4i__sig: 'viiiii',
   glUniform4i: function(location, v0, v1, v2, v3) {
 #if GL_ASSERTIONS
@@ -3326,7 +3326,7 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glUniform1ui__proxy: 'main_gl',
+  glUniform1ui__proxy: 'async_gl',
   glUniform1ui__sig: 'vii',
   glUniform1ui: function(location, v0) {
 #if GL_ASSERTIONS
@@ -3335,7 +3335,7 @@ var LibraryGL = {
     GLctx.uniform1ui(GL.uniforms[location], v0);
   },
 
-  glUniform2ui__proxy: 'main_gl',
+  glUniform2ui__proxy: 'async_gl',
   glUniform2ui__sig: 'viii',
   glUniform2ui: function(location, v0, v1) {
 #if GL_ASSERTIONS
@@ -3344,7 +3344,7 @@ var LibraryGL = {
     GLctx.uniform2ui(GL.uniforms[location], v0, v1);
   },
 
-  glUniform3ui__proxy: 'main_gl',
+  glUniform3ui__proxy: 'async_gl',
   glUniform3ui__sig: 'viiii',
   glUniform3ui: function(location, v0, v1, v2) {
 #if GL_ASSERTIONS
@@ -3353,7 +3353,7 @@ var LibraryGL = {
     GLctx.uniform3ui(GL.uniforms[location], v0, v1, v2);
   },
 
-  glUniform4ui__proxy: 'main_gl',
+  glUniform4ui__proxy: 'async_gl',
   glUniform4ui__sig: 'viiiii',
   glUniform4ui: function(location, v0, v1, v2, v3) {
 #if GL_ASSERTIONS
@@ -3615,7 +3615,7 @@ var LibraryGL = {
   },
 #endif
 
-  glBindBuffer__proxy: 'main_gl',
+  glBindBuffer__proxy: 'async_gl',
   glBindBuffer__sig: 'vii',
   glBindBuffer: function(target, buffer) {
 #if GL_ASSERTIONS
@@ -3854,7 +3854,7 @@ var LibraryGL = {
     }
   },
 
-  glCompileShader__proxy: 'main_gl',
+  glCompileShader__proxy: 'async_gl',
   glCompileShader__sig: 'vi',
   glCompileShader: function(shader) {
 #if GL_ASSERTIONS
@@ -4006,7 +4006,7 @@ var LibraryGL = {
     GL.programInfos[id] = null;
   },
 
-  glAttachShader__proxy: 'main_gl',
+  glAttachShader__proxy: 'async_gl',
   glAttachShader__sig: 'vii',
   glAttachShader: function(program, shader) {
 #if GL_ASSERTIONS
@@ -4017,7 +4017,7 @@ var LibraryGL = {
                             GL.shaders[shader]);
   },
 
-  glDetachShader__proxy: 'main_gl',
+  glDetachShader__proxy: 'async_gl',
   glDetachShader__sig: 'vii',
   glDetachShader: function(program, shader) {
 #if GL_ASSERTIONS
@@ -4035,7 +4035,7 @@ var LibraryGL = {
     {{{ makeSetValue('precision', '0', 'result.precision', 'i32') }}};
   },
 
-  glLinkProgram__proxy: 'main_gl',
+  glLinkProgram__proxy: 'async_gl',
   glLinkProgram__sig: 'vi',
   glLinkProgram: function(program) {
 #if GL_ASSERTIONS
@@ -4063,7 +4063,7 @@ var LibraryGL = {
     }
   },
 
-  glUseProgram__proxy: 'main_gl',
+  glUseProgram__proxy: 'async_gl',
   glUseProgram__sig: 'vi',
   glUseProgram: function(program) {
 #if GL_ASSERTIONS
@@ -4072,7 +4072,7 @@ var LibraryGL = {
     GLctx.useProgram(program ? GL.programs[program] : null);
   },
 
-  glValidateProgram__proxy: 'main_gl',
+  glValidateProgram__proxy: 'async_gl',
   glValidateProgram__sig: 'vi',
   glValidateProgram: function(program) {
 #if GL_ASSERTIONS
@@ -4090,7 +4090,7 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glProgramParameteri__proxy: 'main_gl',
+  glProgramParameteri__proxy: 'async_gl',
   glProgramParameteri__sig: 'viii',
   glProgramParameteri: function(program, pname, value) {
     GL.recordError(0x0500/*GL_INVALID_ENUM*/);
@@ -4118,7 +4118,7 @@ var LibraryGL = {
   },
 #endif
 
-  glBindAttribLocation__proxy: 'main_gl',
+  glBindAttribLocation__proxy: 'async_gl',
   glBindAttribLocation__sig: 'viii',
   glBindAttribLocation: function(program, index, name) {
 #if GL_ASSERTIONS
@@ -4128,7 +4128,7 @@ var LibraryGL = {
     GLctx.bindAttribLocation(GL.programs[program], index, name);
   },
 
-  glBindFramebuffer__proxy: 'main_gl',
+  glBindFramebuffer__proxy: 'async_gl',
   glBindFramebuffer__sig: 'vii',
   glBindFramebuffer: function(target, framebuffer) {
 #if GL_ASSERTIONS
@@ -4179,7 +4179,7 @@ var LibraryGL = {
     }
   },
 
-  glFramebufferRenderbuffer__proxy: 'main_gl',
+  glFramebufferRenderbuffer__proxy: 'async_gl',
   glFramebufferRenderbuffer__sig: 'viiii',
   glFramebufferRenderbuffer: function(target, attachment, renderbuffertarget, renderbuffer) {
 #if GL_ASSERTIONS
@@ -4189,7 +4189,7 @@ var LibraryGL = {
                                        GL.renderbuffers[renderbuffer]);
   },
 
-  glFramebufferTexture2D__proxy: 'main_gl',
+  glFramebufferTexture2D__proxy: 'async_gl',
   glFramebufferTexture2D__sig: 'viiiii',
   glFramebufferTexture2D: function(target, attachment, textarget, texture, level) {
 #if GL_ASSERTIONS
@@ -4200,7 +4200,7 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glFramebufferTextureLayer__proxy: 'main_gl',
+  glFramebufferTextureLayer__proxy: 'async_gl',
   glFramebufferTextureLayer__sig: 'viiiii',
   glFramebufferTextureLayer: function(target, attachment, texture, level, layer) {
 #if GL_ASSERTIONS
@@ -4279,7 +4279,7 @@ var LibraryGL = {
 #if LEGACY_GL_EMULATION
   glBindVertexArray__deps: ['emulGlBindVertexArray'],
 #endif
-  glBindVertexArray__proxy: 'main_gl',
+  glBindVertexArray__proxy: 'async_gl',
   glBindVertexArray__sig: 'vi',
   glBindVertexArray: function(vao) {
 #if LEGACY_GL_EMULATION
@@ -4931,7 +4931,7 @@ var LibraryGL = {
   },
   glGetInfoLogARB: 'glGetInfoLog',
 
-  glBindProgram__proxy: 'main_gl',
+  glBindProgram__proxy: 'async_gl',
   glBindProgram__sig: 'vii',
   glBindProgram: function(type, id) {
 #if ASSERTIONS
@@ -7385,7 +7385,7 @@ var LibraryGL = {
 #endif
   },
 
-  glClientActiveTexture__proxy: 'main_gl',
+  glClientActiveTexture__proxy: 'async_gl',
   glClientActiveTexture__sig: 'vi',
   glClientActiveTexture: function(texture) {
     GLImmediate.clientActiveTexture = texture - 0x84C0; // GL_TEXTURE0
@@ -7721,7 +7721,7 @@ var LibraryGL = {
 
   // GLES2 emulation
 
-  glVertexAttribPointer__proxy: 'main_gl',
+  glVertexAttribPointer__proxy: 'async_gl',
   glVertexAttribPointer__sig: 'viiiiii',
   glVertexAttribPointer: function(index, size, type, normalized, stride, ptr) {
 #if FULL_ES2
@@ -7747,7 +7747,7 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glVertexAttribIPointer__proxy: 'main_gl',
+  glVertexAttribIPointer__proxy: 'async_gl',
   glVertexAttribIPointer__sig: 'viiiii',
   glVertexAttribIPointer: function(index, size, type, stride, ptr) {
 #if FULL_ES3
@@ -7774,7 +7774,7 @@ var LibraryGL = {
 // ~USE_WEBGL2
 #endif
 
-  glEnableVertexAttribArray__proxy: 'main_gl',
+  glEnableVertexAttribArray__proxy: 'async_gl',
   glEnableVertexAttribArray__sig: 'vi',
   glEnableVertexAttribArray: function(index) {
 #if FULL_ES2
@@ -7787,7 +7787,7 @@ var LibraryGL = {
     GLctx.enableVertexAttribArray(index);
   },
 
-  glDisableVertexAttribArray__proxy: 'main_gl',
+  glDisableVertexAttribArray__proxy: 'async_gl',
   glDisableVertexAttribArray__sig: 'vi',
   glDisableVertexAttribArray: function(index) {
 #if FULL_ES2
@@ -7800,7 +7800,11 @@ var LibraryGL = {
     GLctx.disableVertexAttribArray(index);
   },
 
+#if FULL_ES2
   glDrawArrays__proxy: 'main_gl',
+#else
+  glDrawArrays__proxy: 'async_gl',
+#endif
   glDrawArrays__sig: 'viii',
   glDrawArrays: function(mode, first, count) {
 #if FULL_ES2
@@ -7815,7 +7819,11 @@ var LibraryGL = {
 #endif
   },
 
+#if FULL_ES2
   glDrawElements__proxy: 'main_gl',
+#else
+  glDrawElements__proxy: 'async_gl',
+#endif
   glDrawElements__sig: 'viiii',
   glDrawElements: function(mode, count, type, indices) {
 #if FULL_ES2
@@ -7847,13 +7855,12 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glDrawRangeElements__proxy: 'main_gl',
+  glDrawRangeElements__proxy: 'async_gl',
   glDrawRangeElements__sig: 'viiiiii',
   glDrawRangeElements__deps: ['glDrawElements'],
   glDrawRangeElements: function(mode, start, end, count, type, indices) {
     // TODO: This should be a trivial pass-though function, but due to https://bugzilla.mozilla.org/show_bug.cgi?id=1202427,
     // we work around by ignoring the range.
-    _glDrawElements(mode, count, type, indices);
     GLctx.drawElements(mode, count, type, indices);
   },
 #endif
@@ -7867,8 +7874,8 @@ var LibraryGL = {
 #endif
   },
 
-  glReleaseShaderCompiler__proxy: 'main_gl',
-  glReleaseShaderCompiler__sig: 'v',
+//  glReleaseShaderCompiler__proxy: 'main_gl',
+//  glReleaseShaderCompiler__sig: 'v',
   glReleaseShaderCompiler: function() {
     // NOP (as allowed by GLES 2.0 spec)
   },
@@ -7888,7 +7895,7 @@ var LibraryGL = {
 
   // ANGLE_instanced_arrays WebGL extension related functions (in core in WebGL 2)
 
-  glVertexAttribDivisor__proxy: 'main_gl',
+  glVertexAttribDivisor__proxy: 'async_gl',
   glVertexAttribDivisor__sig: 'vii',
   glVertexAttribDivisor: function(index, divisor) {
 #if GL_ASSERTIONS
@@ -7897,7 +7904,7 @@ var LibraryGL = {
     GLctx['vertexAttribDivisor'](index, divisor);
   },
 
-  glDrawArraysInstanced__proxy: 'main_gl',
+  glDrawArraysInstanced__proxy: 'async_gl',
   glDrawArraysInstanced__sig: 'viiii',
   glDrawArraysInstanced: function(mode, first, count, primcount) {
 #if GL_ASSERTIONS
@@ -7906,7 +7913,7 @@ var LibraryGL = {
     GLctx['drawArraysInstanced'](mode, first, count, primcount);
   },
 
-  glDrawElementsInstanced__proxy: 'main_gl',
+  glDrawElementsInstanced__proxy: 'async_gl',
   glDrawElementsInstanced__sig: 'viiiii',
   glDrawElementsInstanced: function(mode, count, type, indices, primcount) {
 #if GL_ASSERTIONS
@@ -7955,19 +7962,19 @@ var LibraryGL = {
 
   // passthrough functions with GLboolean parameters
 
-  glColorMask__proxy: 'main_gl',
+  glColorMask__proxy: 'async_gl',
   glColorMask__sig: 'viiii',
   glColorMask: function(red, green, blue, alpha) {
     GLctx.colorMask(!!red, !!green, !!blue, !!alpha);
   },
 
-  glDepthMask__proxy: 'main_gl',
+  glDepthMask__proxy: 'async_gl',
   glDepthMask__sig: 'vi',
   glDepthMask: function(flag) {
     GLctx.depthMask(!!flag);
   },
 
-  glSampleCoverage__proxy: 'main_gl',
+  glSampleCoverage__proxy: 'async_gl',
   glSampleCoverage__sig: 'vii',
   glSampleCoverage: function(value, invert) {
     GLctx.sampleCoverage(value, !!invert);
@@ -7975,98 +7982,98 @@ var LibraryGL = {
 
   // signatures of simple pass-through functions, see later
 
-  glActiveTexture__proxy: 'main_gl',
+  glActiveTexture__proxy: 'async_gl',
   glActiveTexture__sig: 'vi',
-  glCheckFramebufferStatus__proxy: 'main_gl',
+  glCheckFramebufferStatus__proxy: 'async_gl',
   glCheckFramebufferStatus__sig: 'ii',
   glRenderbufferStorage__proxy: 'main_gl',
   glRenderbufferStorage__sig: 'viiii',
-  glClearStencil__proxy: 'main_gl',
+  glClearStencil__proxy: 'async_gl',
   glClearStencil__sig: 'vi',
-  glStencilFunc__proxy: 'main_gl',
+  glStencilFunc__proxy: 'async_gl',
   glStencilFunc__sig: 'viii',
-  glLineWidth__proxy: 'main_gl',
+  glLineWidth__proxy: 'async_gl',
   glLineWidth__sig: 'vi',
-  glBlendEquation__proxy: 'main_gl',
+  glBlendEquation__proxy: 'async_gl',
   glBlendEquation__sig: 'vi',
-  glBlendEquationSeparate__proxy: 'main_gl',
+  glBlendEquationSeparate__proxy: 'async_gl',
   glBlendEquationSeparate__sig: 'vii',
-  glVertexAttrib1f__proxy: 'main_gl',
+  glVertexAttrib1f__proxy: 'async_gl',
   glVertexAttrib1f__sig: 'vii',
-  glVertexAttrib2f__proxy: 'main_gl',
+  glVertexAttrib2f__proxy: 'async_gl',
   glVertexAttrib2f__sig: 'viii',
-  glVertexAttrib3f__proxy: 'main_gl',
+  glVertexAttrib3f__proxy: 'async_gl',
   glVertexAttrib3f__sig: 'viiii',
-  glVertexAttrib4f__proxy: 'main_gl',
+  glVertexAttrib4f__proxy: 'async_gl',
   glVertexAttrib4f__sig: 'viiiii',
-  glCullFace__proxy: 'main_gl',
+  glCullFace__proxy: 'async_gl',
   glCullFace__sig: 'vi',
-  glBlendFunc__proxy: 'main_gl',
+  glBlendFunc__proxy: 'async_gl',
   glBlendFunc__sig: 'vii',
-  glBlendFuncSeparate__proxy: 'main_gl',
+  glBlendFuncSeparate__proxy: 'async_gl',
   glBlendFuncSeparate__sig: 'viiii',
-  glBlendColor__proxy: 'main_gl',
+  glBlendColor__proxy: 'async_gl',
   glBlendColor__sig: 'vffff',
-  glPolygonOffset__proxy: 'main_gl',
+  glPolygonOffset__proxy: 'async_gl',
   glPolygonOffset__sig: 'vii',
-  glStencilOp__proxy: 'main_gl',
+  glStencilOp__proxy: 'async_gl',
   glStencilOp__sig: 'viii',
-  glStencilOpSeparate__proxy: 'main_gl',
+  glStencilOpSeparate__proxy: 'async_gl',
   glStencilOpSeparate__sig: 'viiii',
-  glGenerateMipmap__proxy: 'main_gl',
+  glGenerateMipmap__proxy: 'async_gl',
   glGenerateMipmap__sig: 'vi',
-  glHint__proxy: 'main_gl',
+  glHint__proxy: 'async_gl',
   glHint__sig: 'vii',
-  glViewport__proxy: 'main_gl',
+  glViewport__proxy: 'async_gl',
   glViewport__sig: 'viiii',
-  glDepthFunc__proxy: 'main_gl',
+  glDepthFunc__proxy: 'async_gl',
   glDepthFunc__sig: 'vi',
-  glStencilMask__proxy: 'main_gl',
+  glStencilMask__proxy: 'async_gl',
   glStencilMask__sig: 'vi',
-  glStencilMaskSeparate__proxy: 'main_gl',
+  glStencilMaskSeparate__proxy: 'async_gl',
   glStencilMaskSeparate__sig: 'vii',
-  glClearDepthf__proxy: 'main_gl',
+  glClearDepthf__proxy: 'async_gl',
   glClearDepthf__sig: 'vi',
   glFinish__proxy: 'main_gl',
   glFinish__sig: 'v',
   glFlush__proxy: 'main_gl',
   glFlush__sig: 'v',
-  glClearColor__proxy: 'main_gl',
+  glClearColor__proxy: 'async_gl',
   glClearColor__sig: 'viiii',
   glIsEnabled__proxy: 'main_gl',
   glIsEnabled__sig: 'ii',
-  glFrontFace__proxy: 'main_gl',
+  glFrontFace__proxy: 'async_gl',
   glFrontFace__sig: 'vi',
 #if USE_WEBGL2
-  glVertexAttribI4i__proxy: 'main_gl',
+  glVertexAttribI4i__proxy: 'async_gl',
   glVertexAttribI4i__sig: 'viiiii',
-  glVertexAttribI4ui__proxy: 'main_gl',
+  glVertexAttribI4ui__proxy: 'async_gl',
   glVertexAttribI4ui__sig: 'viiiii',
-  glCopyBufferSubData__proxy: 'main_gl',
+  glCopyBufferSubData__proxy: 'async_gl',
   glCopyBufferSubData__sig: 'viiiii',
-  glTexStorage2D__proxy: 'main_gl',
+  glTexStorage2D__proxy: 'async_gl',
   glTexStorage2D__sig: 'viiiii',
-  glTexStorage3D__proxy: 'main_gl',
+  glTexStorage3D__proxy: 'async_gl',
   glTexStorage3D__sig: 'viiiiii',
-  glBeginTransformFeedback__proxy: 'main_gl',
+  glBeginTransformFeedback__proxy: 'async_gl',
   glBeginTransformFeedback__sig: 'vi',
-  glEndTransformFeedback__proxy: 'main_gl',
+  glEndTransformFeedback__proxy: 'async_gl',
   glEndTransformFeedback__sig: 'v',
-  glPauseTransformFeedback__proxy: 'main_gl',
+  glPauseTransformFeedback__proxy: 'async_gl',
   glPauseTransformFeedback__sig: 'v',
-  glResumeTransformFeedback__proxy: 'main_gl',
+  glResumeTransformFeedback__proxy: 'async_gl',
   glResumeTransformFeedback__sig: 'v',
-  glBlitFramebuffer__proxy: 'main_gl',
+  glBlitFramebuffer__proxy: 'async_gl',
   glBlitFramebuffer__sig: 'viiiiiiiiii',
-  glReadBuffer__proxy: 'main_gl',
+  glReadBuffer__proxy: 'async_gl',
   glReadBuffer__sig: 'vi',
-  glEndQuery__proxy: 'main_gl',
+  glEndQuery__proxy: 'async_gl',
   glEndQuery__sig: 'vi',
-  glRenderbufferStorageMultisample__proxy: 'main_gl',
+  glRenderbufferStorageMultisample__proxy: 'async_gl',
   glRenderbufferStorageMultisample__sig: 'viiiii',
-  glCopyTexSubImage3D__proxy: 'main_gl',
+  glCopyTexSubImage3D__proxy: 'async_gl',
   glCopyTexSubImage3D__sig: 'viiiiiiiii',
-  glClearBufferfi__proxy: 'main_gl',
+  glClearBufferfi__proxy: 'async_gl',
   glClearBufferfi__sig: 'viifi',
 #endif
 };
@@ -8123,7 +8130,7 @@ glFuncs.forEach(function(data) {
     assert(!(cName in LibraryGL), "Cannot reimplement the existing function " + cName);
     LibraryGL[cName] = eval(stub.replace('NAME', name));
     if (!LibraryGL[cName + '__sig']) LibraryGL[cName + '__sig'] = sig;
-    LibraryGL[cName + '__proxy'] = 'main_gl';
+    LibraryGL[cName + '__proxy'] = (LibraryGL[cName + '__sig'][0] === 'v') ? 'async_gl' : 'main_gl';
   });
 });
 
