@@ -262,6 +262,37 @@ var LibraryPThread = {
         var worker = new Worker(pthreadMainJs);
 
         worker.onmessage = function(e) {
+          // TODO: Move the proxied call mechanism into a queue inside heap.
+          var returnValue;
+          switch(e.data.proxiedCall) {
+            case 1: case 21: returnValue = proxiedFunctionTable[e.data.func](); break;
+            case 2: returnValue = proxiedFunctionTable[e.data.func](e.data.p0); break;
+            case 3: returnValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1); break;
+            case 4: returnValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2); break;
+            case 5: returnValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3); break;
+            case 6: returnValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4); break;
+            case 7: returnValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4, e.data.p5); break;
+            case 8: returnValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4, e.data.p5, e.data.p6); break;
+            case 9: returnValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4, e.data.p5, e.data.p6, e.data.p7); break;
+            case 10: returnValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4, e.data.p5, e.data.p6, e.data.p7, e.data.p8); break;
+            default:
+              if (e.data.proxiedCall) {
+                Module['printErr']("worker sent an unknown proxied call idx " + e.data.proxiedCall);
+                console.error(e.data);
+              }
+              break;
+          }
+          if (e.data.returnValue) {
+            if (e.data.proxiedCall != 21) HEAP32[e.data.returnValue >> 2] = returnValue;
+            else HEAPF64[e.data.returnValue >> 3] = returnValue;
+          }
+          var waitAddress = e.data.waitAddress;
+          if (waitAddress) {
+            Atomics.store(HEAP32, waitAddress >> 2, 1);
+            Atomics.wake(HEAP32, waitAddress >> 2, 1);
+          }
+          if (e.data.proxiedCall) return;
+
           // If this message is intended to a recipient that is not the main thread, forward it to the target thread.
           if (e.data.targetThread && e.data.targetThread != _pthread_self()) {
             var thread = PThread.pthreads[e.data.targetThread];
@@ -307,123 +338,6 @@ var LibraryPThread = {
             PThread.receiveObjectTransfer(e.data);
           } else if (e.data.target === 'setimmediate') {
             worker.postMessage(e.data); // Worker wants to postMessage() to itself to implement setImmediate() emulation.
-
-          // TODO: Instead of handwriting the proxied call handlers here, autogenerate them in src/preamble.js.
-          } else if (e.data.target === 'proxiedCall_v') {
-            proxiedFunctionTable[e.data.func]();
-            Atomics.store(HEAP32, e.data.waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, e.data.waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_vi') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0);
-            var waitAddress = e.data.waitAddress;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_vii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1);
-            var waitAddress = e.data.waitAddress;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_viii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2);
-            var waitAddress = e.data.waitAddress;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_viiii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3);
-            var waitAddress = e.data.waitAddress;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_viiiii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4);
-            var waitAddress = e.data.waitAddress;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_viiiiii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4, e.data.p5);
-            var waitAddress = e.data.waitAddress;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_viiiiiii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4, e.data.p5, e.data.p6);
-            var waitAddress = e.data.waitAddress;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_viiiiiiii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4, e.data.p5, e.data.p6, e.data.p7);
-            var waitAddress = e.data.waitAddress;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_viiiiiiiii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4, e.data.p5, e.data.p6, e.data.p7, e.data.p8);
-            var waitAddress = e.data.waitAddress;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_i') {
-            var retValue = proxiedFunctionTable[e.data.func]();
-            var waitAddress = e.data.returnValue + 4;
-            HEAP32[e.data.returnValue >> 2] = retValue;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_ii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0);
-            var waitAddress = e.data.returnValue + 4;
-            HEAP32[e.data.returnValue >> 2] = retValue;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_iii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1);
-            var waitAddress = e.data.returnValue + 4;
-            HEAP32[e.data.returnValue >> 2] = retValue;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_iiii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2);
-            var waitAddress = e.data.returnValue + 4;
-            HEAP32[e.data.returnValue >> 2] = retValue;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_iiiii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3);
-            var waitAddress = e.data.returnValue + 4;
-            HEAP32[e.data.returnValue >> 2] = retValue;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_iiiiii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4);
-            var waitAddress = e.data.returnValue + 4;
-            HEAP32[e.data.returnValue >> 2] = retValue;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_iiiiiii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4, e.data.p5);
-            var waitAddress = e.data.returnValue + 4;
-            HEAP32[e.data.returnValue >> 2] = retValue;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_iiiiiiii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4, e.data.p5, e.data.p6);
-            var waitAddress = e.data.returnValue + 4;
-            HEAP32[e.data.returnValue >> 2] = retValue;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_iiiiiiiii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4, e.data.p5, e.data.p6, e.data.p7);
-            var waitAddress = e.data.returnValue + 4;
-            HEAP32[e.data.returnValue >> 2] = retValue;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_iiiiiiiiii') {
-            var retValue = proxiedFunctionTable[e.data.func](e.data.p0, e.data.p1, e.data.p2, e.data.p3, e.data.p4, e.data.p5, e.data.p6, e.data.p7, e.data.p8);
-            var waitAddress = e.data.returnValue + 4;
-            HEAP32[e.data.returnValue >> 2] = retValue;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
-          } else if (e.data.target === 'proxiedCall_d') {
-            var retValue = proxiedFunctionTable[e.data.func]();
-            var waitAddress = e.data.returnValue + 8;
-            HEAPF64[e.data.returnValue >> 3] = retValue;
-            Atomics.store(HEAP32, waitAddress >> 2, 1);
-            Atomics.wake(HEAP32, waitAddress >> 2, 1);
           } else {
             Module['printErr']("worker sent an unknown command " + e.data.cmd);
             console.error(e.data);
