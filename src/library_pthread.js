@@ -636,16 +636,22 @@ var LibraryPThread = {
             Module['printErr']('pthread_create: cannot transfer canvas with ID "' + name + '" to thread, since the current thread does not have control over it!');
             return {{{ cDefine('EPERM') }}}; // Operation not permitted, some other thread is accessing the canvas.
           }
-          if (!canvas.transferControlToOffscreen) {
+          if (canvas.transferControlToOffscreen) {
+            offscreenCanvas = canvas.transferControlToOffscreen();
+            canvas.controlTransferredOffscreen = true;
+            offscreenCanvas.id = canvas.id;
+          } else {
             Module['printErr']('pthread_create: cannot transfer control of canvas "' + name + '" to pthread, because current browser does not support OffscreenCanvas!');
+            // If building with OFFSCREEN_FRAMEBUFFER=1 mode, we don't need to be able to transfer control to offscreen, but WebGL can be proxied from worker to main thread.
+#if !OFFSCREEN_FRAMEBUFFER
             return {{{ cDefine('ENOSYS') }}}; // Function not implemented, browser doesn't have support for this.
+#endif
           }
-          offscreenCanvas = canvas.transferControlToOffscreen();
-          canvas.controlTransferredOffscreen = true;
-          offscreenCanvas.id = canvas.id;
         }
-        transferList.push(offscreenCanvas);
-        offscreenCanvases[offscreenCanvas.id] = offscreenCanvas;
+        if (offscreenCanvas) {
+          transferList.push(offscreenCanvas);
+          offscreenCanvases[offscreenCanvas.id] = offscreenCanvas;
+        }
       } catch(e) {
         Module['printErr']('pthread_create: failed to transfer control of canvas "' + name + '" to OffscreenCanvas! Error: ' + e);
         return {{{ cDefine('EINVAL') }}}; // Hitting this might indicate an implementation bug or some other internal error
