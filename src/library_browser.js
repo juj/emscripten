@@ -1162,7 +1162,7 @@ var LibraryBrowser = {
       if (typeof GL !== 'undefined' && GL.currentContext) {
         if (GLctxIsOnParentThread) {
           // TODO: This should only be called if GL.currentContext.attributes.explicitSwapControl == false, but in a pthread, we don't currently know which value this flag has.
-          _emscripten_webgl_commit_frame();
+//          _emscripten_webgl_commit_frame();
         } else if (!GL.currentContext.attributes.explicitSwapControl && GL.currentContext.GLctx.commit) {
           GL.currentContext.GLctx.commit();
         }
