@@ -434,7 +434,9 @@ var LibraryGL = {
       }
 
 #if OFFSCREEN_FRAMEBUFFER
-      webGLContextAttributes['preserveDrawingBuffer'] = true;
+      // In proxied operation mode, rAF()/setTimeout() functions do not delimit frame boundaries, so can't have WebGL implementation
+      // try to detect when it's ok to discard contents of the rendered backbuffer.
+      if (webGLContextAttributes['renderViaOffscreenBackBuffer']) webGLContextAttributes['preserveDrawingBuffer'] = true;
 #endif
 
 
@@ -570,7 +572,7 @@ var LibraryGL = {
     // which rendering is performed to, and finally flipped to the main screen.
     createOffscreenFramebuffer: function(context) {
       var gl = context.GLctx;
-      console.log('Creating default framebuffer of size ' + gl.canvas.width + 'x' + gl.canvas.height);
+      console.log('Creating offscreen framebuffer of size ' + gl.canvas.width + 'x' + gl.canvas.height);
 
       // Create FBO
       var fbo = gl.createFramebuffer();
@@ -711,7 +713,7 @@ var LibraryGL = {
       }
 
 #if OFFSCREEN_FRAMEBUFFER
-      GL.createOffscreenFramebuffer(context);
+      if (webGLContextAttributes['renderViaOffscreenBackBuffer']) GL.createOffscreenFramebuffer(context);
 #endif
 
       return handle;
@@ -4137,6 +4139,9 @@ var LibraryGL = {
 #endif
 
 #if OFFSCREEN_FRAMEBUFFER
+    // defaultFbo may not be present if 'renderViaOffscreenBackBuffer' was not enabled during context creation time,
+    // i.e. setting -s OFFSCREEN_FRAMEBUFFER=1 at compilation time does not yet mandate that offscreen back buffer
+    // is being used, but that is ultimately decided at context creation time.
     GLctx.bindFramebuffer(target, framebuffer ? GL.framebuffers[framebuffer] : GLctx.canvas.GLctxObject.defaultFbo);
 #else
     GLctx.bindFramebuffer(target, framebuffer ? GL.framebuffers[framebuffer] : null);
