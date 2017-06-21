@@ -418,6 +418,90 @@ var LibraryGL = {
     },
 #endif
 
+#if TRACE_WEBGL_CALLS
+    webGLFunctionLength: function(f) {
+      var l0 = ['getContextAttributes','isContextLost','getSupportedExtensions','createBuffer','createFramebuffer','createProgram','createRenderbuffer','createTexture','finish','flush','getError', 'createVertexArray', 'createQuery', 'createSampler', 'createTransformFeedback', 'endTransformFeedback', 'pauseTransformFeedback', 'resumeTransformFeedback', 'commit'];
+      var l1 = ['getExtension','activeTexture','blendEquation','checkFramebufferStatus','clear','clearDepth','clearStencil','compileShader','createShader','cullFace','deleteBuffer','deleteFramebuffer','deleteProgram','deleteRenderbuffer','deleteShader','deleteTexture','depthFunc','depthMask','disable','disableVertexAttribArray','enable','enableVertexAttribArray','frontFace','generateMipmap','getAttachedShaders','getParameter','getProgramInfoLog','getShaderInfoLog','getShaderSource','isBuffer','isEnabled','isFramebuffer','isProgram','isRenderbuffer','isShader','isTexture','lineWidth','linkProgram','stencilMask','useProgram','validateProgram', 'deleteQuery', 'isQuery', 'deleteVertexArray', 'bindVertexArray', 'isVertexArray', 'drawBuffers', 'readBuffer', 'endQuery', 'deleteSampler', 'isSampler', 'isSync', 'deleteSync', 'deleteTransformFeedback', 'isTransformFeedback', 'beginTransformFeedback'];
+      var l2 = ['attachShader','bindBuffer','bindFramebuffer','bindRenderbuffer','bindTexture','blendEquationSeparate','blendFunc','depthRange','detachShader','getActiveAttrib','getActiveUniform','getAttribLocation','getBufferParameter','getProgramParameter','getRenderbufferParameter','getShaderParameter','getShaderPrecisionFormat','getTexParameter','getUniform','getUniformLocation','getVertexAttrib','getVertexAttribOffset','hint','pixelStorei','polygonOffset','sampleCoverage','shaderSource','stencilMaskSeparate','uniform1f','uniform1fv','uniform1i','uniform1iv','uniform2fv','uniform2iv','uniform3fv','uniform3iv','uniform4fv','uniform4iv','vertexAttrib1f','vertexAttrib1fv','vertexAttrib2fv','vertexAttrib3fv','vertexAttrib4fv', 'vertexAttribDivisor', 'beginQuery', 'invalidateFramebuffer', 'getFragDataLocation', 'uniform1ui', 'uniform1uiv', 'uniform2uiv', 'uniform3uiv', 'uniform4uiv', 'vertexAttribI4iv', 'vertexAttribI4uiv', 'getQuery', 'getQueryParameter', 'bindSampler', 'getSamplerParameter', 'fenceSync', 'getSyncParameter', 'bindTransformFeedback', 'getTransformFeedbackVarying', 'getIndexedParameter', 'getUniformIndices', 'getUniformBlockIndex', 'getActiveUniformBlockName'];
+      var l3 = ['bindAttribLocation','bufferData','bufferSubData','drawArrays','getFramebufferAttachmentParameter','stencilFunc','stencilOp','texParameterf','texParameteri','uniform2f','uniform2i','uniformMatrix2fv','uniformMatrix3fv','uniformMatrix4fv','vertexAttrib2f', 'getBufferSubData', 'getInternalformatParameter', 'uniform2ui', 'uniformMatrix2x3fv', 'uniformMatrix3x2fv', 'uniformMatrix2x4fv', 'uniformMatrix4x2fv', 'uniformMatrix3x4fv', 'uniformMatrix4x3fv', 'clearBufferiv', 'clearBufferuiv', 'clearBufferfv', 'samplerParameteri', 'samplerParameterf', 'clientWaitSync', 'waitSync', 'transformFeedbackVaryings', 'bindBufferBase', 'getActiveUniforms', 'getActiveUniformBlockParameter', 'uniformBlockBinding'];
+      var l4 = ['blendColor','blendFuncSeparate','clearColor','colorMask','drawElements','framebufferRenderbuffer','renderbufferStorage','scissor','stencilFuncSeparate','stencilOpSeparate','uniform3f','uniform3i','vertexAttrib3f','viewport', 'drawArraysInstanced', 'uniform3ui', 'clearBufferfi'];
+      var l5 = ['framebufferTexture2D','uniform4f','uniform4i','vertexAttrib4f', 'drawElementsInstanced', 'copyBufferSubData', 'framebufferTextureLayer', 'renderbufferStorageMultisample', 'texStorage2D', 'uniform4ui', 'vertexAttribI4i', 'vertexAttribI4ui', 'vertexAttribIPointer', 'bindBufferRange'];
+      var l6 = ['texImage2D', 'vertexAttribPointer', 'invalidateSubFramebuffer', 'texStorage3D', 'drawRangeElements'];
+      var l7 = ['compressedTexImage2D', 'readPixels', 'texSubImage2D'];
+      var l8 = ['compressedTexSubImage2D', 'copyTexImage2D', 'copyTexSubImage2D', 'compressedTexImage3D'];
+      var l9 = ['copyTexSubImage3D'];
+      var l10 = ['blitFramebuffer', 'texImage3D', 'compressedTexSubImage3D'];
+      var l11 = ['texSubImage3D'];
+      if (l0.indexOf(f) != -1) return 0;
+      if (l1.indexOf(f) != -1) return 1;
+      if (l2.indexOf(f) != -1) return 2;
+      if (l3.indexOf(f) != -1) return 3;
+      if (l4.indexOf(f) != -1) return 4;
+      if (l5.indexOf(f) != -1) return 5;
+      if (l6.indexOf(f) != -1) return 6;
+      if (l7.indexOf(f) != -1) return 7;
+      if (l8.indexOf(f) != -1) return 8;
+      if (l9.indexOf(f) != -1) return 9;
+      if (l10.indexOf(f) != -1) return 10;
+      if (l11.indexOf(f) != -1) return 11;
+      throw 'Unexpected WebGL function ' + f;
+    },
+
+    hookWebGLFunction: function(f, glCtx) {
+      var realf = 'real_' + f;
+      glCtx[realf] = glCtx[f];
+      var numArgs = GL.webGLFunctionLength(f); // On Firefox & Chrome, could do "glCtx[realf].length", but that doesn't work on Edge, which always reports 0.
+      // Accessing 'arguments' is super slow, so to avoid overhead, statically reason the number of arguments.
+      switch(numArgs) {
+        case 0: glCtx[f] = function webgl_0() { var ret = glCtx[realf](); console.log(f + '() -> ' + ret); return ret; }; break;
+        case 1: glCtx[f] = function webgl_1(a1) { var ret = glCtx[realf](a1); console.log(f + '('+a1+') -> ' + ret); return ret; }; break;
+        case 2: glCtx[f] = function webgl_2(a1, a2) { var ret = glCtx[realf](a1, a2); console.log(f + '('+a1+', ' + a2 +') -> ' + ret); return ret; }; break;
+        case 3: glCtx[f] = function webgl_3(a1, a2, a3) { var ret = glCtx[realf](a1, a2, a3); console.log(f + '('+a1+', ' + a2 +', ' + a3 +') -> ' + ret); return ret; }; break;
+        case 4: glCtx[f] = function webgl_4(a1, a2, a3, a4) { var ret = glCtx[realf](a1, a2, a3, a4); console.log(f + '('+a1+', ' + a2 +', ' + a3 +', ' + a4 +') -> ' + ret); return ret; }; break;
+        case 5: glCtx[f] = function webgl_5(a1, a2, a3, a4, a5) { var ret = glCtx[realf](a1, a2, a3, a4, a5); console.log(f + '('+a1+', ' + a2 +', ' + a3 +', ' + a4 +', ' + a5 +') -> ' + ret); return ret; }; break;
+        case 6: glCtx[f] = function webgl_6(a1, a2, a3, a4, a5, a6) { var ret = glCtx[realf](a1, a2, a3, a4, a5, a6); console.log(f + '('+a1+', ' + a2 +', ' + a3 +', ' + a4 +', ' + a5 +', ' + a6 +') -> ' + ret); return ret; }; break;
+        case 7: glCtx[f] = function webgl_7(a1, a2, a3, a4, a5, a6, a7) { var ret = glCtx[realf](a1, a2, a3, a4, a5, a6, a7); console.log(f + '('+a1+', ' + a2 +', ' + a3 +', ' + a4 +', ' + a5 +', ' + a6 +', ' + a7 +') -> ' + ret); return ret; }; break;
+        case 8: glCtx[f] = function webgl_8(a1, a2, a3, a4, a5, a6, a7, a8) { var ret = glCtx[realf](a1, a2, a3, a4, a5, a6, a7, a8); console.log(f + '('+a1+', ' + a2 +', ' + a3 +', ' + a4 +', ' + a5 +', ' + a6 +', ' + a7 +', ' + a8 +') -> ' + ret); return ret; }; break;
+        case 9: glCtx[f] = function webgl_9(a1, a2, a3, a4, a5, a6, a7, a8, a9) { var ret = glCtx[realf](a1, a2, a3, a4, a5, a6, a7, a8, a9); console.log(f + '('+a1+', ' + a2 +', ' + a3 +', ' + a4 +', ' + a5 +', ' + a6 +', ' + a7 +', ' + a8 +', ' + a9 +') -> ' + ret); return ret; }; break;
+        case 10: glCtx[f] = function webgl_10(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) { var ret = glCtx[realf](a1, a2, a3, a4, a5, a6, a7, a8, a9, a10); console.log(f + '('+a1+', ' + a2 +', ' + a3 +', ' + a4 +', ' + a5 +', ' + a6 +', ' + a7 +', ' + a8 +', ' + a9 +', ' + a10 +') -> ' + ret); return ret; }; break;
+        case 11: glCtx[f] = function webgl_11(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) { var ret = glCtx[realf](a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11); console.log(f + '('+a1+', ' + a2 +', ' + a3 +', ' + a4 +', ' + a5 +', ' + a6 +', ' + a7 +', ' + a8 +', ' + a9 +', ' + a10 +', ' + a11 +') -> ' + ret); return ret; }; break;
+        default: throw 'hookWebGL failed! Unexpected length ' + glCtx[realf].length;
+      }
+    },
+
+    hookWebGL: function(glCtx) {
+      if (!glCtx) glCtx = this.detectWebGLContext();
+      if (!glCtx) return;
+      if (!((typeof WebGLRenderingContext !== 'undefined' && glCtx instanceof WebGLRenderingContext)
+       || (typeof WebGL2RenderingContext !== 'undefined' && glCtx instanceof WebGL2RenderingContext))) {
+        document.getElementById("toggle_webgl_profile").disabled = true;
+        return;
+      }
+
+      if (glCtx.cpuprofilerAlreadyHooked) return;
+      glCtx.cpuprofilerAlreadyHooked = true;
+
+      // Hot GL functions are ones that you'd expect to find during render loops (render calls, dynamic resource uploads), cold GL functions are load time functions (shader compilation, texture/mesh creation)
+      // Distinguishing between these two allows pinpointing locations of troublesome GL usage that might cause performance issues.
+      for(var f in glCtx) {
+        if (typeof glCtx[f] !== 'function' || f.indexOf('real_') == 0) continue;
+        this.hookWebGLFunction(f, glCtx);
+      }
+      // The above injection won't work for texImage2D and texSubImage2D, which have multiple overloads.
+      glCtx['texImage2D'] = function(a1, a2, a3, a4, a5, a6, a7, a8, a9) { 
+        var ret = (a7 !== undefined) ? glCtx['real_texImage2D'](a1, a2, a3, a4, a5, a6, a7, a8, a9) : glCtx['real_texImage2D'](a1, a2, a3, a4, a5, a6);
+        return ret;
+      };
+      glCtx['texSubImage2D'] = function(a1, a2, a3, a4, a5, a6, a7, a8, a9) { 
+        var ret = (a8 !== undefined) ? glCtx['real_texSubImage2D'](a1, a2, a3, a4, a5, a6, a7, a8, a9) : glCtx['real_texSubImage2D'](a1, a2, a3, a4, a5, a6, a7);
+        return ret;
+      };
+      glCtx['texSubImage3D'] = function(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) { 
+        var ret = (a9 !== undefined) ? glCtx['real_texSubImage3D'](a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) : glCtx['real_texSubImage2D'](a1, a2, a3, a4, a5, a6, a7, a8);
+        return ret;
+      };
+    },
+#endif
     // Returns the context handle to the new context.
     createContext: function(canvas, webGLContextAttributes) {
       if (typeof webGLContextAttributes['majorVersion'] === 'undefined' && typeof webGLContextAttributes['minorVersion'] === 'undefined') {
@@ -476,93 +560,11 @@ var LibraryGL = {
         Module.print('Could not create canvas: ' + [errorInfo, e, JSON.stringify(webGLContextAttributes)]);
         return 0;
       }
-#if GL_DEBUG
-      function wrapDebugGL(ctx) {
-
-        var printObjectList = [];
-
-        function prettyPrint(arg) {
-          if (typeof arg == 'undefined') return '!UNDEFINED!';
-          if (typeof arg == 'boolean') arg = arg + 0;
-          if (!arg) return arg;
-          var index = printObjectList.indexOf(arg);
-          if (index >= 0) return '<' + arg + '|'; // + index + '>';
-          if (arg.toString() == '[object HTMLImageElement]') {
-            return arg + '\n\n';
-          }
-          if (arg.byteLength) {
-            return '{' + Array.prototype.slice.call(arg, 0, Math.min(arg.length, 400)) + '}'; // Useful for correct arrays, less so for compiled arrays, see the code below for that
-            var buf = new ArrayBuffer(32);
-            var i8buf = new Int8Array(buf);
-            var i16buf = new Int16Array(buf);
-            var f32buf = new Float32Array(buf);
-            switch(arg.toString()) {
-              case '[object Uint8Array]':
-                i8buf.set(arg.subarray(0, 32));
-                break;
-              case '[object Float32Array]':
-                f32buf.set(arg.subarray(0, 5));
-                break;
-              case '[object Uint16Array]':
-                i16buf.set(arg.subarray(0, 16));
-                break;
-              default:
-                alert('unknown array for debugging: ' + arg);
-                throw 'see alert';
-            }
-            var ret = '{' + arg.byteLength + ':\n';
-            var arr = Array.prototype.slice.call(i8buf);
-            ret += 'i8:' + arr.toString().replace(/,/g, ',') + '\n';
-            arr = Array.prototype.slice.call(f32buf, 0, 8);
-            ret += 'f32:' + arr.toString().replace(/,/g, ',') + '}';
-            return ret;
-          }
-          if (typeof arg == 'object') {
-            printObjectList.push(arg);
-            return '<' + arg + '|'; // + (printObjectList.length-1) + '>';
-          }
-          if (typeof arg == 'number') {
-            if (arg > 0) return '0x' + arg.toString(16) + ' (' + arg + ')';
-          }
-          return arg;
-        }
-
-        var wrapper = {};
-        for (var prop in ctx) {
-          (function(prop) {
-            switch (typeof ctx[prop]) {
-              case 'function': {
-                wrapper[prop] = function gl_wrapper() {
-                  var printArgs = Array.prototype.slice.call(arguments).map(prettyPrint);
-                  dump('[gl_f:' + prop + ':' + printArgs + ']\n');
-                  var ret = ctx[prop].apply(ctx, arguments);
-                  if (typeof ret != 'undefined') {
-                    dump('[     gl:' + prop + ':return:' + prettyPrint(ret) + ']\n');
-                  }
-                  return ret;
-                }
-                break;
-              }
-              case 'number': case 'string': {
-                wrapper.__defineGetter__(prop, function() {
-                  //dump('[gl_g:' + prop + ':' + ctx[prop] + ']\n');
-                  return ctx[prop];
-                });
-                wrapper.__defineSetter__(prop, function(value) {
-                  dump('[gl_s:' + prop + ':' + value + ']\n');
-                  ctx[prop] = value;
-                });
-                break;
-              }
-            }
-          })(prop);
-        }
-        return wrapper;
-      }
-#endif
-      // possible GL_DEBUG entry point: ctx = wrapDebugGL(ctx);
 
       if (!ctx) return 0;
+#if TRACE_WEBGL_CALLS
+      GL.hookWebGL(ctx);
+#endif
       return GL.registerContext(ctx, webGLContextAttributes);
     },
 
@@ -1108,6 +1110,8 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
+  glGetStringi__proxy: 'main_gl',
+  glGetStringi__sig: 'iii',
   glGetStringi: function(name, index) {
     if (GLctx.canvas.GLctxObject.version < 2) {
       GL.recordError(0x0502 /* GL_INVALID_OPERATION */); // Calling GLES3/WebGL2 function with a GLES2/WebGL1 context
@@ -1979,25 +1983,25 @@ var LibraryGL = {
     if (!emscriptenWebGLValidateMapBufferTarget(target)) {
       GL.recordError(0x0500/*GL_INVALID_ENUM*/);
       Module.printErr('GL_INVALID_ENUM in glFlushMappedBufferRange');
-      return 0;
+      return;
     }
 
     var mapping = GL.mappedBuffers[emscriptenWebGLGetBufferBinding(target)];
     if (!mapping) {
       GL.recordError(0x0502 /* GL_INVALID_OPERATION */);
       Module.printError('buffer was never mapped in glFlushMappedBufferRange');
-      return 0;
+      return;
     }
 
     if (!(mapping.access & 0x10)) {
       GL.recordError(0x0502 /* GL_INVALID_OPERATION */);
       Module.printError('buffer was not mapped with GL_MAP_FLUSH_EXPLICIT_BIT in glFlushMappedBufferRange');
-      return 0;
+      return;
     }
     if (offset < 0 || length < 0 || offset + length > mapping.length) {
       GL.recordError(0x0501 /* GL_INVALID_VALUE */);
       Module.printError('invalid range in glFlushMappedBufferRange');
-      return 0;
+      return;
     }
 
     GLctx.bufferSubData(
@@ -3718,11 +3722,9 @@ var LibraryGL = {
 #endif
 
   glGetAttribLocation__proxy: 'main_gl',
-  glGetAttribLocation__sig: 'vii',
+  glGetAttribLocation__sig: 'iii',
   glGetAttribLocation: function(program, name) {
-    program = GL.programs[program];
-    name = Pointer_stringify(name);
-    return GLctx.getAttribLocation(program, name);
+    return GLctx.getAttribLocation(GL.programs[program], Pointer_stringify(name));
   },
 
   glGetActiveAttrib__proxy: 'main_gl',
