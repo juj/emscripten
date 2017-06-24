@@ -111,7 +111,7 @@ void __pthread_testcancel()
 	struct pthread *self = pthread_self();
 	if (self->canceldisable) return;
 	if (_pthread_isduecanceled(self)) {
-		EM_ASM( throw 'Canceled!'; );
+		THREAD_LOCAL_EM_ASM( throw 'Canceled!'; );
 	}
 }
 
@@ -291,7 +291,7 @@ void EMSCRIPTEN_KEEPALIVE emscripten_async_run_in_main_thread(em_queued_call *ca
 	// If the call queue was empty, the main runtime thread is likely idle in the browser event loop,
 	// so send a message to it to ensure that it wakes up to start processing the command we have posted.
 	if (head == tail) {
-		EM_ASM(postMessage({ cmd: 'processQueuedMainThreadWork' }));
+		THREAD_LOCAL_EM_ASM(postMessage({ cmd: 'processQueuedMainThreadWork' }));
 	}
 
 	emscripten_atomic_store_u32((void*)&call_queue_tail, new_tail);

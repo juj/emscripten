@@ -45,22 +45,25 @@ void emscripten_asm_const_async_on_main_thread(const char* code);
 #endif
 #endif // __asmjs
 
-#define EM_ASM(...) emscripten_asm_const(#__VA_ARGS__)
-#define EM_ASM_(code, ...) emscripten_asm_const_int(#code, __VA_ARGS__)
-#define EM_ASM_ARGS(code, ...) emscripten_asm_const_int(#code, __VA_ARGS__)
-#define EM_ASM_INT(code, ...) emscripten_asm_const_int(#code, __VA_ARGS__)
-#define EM_ASM_DOUBLE(code, ...) emscripten_asm_const_double(#code, __VA_ARGS__)
-#define EM_ASM_INT_V(code) emscripten_asm_const_int(#code)
-#define EM_ASM_DOUBLE_V(code) emscripten_asm_const_double(#code)
+// Runs the JS code block on the current thread:
+#define THREAD_LOCAL_EM_ASM(...) emscripten_asm_const(#__VA_ARGS__)
+#define THREAD_LOCAL_EM_ASM_(code, ...) emscripten_asm_const_int(#code, __VA_ARGS__)
+#define THREAD_LOCAL_EM_ASM_ARGS(code, ...) emscripten_asm_const_int(#code, __VA_ARGS__)
+#define THREAD_LOCAL_EM_ASM_INT(code, ...) emscripten_asm_const_int(#code, __VA_ARGS__)
+#define THREAD_LOCAL_EM_ASM_DOUBLE(code, ...) emscripten_asm_const_double(#code, __VA_ARGS__)
+#define THREAD_LOCAL_EM_ASM_INT_V(code) emscripten_asm_const_int(#code)
+#define THREAD_LOCAL_EM_ASM_DOUBLE_V(code) emscripten_asm_const_double(#code)
 
-#define SYNC_EM_ASM(...) emscripten_asm_const_sync_on_main_thread(#__VA_ARGS__)
-#define SYNC_EM_ASM_(code, ...) emscripten_asm_const_int_sync_on_main_thread(#code, __VA_ARGS__)
-#define SYNC_EM_ASM_ARGS(code, ...) emscripten_asm_const_int_sync_on_main_thread(#code, __VA_ARGS__)
-#define SYNC_EM_ASM_INT(code, ...) emscripten_asm_const_int_sync_on_main_thread(#code, __VA_ARGS__)
-#define SYNC_EM_ASM_DOUBLE(code, ...) emscripten_asm_const_double_sync_on_main_thread(#code, __VA_ARGS__)
-#define SYNC_EM_ASM_INT_V(code) emscripten_asm_const_int_sync_on_main_thread(#code)
-#define SYNC_EM_ASM_DOUBLE_V(code) emscripten_asm_const_double_sync_on_main_thread(#code)
+// Runs the JS code block synchronously on the main thread:
+#define EM_ASM(...) emscripten_asm_const_sync_on_main_thread(#__VA_ARGS__)
+#define EM_ASM_(code, ...) emscripten_asm_const_int_sync_on_main_thread(#code, __VA_ARGS__)
+#define EM_ASM_ARGS(code, ...) emscripten_asm_const_int_sync_on_main_thread(#code, __VA_ARGS__)
+#define EM_ASM_INT(code, ...) emscripten_asm_const_int_sync_on_main_thread(#code, __VA_ARGS__)
+#define EM_ASM_DOUBLE(code, ...) emscripten_asm_const_double_sync_on_main_thread(#code, __VA_ARGS__)
+#define EM_ASM_INT_V(code) emscripten_asm_const_int_sync_on_main_thread(#code)
+#define EM_ASM_DOUBLE_V(code) emscripten_asm_const_double_sync_on_main_thread(#code)
 
+// Runs the JS code asynchronously on the main thread: (i.e. does not stop to wait for the return value)
 #define ASYNC_EM_ASM(...) emscripten_asm_const_async_on_main_thread(#__VA_ARGS__)
 
 #endif // __em_asm_h__
