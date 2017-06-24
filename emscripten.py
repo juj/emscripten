@@ -652,14 +652,17 @@ def include_asm_consts(pre, forwarded_json, metadata, settings):
 
   asm_consts, all_sigs = all_asm_consts(metadata)
   asm_const_funcs = []
-  for sig in set(all_sigs):
-    forwarded_json['Functions']['libraryFunctions']['_emscripten_asm_const_' + sig] = 1
+  for call_type, sig in set(all_sigs):
+    forwarded_json['Functions']['libraryFunctions']['_emscripten_asm_const_' + call_type + sig] = 1
     args = ['a%d' % i for i in range(len(sig)-1)]
     all_args = ['code'] + args
+    if call_type == 'sync_on_main_thread_': proxy_to_main_thread = '  if (ENVIRONMENT_IS_PTHREAD) { console.error("proxying function " + code); return _emscripten_sync_run_in_browser_thread_' + sig + '(-1 - ' + ','.join(all_args) + '); } \n'
+    elif call_type == 'async_on_main_thread_': proxy_to_main_thread = '  if (ENVIRONMENT_IS_PTHREAD) { console.error("async proxying function " + code); return _emscripten_async_run_in_browser_thread_' + sig + '(-1 - ' + ','.join(all_args) + '); } \n'
+    else: proxy_to_main_thread = ''
     asm_const_funcs.append(r'''
 function _emscripten_asm_const_%s(%s) {
-  return ASM_CONSTS[code](%s);
-}''' % (sig.encode('utf-8'), ', '.join(all_args), ', '.join(args)))
+%s  return ASM_CONSTS[code](%s);
+}''' % (call_type + sig.encode('utf-8'), ', '.join(all_args), proxy_to_main_thread, ', '.join(args)))
 
   asm_consts_text = '\nvar ASM_CONSTS = [' + ',\n '.join(asm_consts) + '];\n'
   asm_funcs_text = '\n'.join(asm_const_funcs) + '\n'
@@ -673,7 +676,8 @@ def all_asm_consts(metadata):
   all_sigs = []
   for k, v in metadata['asmConsts'].iteritems():
     const = v[0].encode('utf-8')
-    sigs = v[1]
+    call_types = v[1][0::2]
+    sigs = v[1][1::2]
     if len(const) > 1 and const[0] == '"' and const[-1] == '"':
       const = const[1:-1]
     const = '{ ' + const + ' }'
@@ -683,7 +687,8 @@ def all_asm_consts(metadata):
       args.append('$' + str(i))
     const = 'function(' + ', '.join(args) + ') ' + const
     asm_consts[int(k)] = const
-    all_sigs += sigs
+    for i in range(len(sigs)):
+      all_sigs += [(call_types[i], sigs[i])]
   return asm_consts, all_sigs
 
 

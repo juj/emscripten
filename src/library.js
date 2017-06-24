@@ -4384,6 +4384,10 @@ LibraryManager.library = {
   emscripten_asm_const: true,
   emscripten_asm_const_int: true,
   emscripten_asm_const_double: true,
+  emscripten_asm_const_sync_on_main_thread: true,
+  emscripten_asm_const_int_sync_on_main_thread: true,
+  emscripten_asm_const_double_sync_on_main_thread: true,
+  emscripten_asm_const_async_on_main_thread: true,
 
   // ======== compiled code from system/lib/compiler-rt , see readme therein
   __muldsi3__asm: true,

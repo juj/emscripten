@@ -29,15 +29,21 @@ template <typename... Args> double emscripten_asm_const_double(const char* code,
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 void emscripten_asm_const(const char* code);
 int emscripten_asm_const_int(const char* code, ...);
 double emscripten_asm_const_double(const char* code, ...);
+
+void emscripten_asm_const_sync_on_main_thread(const char* code);
+int emscripten_asm_const_int_sync_on_main_thread(const char* code, ...);
+double emscripten_asm_const_double_sync_on_main_thread(const char* code, ...);
+
+void emscripten_asm_const_async_on_main_thread(const char* code);
+
 #ifdef __cplusplus
 }
 #endif
 #endif // __asmjs
-
-void emscripten_asm_const(const char* code);
 
 #define EM_ASM(...) emscripten_asm_const(#__VA_ARGS__)
 #define EM_ASM_(code, ...) emscripten_asm_const_int(#code, __VA_ARGS__)
@@ -46,5 +52,15 @@ void emscripten_asm_const(const char* code);
 #define EM_ASM_DOUBLE(code, ...) emscripten_asm_const_double(#code, __VA_ARGS__)
 #define EM_ASM_INT_V(code) emscripten_asm_const_int(#code)
 #define EM_ASM_DOUBLE_V(code) emscripten_asm_const_double(#code)
+
+#define SYNC_EM_ASM(...) emscripten_asm_const_sync_on_main_thread(#__VA_ARGS__)
+#define SYNC_EM_ASM_(code, ...) emscripten_asm_const_int_sync_on_main_thread(#code, __VA_ARGS__)
+#define SYNC_EM_ASM_ARGS(code, ...) emscripten_asm_const_int_sync_on_main_thread(#code, __VA_ARGS__)
+#define SYNC_EM_ASM_INT(code, ...) emscripten_asm_const_int_sync_on_main_thread(#code, __VA_ARGS__)
+#define SYNC_EM_ASM_DOUBLE(code, ...) emscripten_asm_const_double_sync_on_main_thread(#code, __VA_ARGS__)
+#define SYNC_EM_ASM_INT_V(code) emscripten_asm_const_int_sync_on_main_thread(#code)
+#define SYNC_EM_ASM_DOUBLE_V(code) emscripten_asm_const_double_sync_on_main_thread(#code)
+
+#define ASYNC_EM_ASM(...) emscripten_asm_const_async_on_main_thread(#__VA_ARGS__)
 
 #endif // __em_asm_h__
