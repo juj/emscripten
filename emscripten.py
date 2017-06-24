@@ -673,6 +673,7 @@ function _emscripten_asm_const_%s(%s) {
 
 def all_asm_consts(metadata):
   asm_consts = [0]*len(metadata['asmConsts'])
+  logging.error(str(metadata['asmConsts']))
   all_sigs = []
   for k, v in metadata['asmConsts'].iteritems():
     const = v[0].encode('utf-8')
