@@ -557,9 +557,9 @@ var LibraryEGL = {
   },
   
   // EGLAPI EGLBoolean EGLAPIENTRY eglMakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface read, EGLContext ctx);
-  eglMakeCurrent__proxy: 'main',
-  eglMakeCurrent__sig: 'iiiii',
-  eglMakeCurrent: function(display, draw, read, context) { 
+  eglMakeCurrent_main_thread__proxy: 'main',
+  eglMakeCurrent_main_thread__sig: 'iiiii',
+  eglMakeCurrent_main_thread: function(display, draw, read, context) {
     if (display != 62000 /* Magic ID for Emscripten 'default display' */) {
       EGL.setErrorCode(0x3008 /* EGL_BAD_DISPLAY */);
       return 0 /* EGL_FALSE */;
@@ -579,6 +579,16 @@ var LibraryEGL = {
     EGL.setErrorCode(0x3000 /* EGL_SUCCESS */);
     return 1 /* EGL_TRUE */;
   },
+
+#if USE_PTHREADS
+  eglMakeCurrent__deps: ['eglMakeCurrent_main_thread'],
+  eglMakeCurrent: function(display, draw, read, context) {
+    GLctxIsOnParentThread = true;
+    return _eglMakeCurrent_main_thread(display, draw, read, context);
+  },
+#else
+  eglMakeCurrent: 'eglMakeCurrent_main_thread',
+#endif
 
   // EGLAPI EGLContext EGLAPIENTRY eglGetCurrentContext(void);
   eglGetCurrentContext__proxy: 'main',
@@ -611,9 +621,15 @@ var LibraryEGL = {
   // EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surface);
   eglSwapBuffers__proxy: 'main',
   eglSwapBuffers__sig: 'i',
+#if USE_PTHREADS
+  eglSwapBuffers__deps: ['emscripten_webgl_commit_frame'],
+#endif
   eglSwapBuffers: function() {
 #if PROXY_TO_WORKER
     if (Browser.doSwapBuffers) Browser.doSwapBuffers();
+#endif
+#if USE_PTHREADS
+    _emscripten_webgl_commit_frame();
 #endif
 
     if (!EGL.defaultDisplayInitialized) {
