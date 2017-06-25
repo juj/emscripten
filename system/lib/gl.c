@@ -1728,7 +1728,7 @@ void* emscripten_GetProcAddress(const char *name_) {
   else if (!strcmp(name, "glCopyTexSubImage2D")) return emscripten_glCopyTexSubImage2D;
   else if (!strcmp(name, "glDrawBuffers")) return emscripten_glDrawBuffers;
 
-  EM_ASM_({
+  THREAD_LOCAL_EM_ASM_({
     Module.printErr('bad name in getProcAddress: ' + [Pointer_stringify($0), Pointer_stringify($1)]);
   }, name_, name);
   return 0;

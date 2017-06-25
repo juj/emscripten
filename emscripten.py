@@ -656,8 +656,8 @@ def include_asm_consts(pre, forwarded_json, metadata, settings):
     forwarded_json['Functions']['libraryFunctions']['_emscripten_asm_const_' + call_type + sig] = 1
     args = ['a%d' % i for i in range(len(sig)-1)]
     all_args = ['code'] + args
-    if call_type == 'sync_on_main_thread_': proxy_to_main_thread = '  if (ENVIRONMENT_IS_PTHREAD) { console.error("proxying function " + code); return _emscripten_sync_run_in_browser_thread_' + sig + '(-1 - ' + ','.join(all_args) + '); } \n'
-    elif call_type == 'async_on_main_thread_': proxy_to_main_thread = '  if (ENVIRONMENT_IS_PTHREAD) { console.error("async proxying function " + code); return _emscripten_async_run_in_browser_thread_' + sig + '(-1 - ' + ','.join(all_args) + '); } \n'
+    if shared.Settings.USE_PTHREADS and call_type == 'sync_on_main_thread_': proxy_to_main_thread = '  if (ENVIRONMENT_IS_PTHREAD) { console.error("proxying function " + code); return _emscripten_sync_run_in_browser_thread_' + sig + '(-1 - ' + ','.join(all_args) + '); } \n'
+    elif shared.Settings.USE_PTHREADS and call_type == 'async_on_main_thread_': proxy_to_main_thread = '  if (ENVIRONMENT_IS_PTHREAD) { console.error("async proxying function " + code); return _emscripten_async_run_in_browser_thread_' + sig + '(-1 - ' + ','.join(all_args) + '); } \n'
     else: proxy_to_main_thread = ''
     asm_const_funcs.append(r'''
 function _emscripten_asm_const_%s(%s) {
