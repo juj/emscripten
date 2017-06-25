@@ -121,6 +121,9 @@ int main(int argc, char *argv[])
     assert(eglSwapInterval(display, 2) == EGL_TRUE);
     assert(eglGetError() == EGL_SUCCESS);
 
+    assert(eglGetProcAddress("glClear") != 0);
+    assert(eglGetProcAddress("glWakaWaka") == 0);
+
     ret = eglTerminate(display);
     assert(eglGetError() == EGL_SUCCESS);
     assert(ret == EGL_TRUE);
