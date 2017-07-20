@@ -1464,6 +1464,8 @@ LibraryManager.library = {
 
   llvm_lifetime_start: function() {},
   llvm_lifetime_end: function() {},
+  llvm_lifetime_start_p0i8: function() {},
+  llvm_lifetime_end_p0i8: function() {},
 
   llvm_invariant_start: function() {},
   llvm_invariant_end: function() {},
