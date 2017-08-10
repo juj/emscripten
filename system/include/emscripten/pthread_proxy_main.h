@@ -21,6 +21,7 @@ typedef struct __main_args
 void *__emscripten_thread_main(void *param)
 {
   printf("pthread main!\n");
+  emscripten_set_thread_name(pthread_self(), "Application main thread"); // This is the main runtime thread for the application.
   __main_args *args = (__main_args*)param;
   int ret = emscripten_main(args->argc, args->argv);
 //  pthread_exit(ret);
@@ -42,7 +43,13 @@ int main(int argc, char **argv)
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
     pthread_attr_setstacksize(&attr, (EMSCRIPTEN_PTHREAD_STACK_SIZE));
 #ifdef EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES
+    // If user has defined EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES, then transfer those canvases over to the pthread.
     emscripten_pthread_attr_settransferredcanvases(&attr, (EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES));
+#else
+    // Otherwise by default, transfer whatever is set to Module.canvas.
+    char defaultCanvasID[32] = {};
+    EM_ASM_INT({ if (Module['canvas']) stringToUTF8('#' + Module['canvas'].id, $0, 32); }, defaultCanvasID);
+    if (defaultCanvasID[0]) emscripten_pthread_attr_settransferredcanvases(&attr, defaultCanvasID);
 #endif
     args.argc = argc;
     args.argv = argv;
