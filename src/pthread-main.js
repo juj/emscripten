@@ -113,10 +113,10 @@ this.onmessage = function(e) {
       } else if (e === 'SimulateInfiniteLoop') {
         return;
       } else {
-        Atomics.store(HEAPU32, (threadInfoStruct + 4 /*{{{ C_STRUCTS.pthread.threadExitCode }}}*/ ) >> 2, -2 /*A custom entry specific to Emscripten denoting that the thread crashed.*/);
+        Atomics.store(HEAPU32, (threadInfoStruct + 4 /*{{{ C_STRUCTS.pthread.threadExitCode }}}*/ ) >> 2, (e instanceof ExitStatus) ? e.status : -2 /*A custom entry specific to Emscripten denoting that the thread crashed.*/);
         Atomics.store(HEAPU32, (threadInfoStruct + 0 /*{{{ C_STRUCTS.pthread.threadStatus }}}*/ ) >> 2, 1); // Mark the thread as no longer running.
-        _emscripten_futex_wake(threadInfoStruct + 0 /*{{{ C_STRUCTS.pthread.threadStatus }}}*/, 0x7FFFFFFF/*INT_MAX*/); // wake all threads
-        throw e;
+        _emscripten_futex_wake(threadInfoStruct + 0 /*{{{ C_STRUCTS.pthread.threadStatus }}}*/, 0x7FFFFFFF/*INT_MAX*/); // Wake all threads waiting on this thread to finish.
+        if (!(e instanceof ExitStatus)) throw e;
       }
     }
     // The thread might have finished without calling pthread_exit(). If so, then perform the exit operation ourselves.
