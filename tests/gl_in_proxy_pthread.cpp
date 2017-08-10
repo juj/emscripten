@@ -24,6 +24,7 @@ int emscripten_main(int argc, char **argv)
   printf("Created context with handle %u\n", (unsigned int)ctx);
   emscripten_webgl_make_context_current(ctx);
 
+  printf("You should see the canvas fade from black to red.\n");
   double color = 0;
   for(int i = 0; i < 100; ++i)
   {

@@ -37,7 +37,7 @@ var LibraryPThread = {
 
 #if PTHREADS_PROFILING
       PThread.createProfilerBlock(PThread.mainThreadBlock);
-      PThread.setThreadName(PThread.mainThreadBlock, "main thread");
+      PThread.setThreadName(PThread.mainThreadBlock, "Browser main thread");
       PThread.setThreadStatus(PThread.mainThreadBlock, {{{ cDefine('EM_THREAD_STATUS_RUNNING') }}});
 #endif
     },
@@ -526,6 +526,9 @@ var LibraryPThread = {
     // Worker that hosts the spawned pthread.
     var transferredCanvasNames = {{{ makeGetValue('attr', 36, 'i32') }}}; // Comma-delimited list of IDs "canvas1, canvas2, ..."
     if (transferredCanvasNames) transferredCanvasNames = Pointer_stringify(transferredCanvasNames).split(',');
+#if GL_DEBUG
+    console.log('pthread_create: transferredCanvasNames= ' + transferredCanvasNames);
+#endif
 
     var offscreenCanvases = {}; // Dictionary of OffscreenCanvas objects we'll transfer to the created thread to own
     var moduleCanvasId = Module['canvas'] ? Module['canvas'].id : '';
@@ -555,6 +558,9 @@ var LibraryPThread = {
             return {{{ cDefine('EPERM') }}}; // Operation not permitted, some other thread is accessing the canvas.
           }
           if (canvas.transferControlToOffscreen) {
+#if GL_DEBUG
+            Module['printErr']('canvas.transferControlToOffscreen(), transferring canvas from main thread to pthread');
+#endif
             offscreenCanvas = canvas.transferControlToOffscreen();
             canvas.controlTransferredOffscreen = true;
             offscreenCanvas.id = canvas.id;
