@@ -574,8 +574,9 @@ var LibraryGL = {
     // which rendering is performed to, and finally flipped to the main screen.
     createOffscreenFramebuffer: function(context) {
       var gl = context.GLctx;
+#if GL_DEBUG
       console.log('Creating offscreen framebuffer of size ' + gl.canvas.width + 'x' + gl.canvas.height);
-
+#endif
       // Create FBO
       var fbo = gl.createFramebuffer();
       gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
