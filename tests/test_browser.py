@@ -3663,3 +3663,9 @@ window.close = function() {
       cmd = ['-lGL', '-O3', '-g2', '--shell-file', path_from_root('tests', 'canvas_animate_resize_shell.html'), '--separate-asm', '-s', 'GL_DEBUG=1', '--threadprofiler'] + args
       print ' '.join(cmd)
       self.btest('canvas_animate_resize.cpp', expected='1', args=cmd)
+
+  # Test that event backproxying works.
+  def test_html5_callbacks_on_calling_thread(self):
+    # TODO: Make this automatic by injecting mouse event in e.g. shell html file.
+    for args in [[], ['-DTEST_SYNC_BLOCKING_LOOP=1']]:
+      self.btest('html5_callbacks_on_calling_thread.c', expected='1', args=args + ['-s', 'USE_PTHREADS=1'])
