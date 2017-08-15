@@ -2,6 +2,10 @@
 // This is the entry point file that is loaded first by each Web Worker
 // that executes pthreads on the Emscripten application.
 
+//#if PTHREADS_DEBUG == 2
+console.error('Web worker pthread-main.js being parsed.');
+//#endif
+
 // Thread-local:
 var threadInfoStruct = 0; // Info area for this thread in Emscripten HEAP (shared). If zero, this worker is not currently hosting an executing pthread.
 var selfThreadId = 0; // The ID of this thread. 0 if not hosting a pthread.
@@ -28,8 +32,17 @@ var ENVIRONMENT_IS_PTHREAD = true;
 var Module = {};
 
 this.addEventListener('error', function(e) {
-  if (e.message.indexOf('SimulateInfiniteLoop') != -1) return e.preventDefault();
-  // Other errors propagate back to main browser thread's .onerror handler.
+  if (e.message.indexOf('SimulateInfiniteLoop') != -1) {
+//#if PTHREADS_DEBUG == 2
+    console.error('Pthread ' + selfThreadId + ': threw SimulateInfiniteLoop to exit to event handler');
+//#endif
+    return e.preventDefault();
+  } else {
+    // Other errors propagate back to main browser thread's .onerror handler.
+//#if PTHREADS_DEBUG
+    console.error('Pthread ' + selfThreadId + ' error: ' + e.toString());
+//#endif
+  }
 });
 
 function threadPrint() {
@@ -42,6 +55,9 @@ function threadPrintErr() {
 }
 function threadAlert() {
   var text = Array.prototype.slice.call(arguments).join(' ');
+//#if PTHREADS_DEBUG
+  console.error('Pthread ' + selfThreadId + ' calling alert(): ' + text);
+//#endif
   postMessage({cmd: 'alert', text: text, threadId: selfThreadId});
 }
 Module['print'] = threadPrint;
@@ -49,6 +65,14 @@ Module['printErr'] = threadPrintErr;
 this.alert = threadAlert;
 
 this.onmessage = function(e) {
+//#if PTHREADS_DEBUG == 2
+/*
+    if (e.data.target != 'setimmediate') { // Logging this message would spam too much.
+      console.error('Pthread ' + selfThreadId + ' onmessage: ' + (e.data.cmd || e.data.target));
+      console.error(e.data);
+    }
+*/    
+//#endif
   if (e.data.cmd === 'load') { // Preload command that is called once per worker to parse and load the Emscripten code.
     // Initialize the thread-local field(s):
     tempDoublePtr = e.data.tempDoublePtr;
@@ -61,6 +85,9 @@ this.onmessage = function(e) {
     DYNAMICTOP_PTR = e.data.DYNAMICTOP_PTR;
 
     PthreadWorkerInit = e.data.PthreadWorkerInit;
+//#if PTHREADS_DEBUG
+    console.error('Web Worker load: importing ' + e.data.url);
+//#endif
     importScripts(e.data.url);
     if (typeof FS !== 'undefined') FS.createStandardStreams();
     postMessage({ cmd: 'loaded' });
@@ -69,15 +96,21 @@ this.onmessage = function(e) {
   } else if (e.data.cmd === 'run') { // This worker was idle, and now should start executing its pthread entry point.
     threadInfoStruct = e.data.threadInfoStruct;
     __register_pthread_ptr(threadInfoStruct, /*isMainBrowserThread=*/0, /*isMainRuntimeThread=*/0); // Pass the thread address inside the asm.js scope to store it for fast access that avoids the need for a FFI out.
-    assert(threadInfoStruct);
     selfThreadId = e.data.selfThreadId;
     parentThreadId = e.data.parentThreadId;
+//#if PTHREADS_DEBUG
+    console.error('Web Worker run: threadInfoStruct: ' + threadInfoStruct + ', selfThreadId: ' + selfThreadId + ', parentThreadId: ' + parentThreadId);
+//#endif
+    assert(threadInfoStruct);
     assert(selfThreadId);
     assert(parentThreadId);
     // TODO: Emscripten runtime has these variables twice(!), once outside the asm.js module, and a second time inside the asm.js module.
     //       Review why that is? Can those get out of sync?
     STACK_BASE = STACKTOP = e.data.stackBase;
     STACK_MAX = STACK_BASE + e.data.stackSize;
+//#if PTHREADS_DEBUG == 2
+    console.error('Web Worker run: STACK_BASE: ' + STACK_BASE + ', Stack size: ' + e.data.stackSize + ', STACK_MAX: ' + STACK_MAX);
+//#endif
     assert(STACK_BASE != 0);
     assert(STACK_MAX > STACK_BASE);
     Runtime.establishStackSpace(e.data.stackBase, e.data.stackBase + e.data.stackSize);
@@ -85,13 +118,15 @@ this.onmessage = function(e) {
 //#if STACK_OVERFLOW_CHECK
     if (typeof writeStackCookie !== 'undefined') writeStackCookie();
 //#endif
-    var result = 0;
 
     PThread.receiveObjectTransfer(e.data);
-
     PThread.setThreadStatus(_pthread_self(), 1/*EM_THREAD_STATUS_RUNNING*/);
 
+    var result = 0;
     try {
+//#if PTHREADS_DEBUG == 2
+      console.error('Web Worker calling pthread main');
+//#endif
       // HACK: Some code in the wild has instead signatures of form 'void *ThreadMain()', which seems to be ok in native code.
       // To emulate supporting both in test suites, use the following form. This is brittle!
       if (typeof Module['asm']['dynCall_ii'] !== 'undefined') {
@@ -100,6 +135,9 @@ this.onmessage = function(e) {
         result = Module['asm'].dynCall_i(e.data.start_routine); // as a hack, try signature 'i' as fallback.
       }
     } catch(e) {
+//#if PTHREADS_DEBUG == 2
+      console.error('Web Worker main() threw an exception: ' + e.toString());
+//#endif
       if (e === 'Canceled!') {
         PThread.threadCancel();
         return;
@@ -114,14 +152,36 @@ this.onmessage = function(e) {
     }
     // The thread might have finished without calling pthread_exit(). If so, then perform the exit operation ourselves.
     // (This is a no-op if explicit pthread_exit() had been called prior.)
-    if (!Module['noExitRuntime']) PThread.threadExit(result);
-    else console.log('pthread noExitRuntime: not quitting.');
+    if (!Module['noExitRuntime']) {
+//#if PTHREADS_DEBUG == 2
+      console.error('pthread ' + selfThreadId + ' exited, no Module["noExitRuntime"] set, so quitting the thread.');
+//#endif
+      PThread.threadExit(result);
+    }
+    else {
+//#if PTHREADS_DEBUG == 2
+      console.log('pthread noExitRuntime: not quitting.');
+//#endif
+    }
   } else if (e.data.cmd === 'cancel') { // Main thread is asking for a pthread_cancel() on this thread.
     if (threadInfoStruct && PThread.thisThreadCancelState == 0/*PTHREAD_CANCEL_ENABLE*/) {
+//#if PTHREADS_DEBUG == 2
+      console.error('pthread ' + selfThreadId + ' is cancelling on request.');
+//#endif
       PThread.threadCancel();
-    }
+    } 
+//#if PTHREADS_DEBUG == 2
+    else console.error('pthread ' + selfThreadId + ' requested to be cancelled, but threadInfoStruct: ' + threadInfoStruct + ' no longer present, or PThread.thisThreadCancelState: ' + PThread.thisThreadCancelState + ' does not allow cancelling.');
+//#endif      
   } else if (e.data.target === 'setimmediate') {
     // no-op
+  } else if (e.data.cmd === 'processThreadQueue') {
+    if (threadInfoStruct) { // If this thread is actually running?
+      _emscripten_current_thread_process_queued_calls();
+    }
+//#if PTHREADS_DEBUG == 2
+    else console.error('pthread ' + selfThreadId + ' requested to process its thread queue, but but threadInfoStruct: ' + threadInfoStruct + ' no longer present, so ignoring.');
+//#endif
   } else {
     Module['printErr']('pthread-main.js received unknown command ' + e.data.cmd);
     console.error(e.data);
