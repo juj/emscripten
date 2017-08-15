@@ -569,33 +569,32 @@ var LibraryGL = {
     // which rendering is performed to, and finally flipped to the main screen.
     createOffscreenFramebuffer: function(context) {
       var gl = context.GLctx;
-#if GL_DEBUG
-      console.log('Creating offscreen framebuffer of size ' + gl.canvas.width + 'x' + gl.canvas.height);
-#endif
+
       // Create FBO
       var fbo = gl.createFramebuffer();
       gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
       context.defaultFbo = fbo;
 
-      // Create color render target to the FBO
-      var colorTarget = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, colorTarget);
+      // Create render targets to the FBO
+      context.defaultColorTarget = gl.createTexture();
+      context.defaultDepthTarget = gl.createRenderbuffer();
+      GL.resizeOffscreenFramebuffer(context); // Size them up correctly (use the same mechanism when resizing on demand)
+
+      gl.bindTexture(gl.TEXTURE_2D, context.defaultColorTarget);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, colorTarget, 0);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, context.defaultColorTarget, 0);
       gl.bindTexture(gl.TEXTURE_2D, null);
-      context.defaultColorTarget = colorTarget;
 
       // Create depth render target to the FBO
       var depthTarget = gl.createRenderbuffer();
-      gl.bindRenderbuffer(gl.RENDERBUFFER, depthTarget);
+      gl.bindRenderbuffer(gl.RENDERBUFFER, context.defaultDepthTarget);
       gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, gl.canvas.width, gl.canvas.height);
-      gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthTarget);
+      gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, context.defaultDepthTarget);
       gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-      context.defaultDepthTarget = depthTarget;
 
       // Create blitter
       var vertices = [
@@ -635,6 +634,26 @@ var LibraryGL = {
       gl.useProgram(blitProgram);
       gl.uniform1i(gl.getUniformLocation(blitProgram, "sampler"), 0);
       gl.useProgram(null);
+    },
+
+    resizeOffscreenFramebuffer: function(context) {
+      var gl = context.GLctx;
+
+      // Resize color buffer
+      if (context.defaultColorTarget) {
+        var prevTextureBinding = gl.getParameter(gl.TEXTURE_BINDING_2D);
+        gl.bindTexture(gl.TEXTURE_2D, context.defaultColorTarget);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.drawingBufferWidth, gl.drawingBufferHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.bindTexture(gl.TEXTURE_2D, prevTextureBinding);
+      }
+
+      // Resize depth buffer
+      if (context.defaultDepthTarget) {
+        var prevRenderBufferBinding = gl.getParameter(gl.RENDERBUFFER_BINDING);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, context.defaultDepthTarget);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, gl.drawingBufferWidth, gl.drawingBufferHeight); // TODO: Read context creation parameters for what type of depth and stencil to use
+        gl.bindRenderbuffer(gl.RENDERBUFFER, prevRenderBufferBinding);
+      }
     },
 
     // Renders the contents of the offscreen render target onto the visible screen.
@@ -710,9 +729,16 @@ var LibraryGL = {
         GL.initExtensions(context);
       }
 
+      if (webGLContextAttributes['renderViaOffscreenBackBuffer']) {
 #if OFFSCREEN_FRAMEBUFFER
-      if (webGLContextAttributes['renderViaOffscreenBackBuffer']) GL.createOffscreenFramebuffer(context);
+        GL.createOffscreenFramebuffer(context);
+#else
+#if GL_DEBUG
+        Module.printErr('renderViaOffscreenBackBuffer=true specified in WebGL context creation attributes, pass linker flag -s OFFSCREEN_FRAMEBUFFER=1 to enable support!');
 #endif
+        return 0;
+#endif
+      }
 
       return handle;
     },
