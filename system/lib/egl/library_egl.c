@@ -265,8 +265,8 @@ EGLAPI EGLBoolean EGLAPIENTRY eglQuerySurface(EGLDisplay dpy, EGLSurface surface
     case EGL_WIDTH:
     case EGL_HEIGHT:
     {
-      int w, h, fs;
-      emscripten_get_canvas_size(&w, &h, &fs);
+      int w, h;
+      emscripten_get_canvas_element_size(NULL, &w, &h); // TODO: Figure out which canvas to query here.
       *value = (attribute == EGL_WIDTH) ? w : h;
       return EGL_TRUE;
     }
@@ -406,6 +406,7 @@ EGLAPI EGLContext EGLAPIENTRY eglCreateContext(EGLDisplay dpy, EGLConfig config,
 
   EmscriptenWebGLContextAttributes attr;
   emscripten_webgl_init_context_attributes(&attr);
+  attr.explicitSwapControl = 1;
   windowID = emscripten_webgl_create_context(0, &attr);
   eglError = windowID ? EGL_SUCCESS : EGL_BAD_MATCH;
   return (EGLContext)windowID;
