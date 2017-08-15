@@ -102,6 +102,9 @@ typedef struct em_queued_call
   em_variant_val args[EM_QUEUED_CALL_MAX_ARGS];
   em_variant_val returnValue;
 
+  // An optional pointer to a secondary data block that should be free()d when this queued call is freed.
+  void *satelliteData;
+
   // If true, the caller has "detached" itself from this call
   // object and the Emscripten main runtime thread should free up
   // this em_queued_call object after it has been executed. If
@@ -171,6 +174,9 @@ EMSCRIPTEN_RESULT emscripten_wait_for_call_i(em_queued_call *call, double timeou
 
 void emscripten_async_waitable_close(em_queued_call *call);
 
+// Queues the given function call to be performed on the specified thread.
+void emscripten_async_queue_on_thread_(void *threadId, EM_FUNC_SIGNATURE sig, void *func_ptr, void *satellite, ...);
+
 // Returns 1 if the current thread is the thread that hosts the Emscripten runtime.
 int emscripten_is_main_runtime_thread(void);
 
@@ -182,6 +188,14 @@ int emscripten_is_main_browser_thread(void);
 // which don't otherwise call to any pthread api calls (mutexes) or C runtime functions
 // that are considered cancellation points.
 void emscripten_main_thread_process_queued_calls(void);
+
+void emscripten_current_thread_process_queued_calls();
+
+void emscripten_register_main_browser_thread_id(void *main_browser_thread_id);
+void emscripten_register_main_runtime_thread_id(void *main_runtime_thread_id);
+
+void *emscripten_main_browser_thread_id();
+void *emscripten_main_runtime_thread_id();
 
 // Direct syscall access, second argument is a varargs pointer. used in proxying
 int emscripten_syscall(int, void*);
