@@ -3538,10 +3538,11 @@ window.close = function() {
       self.btest('gl_in_mainthread_after_pthread.cpp', expected='0', args=args+['-s', 'USE_PTHREADS=1', '-s', 'PTHREAD_POOL_SIZE=2', '-s', 'OFFSCREENCANVAS_SUPPORT=1', '-lGL'])
 
   # Tests that if a WebGL context is created in a pthread on a canvas that has not been transferred to that pthread, WebGL calls are then proxied to the main thread
-  # -DTEST_OFFSCREEN_CANVAS: Tests that if a WebGL context is created on a pthread that has the canvas transferred to it, then OffscreenCanvas is used
+  # -DTEST_OFFSCREEN_CANVAS=1: Tests that if a WebGL context is created on a pthread that has the canvas transferred to it via using Emscripten's EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES="#canvas", then OffscreenCanvas is used
+  # -DTEST_OFFSCREEN_CANVAS=2: Tests that if a WebGL context is created on a pthread that has the canvas transferred to it via automatic transferring of Module.canvas when EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES is not defined, then OffscreenCanvas is also used
   def test_webgl_offscreen_canvas_in_proxied_pthread(self):
-    for args in [[], ['-DTEST_OFFSCREEN_CANVAS=1']]:
-      self.btest('gl_in_proxy_pthread.cpp', expected='1', args=args + ['-s', 'USE_PTHREADS=1', '-s', 'OFFSCREENCANVAS_SUPPORT=1', '-lGL'])
+    for args in [[], ['-DTEST_OFFSCREEN_CANVAS=1'], ['-DTEST_OFFSCREEN_CANVAS=2']]:
+      self.btest('gl_in_proxy_pthread.cpp', expected='1', args=args + ['-s', 'USE_PTHREADS=1', '-s', 'OFFSCREENCANVAS_SUPPORT=1', '-lGL', '-s', 'GL_DEBUG=1'])
 
   # Tests the feature that shell html page can preallocate the typed array and place it to Module.buffer before loading the script page.
   # In this build mode, the -s TOTAL_MEMORY=xxx option will be ignored.
@@ -3643,3 +3644,22 @@ window.close = function() {
   def test_emscripten_get_device_pixel_ratio(self):
     for args in [[], ['-s', 'USE_PTHREADS=1']]:
       self.btest('emscripten_get_device_pixel_ratio.c', expected='1', args=args)
+
+  # Tests emscripten_set_canvas_element_size() and OffscreenCanvas functionality in different build configurations.
+  def test_emscripten_set_canvas_element_size(self):
+    for args in [
+      ['-DTEST_EMSCRIPTEN_SET_MAIN_LOOP=1'], 
+      ['-DTEST_EMSCRIPTEN_SET_MAIN_LOOP=1', '-DTEST_PTHREAD_PROXY_MAIN=1'],
+      ['-DTEST_EMSCRIPTEN_SET_MAIN_LOOP=1', '-DTEST_PTHREAD_PROXY_MAIN=1', '-s', 'USE_PTHREADS=1', '-s',   'OFFSCREEN_FRAMEBUFFER=1'],
+      ['-DTEST_EMSCRIPTEN_SET_MAIN_LOOP=1', '-DTEST_PTHREAD_PROXY_MAIN=1', '-s', 'USE_PTHREADS=1', '-s', 'OFFSCREENCANVAS_SUPPORT=1', '-DTEST_TRANSFER_CANVAS_TO_PTHREAD=1'],
+      ['-DTEST_EMSCRIPTEN_SET_MAIN_LOOP=1', '-DTEST_PTHREAD_PROXY_MAIN=1', '-s', 'USE_PTHREADS=1', '-s',   'OFFSCREEN_FRAMEBUFFER=1', '-DTEST_EXPLICIT_CONTEXT_SWAP=1'],
+      ['-DTEST_EMSCRIPTEN_SET_MAIN_LOOP=1', '-DTEST_PTHREAD_PROXY_MAIN=1', '-s', 'USE_PTHREADS=1', '-s', 'OFFSCREENCANVAS_SUPPORT=1', '-DTEST_EXPLICIT_CONTEXT_SWAP=1', '-DTEST_TRANSFER_CANVAS_TO_PTHREAD=1'],
+      # TODO: Re-enable the following cases:
+#      ['-DTEST_EXPLICIT_CONTEXT_SWAP=1',    '-DTEST_PTHREAD_PROXY_MAIN=1', '-s', 'USE_PTHREADS=1', '-s',   'OFFSCREEN_FRAMEBUFFER=1'],
+#      ['-DTEST_EXPLICIT_CONTEXT_SWAP=1',    '-DTEST_PTHREAD_PROXY_MAIN=1', '-s', 'USE_PTHREADS=1', '-s', 'OFFSCREENCANVAS_SUPPORT=1', '-DTEST_TRANSFER_CANVAS_TO_PTHREAD=1'],
+#      ['-DTEST_EXPLICIT_CONTEXT_SWAP=1',    '-DTEST_PTHREAD_PROXY_MAIN=1', '-s', 'USE_PTHREADS=1', '-s',   'OFFSCREEN_FRAMEBUFFER=1', '-DTEST_MANUALLY_SET_ELEMENT_CSS_SIZE=1'],
+#      ['-DTEST_EXPLICIT_CONTEXT_SWAP=1',    '-DTEST_PTHREAD_PROXY_MAIN=1', '-s', 'USE_PTHREADS=1', '-s', 'OFFSCREENCANVAS_SUPPORT=1', '-DTEST_MANUALLY_SET_ELEMENT_CSS_SIZE=1', '-DTEST_TRANSFER_CANVAS_TO_PTHREAD=1']
+    ]:
+      cmd = ['-lGL', '-O3', '-g2', '--shell-file', path_from_root('tests', 'canvas_animate_resize_shell.html'), '--separate-asm', '-s', 'GL_DEBUG=1', '--threadprofiler'] + args
+      print ' '.join(cmd)
+      self.btest('canvas_animate_resize.cpp', expected='1', args=cmd)
