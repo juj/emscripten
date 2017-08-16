@@ -42,7 +42,7 @@ this.addEventListener('error', function(e) {
 //#if PTHREADS_DEBUG
     var errorSource = ' in ' + e.filename + ':' + e.lineno + ':' + e.colno;
     console.error('Pthread ' + selfThreadId + ' uncaught exception' + (e.filename || e.lineno || e.colno ? errorSource : '') + ': ' + e.message + '. Error object:');
-    console.error(error);
+    console.error(e.error);
 //#endif
   }
 });
