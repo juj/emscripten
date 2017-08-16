@@ -69,6 +69,10 @@ if (!ENVIRONMENT_IS_PTHREAD) ENVIRONMENT_IS_PTHREAD = false; // ENVIRONMENT_IS_P
 var PthreadWorkerInit; // Collects together variables that are needed at initialization time for the web workers that host pthreads.
 if (!ENVIRONMENT_IS_PTHREAD) PthreadWorkerInit = {};
 var currentScriptUrl = ENVIRONMENT_IS_WORKER ? undefined : document.currentScript.src;
+#if PTHREADS_DEBUG == 2
+console.log('currentScriptUrl: ' + currentScriptUrl);
+#endif
+
 #endif
 
 if (ENVIRONMENT_IS_NODE) {
