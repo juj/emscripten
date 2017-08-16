@@ -82,8 +82,6 @@ int main(int argc, char **argv)
 // Not building with multithreading enabled, just route directly to the Emscripten specific main function.
 int main(int argc, char **argv)
 {
-  emscripten_register_main_browser_thread_id((void*)pthread_self());
-  emscripten_register_main_runtime_thread_id((void*)pthread_self());
   return emscripten_main(argc, argv);
 }
 
