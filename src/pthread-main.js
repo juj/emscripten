@@ -40,7 +40,9 @@ this.addEventListener('error', function(e) {
   } else {
     // Other errors propagate back to main browser thread's .onerror handler.
 //#if PTHREADS_DEBUG
-    console.error('Pthread ' + selfThreadId + ' error: ' + e.toString());
+    var errorSource = ' in ' + e.filename + ':' + e.lineno + ':' + e.colno;
+    console.error('Pthread ' + selfThreadId + ' uncaught exception' + (e.filename || e.lineno || e.colno ? errorSource : '') + ': ' + e.message + '. Error object:');
+    console.error(error);
 //#endif
   }
 });
@@ -149,7 +151,8 @@ this.onmessage = function(e) {
 
     } catch(e) {
 //#if PTHREADS_DEBUG == 2
-      console.error('Web Worker main() threw an exception: ' + e.toString());
+      console.error('Web Worker main() threw an exception: ' + e);
+      console.error(e.stack);
 //#endif
       if (e === 'Canceled!') {
         PThread.threadCancel();
