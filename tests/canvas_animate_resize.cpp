@@ -79,7 +79,7 @@ void tick()
 #endif
 
   ++frameNumber;
-  if (frameNumber > NUM_FRAMES_TO_RENDER)
+  if (frameNumber >= NUM_FRAMES_TO_RENDER)
   {
 #if TEST_EMSCRIPTEN_SET_MAIN_LOOP
     emscripten_cancel_main_loop();
