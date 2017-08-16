@@ -4055,6 +4055,8 @@ var LibraryGL = {
                             GL.shaders[shader]);
   },
 
+  glGetShaderPrecisionFormat__proxy: 'main_gl',
+  glGetShaderPrecisionFormat__sig: 'viiii',
   glGetShaderPrecisionFormat: function(shaderType, precisionType, range, precision) {
     var result = GLctx.getShaderPrecisionFormat(shaderType, precisionType);
     {{{ makeSetValue('range', '0', 'result.rangeMin', 'i32') }}};
