@@ -86,9 +86,15 @@ this.onmessage = function(e) {
 
     PthreadWorkerInit = e.data.PthreadWorkerInit;
 //#if PTHREADS_DEBUG
-    console.error('Web Worker load: importing ' + e.data.url);
+    console.error('Web Worker load: importing ' + e.data.urlOrBlob);
 //#endif
-    importScripts(e.data.url);
+    if (typeof e.data.urlOrBlob === 'string') {
+      importScripts(e.data.urlOrBlob);
+    } else {
+      var objectUrl = URL.createObjectURL(e.data.urlOrBlob);
+      importScripts(objectUrl);
+      URL.revokeObjectURL(objectUrl);
+    }
     if (typeof FS !== 'undefined') FS.createStandardStreams();
     postMessage({ cmd: 'loaded' });
   } else if (e.data.cmd === 'objectTransfer') {
