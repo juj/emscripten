@@ -735,8 +735,9 @@ var LibraryJSEvents = {
       var rect = target.getBoundingClientRect();
       var windowedCssWidth = rect.right - rect.left;
       var windowedCssHeight = rect.bottom - rect.top;
-      var windowedRttWidth = target.width;
-      var windowedRttHeight = target.height;
+      var canvasSize = emscripten_get_canvas_element_size_js(target.id);
+      var windowedRttWidth = canvasSize[0];
+      var windowedRttHeight = canvasSize[1];
 
       if (strategy.scaleMode == {{{ cDefine('EMSCRIPTEN_FULLSCREEN_SCALE_CENTER') }}}) {
         __setLetterbox(target, (cssHeight - windowedCssHeight) / 2, (cssWidth - windowedCssWidth) / 2);
@@ -776,13 +777,17 @@ var LibraryJSEvents = {
 
       var dpiScale = (strategy.canvasResolutionScaleMode == {{{ cDefine('EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_HIDEF') }}}) ? window.devicePixelRatio : 1;
       if (strategy.canvasResolutionScaleMode != {{{ cDefine('EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_NONE') }}}) {
+        var newWidth = (cssWidth * dpiScale)|0;
+        var newHeight = (cssHeight * dpiScale)|0;
+
         if (!target.controlTransferredOffscreen) {
-          target.width = cssWidth * dpiScale;
-          target.height = cssHeight * dpiScale;
+          target.width = newWidth;
+          target.height = newHeight;
         } else {
-          console.error('TODO: Cannot change canvas size, as control has been transferred to OffscreenCanvas!');
+          emscripten_set_canvas_element_size_js(target.id, newWidth, newHeight);
+//          console.error('TODO: Cannot change canvas size, as control has been transferred to OffscreenCanvas!');
         }
-        if (target.GLctxObject) target.GLctxObject.GLctx.viewport(0, 0, target.width, target.height);
+        if (target.GLctxObject) target.GLctxObject.GLctx.viewport(0, 0, newWidth, newHeight);
       }
       return restoreOldStyle;
     },
@@ -1482,8 +1487,9 @@ var LibraryJSEvents = {
   },
 
   _registerRestoreOldStyle: function(canvas) {
-    var oldWidth = canvas.width;
-    var oldHeight = canvas.height;
+    var canvasSize = emscripten_get_canvas_element_size_js(canvas.id);
+    var oldWidth = canvasSize[0];
+    var oldHeight = canvasSize[1];
     var oldCssWidth = canvas.style.width;
     var oldCssHeight = canvas.style.height;
     var oldBackgroundColor = canvas.style.backgroundColor; // Chrome reads color from here.
@@ -1514,7 +1520,8 @@ var LibraryJSEvents = {
           canvas.width = oldWidth;
           canvas.height = oldHeight;
         } else {
-          console.error('TODO: Cannot change canvas size, as control has been transferred to OffscreenCanvas!');
+//          console.error('TODO: Cannot change canvas size, as control has been transferred to OffscreenCanvas!');
+          emscripten_set_canvas_element_size_js(canvas.id, oldWidth, oldHeight);
         }
 
         canvas.style.width = oldCssWidth;
@@ -1612,8 +1619,9 @@ var LibraryJSEvents = {
     var w = screenWidth;
     var h = screenHeight;
     var canvas = __currentFullscreenStrategy.target;
-    var x = canvas.width;
-    var y = canvas.height;
+    var canvasSize = emscripten_get_canvas_element_size_js(canvas.id);
+    var x = canvasSize[0];
+    var y = canvasSize[1];
     var topMargin;
 
     if (inAspectRatioFixedFullscreenMode) {
@@ -1627,9 +1635,10 @@ var LibraryJSEvents = {
         canvas.width = w;
         canvas.height = h;
       } else {
-        console.error('TODO: Cannot change canvas size, as control has been transferred to OffscreenCanvas!');
+//        console.error('TODO: Cannot change canvas size, as control has been transferred to OffscreenCanvas!');
+        emscripten_set_canvas_element_size_js(canvas.id, w, h);
       }
-      if (canvas.GLctxObject) canvas.GLctxObject.GLctx.viewport(0, 0, canvas.width, canvas.height);
+      if (canvas.GLctxObject) canvas.GLctxObject.GLctx.viewport(0, 0, w, h);
     }
 
     // Back to CSS pixels.
@@ -1660,7 +1669,7 @@ var LibraryJSEvents = {
   },
 
   // https://developer.mozilla.org/en-US/docs/Web/Guide/API/DOM/Using_full_screen_mode  
-  _emscripten_do_request_fullscreen__deps: ['_setLetterbox'],
+  _emscripten_do_request_fullscreen__deps: ['_setLetterbox', '$emscripten_set_canvas_element_size_js', '$emscripten_get_canvas_element_size_js'],
   _emscripten_do_request_fullscreen: function(target, strategy) {
     if (typeof JSEvents.fullscreenEnabled() === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     if (!JSEvents.fullscreenEnabled()) return {{{ cDefine('EMSCRIPTEN_RESULT_INVALID_TARGET') }}};
@@ -2087,6 +2096,10 @@ var LibraryJSEvents = {
     contextAttributes['proxyContextToMainThread'] = {{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 'i32') }}};
     contextAttributes['renderViaOffscreenBackBuffer'] = {{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 'i32') }}};
 
+    console.error('emscripten_webgl_create_context');
+    console.error(Module['canvas']);
+//    var canvas = JSEvents.findCanvasEventTarget(target);
+//    if (canvas.offscreenCanvas) canvas = canvas.offscreenCanvas;
     target = Pointer_stringify(target);
     var canvas;
     if ((!target || target === '#canvas') && Module['canvas']) {
@@ -2328,8 +2341,44 @@ var LibraryJSEvents = {
     var canvas = JSEvents.findCanvasEventTarget(target);
     if (!canvas) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
-    canvas.width = width;
-    canvas.height = height;
+    if (canvas.canvasSharedPtr && !canvas.controlTransferredOffscreen) {
+      {{{ makeSetValue('canvas.canvasSharedPtr', 0, 'width', 'i32') }}};
+      {{{ makeSetValue('canvas.canvasSharedPtr', 4, 'height', 'i32') }}};
+    }
+
+    if (canvas.offscreenCanvas) {
+      canvas = canvas.offscreenCanvas;
+      canvas.width = width;
+      canvas.height = height;
+    } else if (!canvas.controlTransferredOffscreen) {
+      canvas.width = width;
+      canvas.height = height;      
+    } else if (canvas.canvasSharedPtr) {
+      var stackTop = Runtime.stackSave();
+      var varargs = Runtime.stackAlloc(12);
+
+      // TODO: This could be optimized a bit (basically a dumb encoding agnostic strdup)
+      var targetStr = target ? Pointer_stringify(target) : 0;
+      var targetStrHeap = targetStr ? _malloc(targetStr.length+1) : 0;
+      if (targetStrHeap) stringToUTF8(targetStr, targetStrHeap, targetStr.length+1);
+
+      HEAP32[varargs>>2] = targetStrHeap;
+      HEAP32[varargs+4>>2] = width;
+      HEAP32[varargs+8>>2] = height;
+      var targetThread = {{{ makeGetValue('canvas.canvasSharedPtr', 8, 'i32') }}};
+      // Note: If we are also a pthread, the call below could theoretically be done synchronously. However if the target pthread is waiting for a mutex from us, then
+      // these two threads will deadlock. At the moment, we'd like to consider that this kind of deadlock would be an Emscripten runtime bug, although if
+      // emscripten_set_canvas_element_size() was documented to require running an event in the queue of thread that owns the OffscreenCanvas, then that might be ok.
+      // (safer this way however)
+      _emscripten_async_queue_on_thread_(targetThread, {{{ cDefine('EM_PROXIED_RESIZE_OFFSCREENCANVAS') }}}, 0, targetStrHeap /* satellite data */, varargs);
+      Runtime.stackRestore(stackTop);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_DEFERRED') }}}; // This will have to be done asynchronously
+    } else {
+#if GL_DEBUG
+      console.error('canvas.controlTransferredOffscreen but we do not own the canvas, and do not know who has (no canvas.canvasSharedPtr present, an internal bug?)!\n');
+#endif
+      return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+    }
 #if OFFSCREEN_FRAMEBUFFER
     if (canvas.GLctxObject) GL.resizeOffscreenFramebuffer(canvas.GLctxObject);
 #endif
@@ -2348,12 +2397,44 @@ var LibraryJSEvents = {
     else return _emscripten_set_canvas_element_size_main_thread(target, width, height);
   }, 
 
+  // JavaScript-friendly API
+  $emscripten_set_canvas_element_size_js__deps: ['emscripten_set_canvas_element_size'],
+  $emscripten_set_canvas_element_size_js: function(target, width, height) {
+    if (typeof target === 'string') {
+      // This function is being called from high-level JavaScript code instead of asm.js/Wasm,
+      // and it needs to synchronously proxy over to another thread, so marshal the string onto the heap to do the call.
+      var stackTop = Runtime.stackSave();
+      var targetInt = Runtime.stackAlloc(target.length+1);
+      stringToUTF8(target, targetInt, target.length+1);
+      var ret = _emscripten_set_canvas_element_size(targetInt, width, height);
+      Runtime.stackRestore(stackTop);
+      return ret;
+    } else {
+      return _emscripten_set_canvas_element_size(target, width, height);
+    }
+  }, 
+
   emscripten_get_canvas_element_size_calling_thread: function(target, width, height) {
     var canvas = JSEvents.findCanvasEventTarget(target);
     if (!canvas) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
-    {{{ makeSetValue('width', '0', 'canvas.width', 'i32') }}};
-    {{{ makeSetValue('height', '0', 'canvas.height', 'i32') }}};
+    if (canvas.offscreenCanvas) {
+      {{{ makeSetValue('width', 0, 'canvas.offscreenCanvas.width', 'i32') }}};
+      {{{ makeSetValue('height', 0, 'canvas.offscreenCanvas.height', 'i32') }}};
+    } else if (!canvas.controlTransferredOffscreen) {
+      {{{ makeSetValue('width', 0, 'canvas.width', 'i32') }}};
+      {{{ makeSetValue('height', 0, 'canvas.height', 'i32') }}};
+    } else if (canvas.canvasSharedPtr) {
+      var w = {{{ makeGetValue('canvas.canvasSharedPtr', 0, 'i32') }}};
+      var h = {{{ makeGetValue('canvas.canvasSharedPtr', 4, 'i32') }}};
+      {{{ makeSetValue('width', 0, 'w', 'i32') }}};
+      {{{ makeSetValue('height', 0, 'h', 'i32') }}};
+    } else {
+#if GL_DEBUG
+      console.error('canvas.controlTransferredOffscreen but we do not own the canvas, and do not know who has (no canvas.canvasSharedPtr present, an internal bug?)!\n');
+#endif
+      return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+    }
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
@@ -2367,6 +2448,23 @@ var LibraryJSEvents = {
     var canvas = JSEvents.findCanvasEventTarget(target);
     if (canvas) return _emscripten_get_canvas_element_size_calling_thread(target, width, height);
     else return _emscripten_get_canvas_element_size_main_thread(target, width, height);
+  }, 
+
+  // JavaScript-friendly API, returns pair [width, height]
+  $emscripten_get_canvas_element_size_js__deps: ['emscripten_get_canvas_element_size'],
+  $emscripten_get_canvas_element_size_js: function(target) {
+    var stackTop = Runtime.stackSave();
+    var w = Runtime.stackAlloc(4);
+    var h = Runtime.stackAlloc(4);
+
+    if (typeof target === 'string') {
+      var targetInt = Runtime.stackAlloc(target.length+1);
+      stringToUTF8(target, targetInt, target.length+1);
+      target = targetInt;
+    }
+    var ret = _emscripten_get_canvas_element_size(target, w, h);
+    Runtime.stackRestore(stackTop);
+    return [{{{ makeGetValue('w', 0, 'i32')}}}, {{{ makeGetValue('h', 0, 'i32')}}}];
   }, 
 
   emscripten_set_element_css_size__proxy: 'main',
