@@ -198,13 +198,13 @@ var LibraryJSEvents = {
 
 #if USE_PTHREADS_AND_BACKPROXY_DOM_EVENT_CALLBACKS_TO_CALLER_THREAD
     queueEventHandlerOnThread_iiii: function(targetThread, eventHandlerFunc, eventTypeId, eventData, userData) {
-      var varargs = STACKTOP+4; // TODO: Why does one need to +4 here?
-      STACKTOP += 16;
+      var stackTop = Runtime.stackSave();
+      var varargs = Runtime.stackAlloc(12);
       HEAP32[varargs>>2] = eventTypeId;
       HEAP32[varargs+4>>2] = eventData;
       HEAP32[varargs+8>>2] = userData;
       _emscripten_async_queue_on_thread_(targetThread, {{{ cDefine('EM_FUNC_SIG_IIII') }}}, eventHandlerFunc, eventData, varargs);
-      STACKTOP -= 16;
+      Runtime.stackRestore(stackTop);
     },
 #endif
 
