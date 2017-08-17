@@ -209,9 +209,9 @@ var LibraryJSEvents = {
     queueEventHandlerOnThread_iiii: function(targetThread, eventHandlerFunc, eventTypeId, eventData, userData) {
       var stackTop = Runtime.stackSave();
       var varargs = Runtime.stackAlloc(12);
-      HEAP32[varargs>>2] = eventTypeId;
-      HEAP32[varargs+4>>2] = eventData;
-      HEAP32[varargs+8>>2] = userData;
+      {{{ makeSetValue('varargs', 0, 'eventTypeId', 'i32') }}};
+      {{{ makeSetValue('varargs', 4, 'eventData', 'i32') }}};
+      {{{ makeSetValue('varargs', 8, 'userData', 'i32') }}};
       _emscripten_async_queue_on_thread_(targetThread, {{{ cDefine('EM_FUNC_SIG_IIII') }}}, eventHandlerFunc, eventData, varargs);
       Runtime.stackRestore(stackTop);
     },
@@ -2405,9 +2405,9 @@ var LibraryJSEvents = {
       var targetStrHeap = targetStr ? _malloc(targetStr.length+1) : 0;
       if (targetStrHeap) stringToUTF8(targetStr, targetStrHeap, targetStr.length+1);
 
-      HEAP32[varargs>>2] = targetStrHeap;
-      HEAP32[varargs+4>>2] = width;
-      HEAP32[varargs+8>>2] = height;
+      {{{ makeSetValue('varargs', 0, 'targetStrHeap', 'i32')}}};
+      {{{ makeSetValue('varargs', 4, 'width', 'i32')}}};
+      {{{ makeSetValue('varargs', 8, 'height', 'i32')}}};
       var targetThread = {{{ makeGetValue('canvas.canvasSharedPtr', 8, 'i32') }}};
       // Note: If we are also a pthread, the call below could theoretically be done synchronously. However if the target pthread is waiting for a mutex from us, then
       // these two threads will deadlock. At the moment, we'd like to consider that this kind of deadlock would be an Emscripten runtime bug, although if
@@ -2435,7 +2435,9 @@ var LibraryJSEvents = {
 
   emscripten_set_canvas_element_size__deps: ['emscripten_set_canvas_element_size_calling_thread', 'emscripten_set_canvas_element_size_main_thread'],
   emscripten_set_canvas_element_size: function(target, width, height) {
+#if GL_DEBUG
     console.error('emscripten_set_canvas_element_size(target='+target+',width='+width+',height='+height);
+#endif
     var canvas = JSEvents.findCanvasEventTarget(target);
     if (canvas) return _emscripten_set_canvas_element_size_calling_thread(target, width, height);
     else return _emscripten_set_canvas_element_size_main_thread(target, width, height);
@@ -2444,7 +2446,9 @@ var LibraryJSEvents = {
   // JavaScript-friendly API
   $emscripten_set_canvas_element_size_js__deps: ['emscripten_set_canvas_element_size'],
   $emscripten_set_canvas_element_size_js: function(target, width, height) {
+#if GL_DEBUG
     console.error('$emscripten_set_canvas_element_size_js(target='+target+',width='+width+',height='+height);
+#endif
     if (typeof target === 'string') {
       // This function is being called from high-level JavaScript code instead of asm.js/Wasm,
       // and it needs to synchronously proxy over to another thread, so marshal the string onto the heap to do the call.
@@ -2490,7 +2494,9 @@ var LibraryJSEvents = {
 
   emscripten_get_canvas_element_size__deps: ['emscripten_get_canvas_element_size_calling_thread', 'emscripten_get_canvas_element_size_main_thread'],
   emscripten_get_canvas_element_size: function(target, width, height) {
-    console.error('emscripten_get_canvas_element_size(target='+target+',width='+width+',height='+height);
+#if GL_DEBUG
+//    console.error('emscripten_get_canvas_element_size(target='+target+',width='+width+',height='+height);
+#endif
     var canvas = JSEvents.findCanvasEventTarget(target);
     if (canvas) return _emscripten_get_canvas_element_size_calling_thread(target, width, height);
     else return _emscripten_get_canvas_element_size_main_thread(target, width, height);
