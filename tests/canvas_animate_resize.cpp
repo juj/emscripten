@@ -155,7 +155,6 @@ int main(int argc, char **argv)
   for(int i = 0; i < NUM_FRAMES_TO_RENDER; ++i)
   {
     tick();
-    double now = emscripten_get_now();
     emscripten_current_thread_process_queued_calls();
     usleep(16*1000);
   }
