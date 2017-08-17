@@ -305,26 +305,15 @@ EMSCRIPTEN_RESULT emscripten_wait_for_call_i(em_queued_call *call, double timeou
 }
 
 static void *main_browser_thread_id_ = 0;
-static void *main_runtime_thread_id_ = 0;
 
 void EMSCRIPTEN_KEEPALIVE emscripten_register_main_browser_thread_id(void *main_browser_thread_id)
 {
 	main_browser_thread_id_ = main_browser_thread_id;
 }
 
-void EMSCRIPTEN_KEEPALIVE emscripten_register_main_runtime_thread_id(void *main_runtime_thread_id)
-{
-	main_runtime_thread_id_ = main_runtime_thread_id;
-}
-
 void * EMSCRIPTEN_KEEPALIVE emscripten_main_browser_thread_id()
 {
 	return main_browser_thread_id_;
-}
-
-void * EMSCRIPTEN_KEEPALIVE emscripten_main_runtime_thread_id()
-{
-	return main_runtime_thread_id_;
 }
 
 static void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_call_on_thread(void *target_thread, em_queued_call *call)
