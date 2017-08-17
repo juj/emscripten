@@ -4152,7 +4152,7 @@ var LibraryGL = {
   },
 #endif
 
-  glBindAttribLocation__proxy: 'async_gl',
+  glBindAttribLocation__proxy: 'main_gl',
   glBindAttribLocation__sig: 'viii',
   glBindAttribLocation: function(program, index, name) {
 #if GL_ASSERTIONS
