@@ -2365,13 +2365,8 @@ var LibraryJSEvents = {
   emscripten_get_canvas_element_size__deps: ['emscripten_get_canvas_element_size_calling_thread', 'emscripten_get_canvas_element_size_main_thread'],
   emscripten_get_canvas_element_size: function(target, width, height) {
     var canvas = JSEvents.findCanvasEventTarget(target);
-    if (canvas) {
-      return _emscripten_get_canvas_element_size_calling_thread(target, width, height);
-    }
-    else {
-      console.log('have to proxy to main thread:');
-      return _emscripten_get_canvas_element_size_main_thread(target, width, height);
-    }
+    if (canvas) return _emscripten_get_canvas_element_size_calling_thread(target, width, height);
+    else return _emscripten_get_canvas_element_size_main_thread(target, width, height);
   }, 
 
   emscripten_set_element_css_size__proxy: 'main',
