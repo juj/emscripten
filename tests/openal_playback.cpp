@@ -54,7 +54,8 @@ void main_tick(void *arg)
   alSourcef(source, AL_PITCH, pitch);
 }
 
-int main() {
+#include <emscripten/pthread_proxy_main.h>
+int emscripten_main(int argc, char **argv) {
   int major, minor;
   alcGetIntegerv(NULL, ALC_MAJOR_VERSION, 1, &major);
   alcGetIntegerv(NULL, ALC_MAJOR_VERSION, 1, &minor);
