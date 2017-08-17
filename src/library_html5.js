@@ -60,11 +60,10 @@ var LibraryJSEvents = {
       }
     },
 
+    // Find a DOM element with the given ID.
     findEventTarget: function(target) {
       if (target) {
-        if (typeof target == "number") {
-          target = Pointer_stringify(target);
-        }
+        if (typeof target == "number") target = Pointer_stringify(target);
         if (target == '#window' && typeof window !== 'undefined') return window;
         else if (target == '#document') return document;
         else if (target == '#screen') return window.screen;
@@ -80,6 +79,16 @@ var LibraryJSEvents = {
       } else {
         return null;
       }
+    },
+
+    // Like findEventTarget, but looks for OffscreenCanvas elements first
+    findCanvasEventTarget: function(target) {
+      if (typeof target === 'number') target = Pointer_stringify(target);
+      if (target) {
+        if (target === '#canvas' && GL.offscreenCanvases['canvas']) return GL.offscreenCanvases['canvas'];
+        else return GL.offscreenCanvases[target] || JSEvents.findEventTarget(target);
+      }
+      else return Module['canvas'];
     },
 
     deferredCalls: [],
@@ -2316,13 +2325,7 @@ var LibraryJSEvents = {
   },
 
   emscripten_set_canvas_element_size_calling_thread: function(target, width, height) {
-    var canvas = target;
-    if (typeof canvas === 'number') canvas = Pointer_stringify(canvas);
-    if (canvas) {
-      if (canvas === '#canvas' && GL.offscreenCanvases['canvas']) canvas = GL.offscreenCanvases['canvas'];
-      else canvas = GL.offscreenCanvases[canvas] || JSEvents.findEventTarget(canvas);
-    }
-    else canvas = Module['canvas'];
+    var canvas = JSEvents.findCanvasEventTarget(target);
     if (!canvas) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
     canvas.width = width;
@@ -2340,29 +2343,36 @@ var LibraryJSEvents = {
 
   emscripten_set_canvas_element_size__deps: ['emscripten_set_canvas_element_size_calling_thread', 'emscripten_set_canvas_element_size_main_thread'],
   emscripten_set_canvas_element_size: function(target, width, height) {
-    var canvas = target;
-    if (typeof canvas === 'number') canvas = Pointer_stringify(canvas);
-    if (canvas) {
-      if (canvas === '#canvas' && GL.offscreenCanvases['canvas']) canvas = GL.offscreenCanvases['canvas'];
-      else canvas = GL.offscreenCanvases[canvas] || JSEvents.findEventTarget(canvas);
-    }
-    else canvas = Module['canvas'];
-
+    var canvas = JSEvents.findCanvasEventTarget(target);
     if (canvas) return _emscripten_set_canvas_element_size_calling_thread(target, width, height);
     else return _emscripten_set_canvas_element_size_main_thread(target, width, height);
   }, 
 
-  emscripten_get_canvas_element_size__proxy: 'main',
-  emscripten_get_canvas_element_size__sig: 'iiii',
-  emscripten_get_canvas_element_size: function(target, width, height) {
-    if (target) target = JSEvents.findEventTarget(target);
-    else target = Module['canvas'];
-    if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+  emscripten_get_canvas_element_size_calling_thread: function(target, width, height) {
+    var canvas = JSEvents.findCanvasEventTarget(target);
+    if (!canvas) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
-    {{{ makeSetValue('width', '0', 'target.width', 'i32') }}};
-    {{{ makeSetValue('height', '0', 'target.height', 'i32') }}};
+    {{{ makeSetValue('width', '0', 'canvas.width', 'i32') }}};
+    {{{ makeSetValue('height', '0', 'canvas.height', 'i32') }}};
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
+
+  emscripten_get_canvas_element_size_main_thread__proxy: 'main',
+  emscripten_get_canvas_element_size_main_thread__sig: 'iiii',
+  emscripten_get_canvas_element_size_main_thread__deps: ['emscripten_get_canvas_element_size_calling_thread'],
+  emscripten_get_canvas_element_size_main_thread: function(target, width, height) { return _emscripten_get_canvas_element_size_calling_thread(target, width, height); },
+
+  emscripten_get_canvas_element_size__deps: ['emscripten_get_canvas_element_size_calling_thread', 'emscripten_get_canvas_element_size_main_thread'],
+  emscripten_get_canvas_element_size: function(target, width, height) {
+    var canvas = JSEvents.findCanvasEventTarget(target);
+    if (canvas) {
+      return _emscripten_get_canvas_element_size_calling_thread(target, width, height);
+    }
+    else {
+      console.log('have to proxy to main thread:');
+      return _emscripten_get_canvas_element_size_main_thread(target, width, height);
+    }
+  }, 
 
   emscripten_set_element_css_size__proxy: 'main',
   emscripten_set_element_css_size__sig: 'iiii',
