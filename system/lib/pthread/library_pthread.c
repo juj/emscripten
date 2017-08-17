@@ -669,7 +669,7 @@ void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_on_thread_(void *threadId, EM_F
 	emscripten_async_queue_call_on_thread(threadId, q);
 }
 
-static void *html5_callback_thread_context = EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD;
+static void *html5_callback_thread_context = EM_CALLBACK_THREAD_CONTEXT_CALLING_THREAD;
 
 // TODO: These should operate thread-local, but it's tricky since it should propagate to the call sites that register callbacks.
 void emscripten_set_html5_callback_register_thread_context(void *thread_context)
