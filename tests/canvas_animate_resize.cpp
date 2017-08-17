@@ -61,6 +61,12 @@ void tick()
   r = emscripten_set_canvas_element_size("#canvas", (int)w, (int)h);
   assert(r == EMSCRIPTEN_RESULT_SUCCESS);
 
+  int verifyWidth, verifyHeight;
+  r = emscripten_get_canvas_element_size("#canvas", &verifyWidth, &verifyHeight);
+  assert(r == EMSCRIPTEN_RESULT_SUCCESS);
+  assert(verifyWidth == (int)w);
+  assert(verifyHeight == (int)h);
+
   glViewport(0, 0, (int)w, (int)h);
   glUseProgram(program);
   glBindBuffer(GL_ARRAY_BUFFER, vb);
