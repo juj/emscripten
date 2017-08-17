@@ -32,7 +32,7 @@ char *gets(char *);
 // Extra pthread_attr_t field:
 #define _a_transferredcanvases __u.__s[9]
 
-void __pthread_testcancel();
+void __pthread_testcancel(void);
 
 int emscripten_pthread_attr_gettransferredcanvases(const pthread_attr_t *a, const char **str)
 {
@@ -46,7 +46,7 @@ int emscripten_pthread_attr_settransferredcanvases(pthread_attr_t *a, const char
 	return 0;
 }
 
-int _pthread_getcanceltype()
+int _pthread_getcanceltype(void)
 {
 	return pthread_self()->cancelasync;
 }
@@ -106,7 +106,7 @@ int _pthread_isduecanceled(struct pthread *pthread_ptr)
 	return pthread_ptr->threadStatus == 2/*canceled*/;
 }
 
-void __pthread_testcancel()
+void __pthread_testcancel(void)
 {
 	struct pthread *self = pthread_self();
 	if (self->canceldisable) return;
@@ -164,7 +164,7 @@ int usleep(unsigned usec)
 }
 
 // Allocator and deallocator for em_queued_call objects.
-static em_queued_call *em_queued_call_malloc()
+static em_queued_call *em_queued_call_malloc(void)
 {
 	em_queued_call *call = (em_queued_call*)malloc(sizeof(em_queued_call));
 	assert(call); // Not a programming error, but use assert() in debug builds to catch OOM scenarios.
@@ -312,7 +312,7 @@ void EMSCRIPTEN_KEEPALIVE emscripten_register_main_browser_thread_id(void *main_
 	main_browser_thread_id_ = main_browser_thread_id;
 }
 
-void * EMSCRIPTEN_KEEPALIVE emscripten_main_browser_thread_id()
+void * EMSCRIPTEN_KEEPALIVE emscripten_main_browser_thread_id(void)
 {
 	return main_browser_thread_id_;
 }
@@ -537,7 +537,7 @@ void * EMSCRIPTEN_KEEPALIVE emscripten_sync_run_in_main_thread_7(int function, v
 	return q.returnValue.vp;
 }
 
-void EMSCRIPTEN_KEEPALIVE emscripten_current_thread_process_queued_calls()
+void EMSCRIPTEN_KEEPALIVE emscripten_current_thread_process_queued_calls(void)
 {
 // #if PTHREADS_DEBUG == 2
 //	THREAD_LOCAL_EM_ASM(console.error('thread ' + _pthread_self() + ': emscripten_current_thread_process_queued_calls(), ' + new Error().stack));
@@ -587,7 +587,7 @@ void EMSCRIPTEN_KEEPALIVE emscripten_current_thread_process_queued_calls()
 	}
 }
 
-void EMSCRIPTEN_KEEPALIVE emscripten_main_thread_process_queued_calls()
+void EMSCRIPTEN_KEEPALIVE emscripten_main_thread_process_queued_calls(void)
 {
 	if (!emscripten_is_main_browser_thread()) return;
 
@@ -678,7 +678,7 @@ void emscripten_set_html5_callback_register_thread_context(void *thread_context)
 }
 
 // TODO: These should operate thread-local, but it's tricky since it should propagate to the call sites that register callbacks.
-void * EMSCRIPTEN_KEEPALIVE emscripten_get_html5_callback_register_thread_context()
+void * EMSCRIPTEN_KEEPALIVE emscripten_get_html5_callback_register_thread_context(void)
 {
 	return html5_callback_thread_context;
 }
@@ -882,7 +882,7 @@ uint64_t EMSCRIPTEN_KEEPALIVE _emscripten_atomic_fetch_and_xor_u64(void *addr, u
 	return oldVal;
 }
 
-int llvm_memory_barrier()
+int llvm_memory_barrier(void)
 {
 	emscripten_atomic_fence();
 }
