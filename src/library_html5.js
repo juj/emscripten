@@ -88,7 +88,7 @@ var LibraryJSEvents = {
         if (target === '#canvas' && GL.offscreenCanvases['canvas']) return GL.offscreenCanvases['canvas'];
         else return GL.offscreenCanvases[target] || JSEvents.findEventTarget(target);
       }
-      else return Module['canvas'];
+      else return GL.offscreenCanvases['canvas'] || Module['canvas'];
     },
 
     deferredCalls: [],
