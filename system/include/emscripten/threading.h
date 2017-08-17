@@ -189,11 +189,11 @@ int emscripten_is_main_browser_thread(void);
 // that are considered cancellation points.
 void emscripten_main_thread_process_queued_calls(void);
 
-void emscripten_current_thread_process_queued_calls();
+void emscripten_current_thread_process_queued_calls(void);
 
 void emscripten_register_main_browser_thread_id(void *main_browser_thread_id);
 
-void *emscripten_main_browser_thread_id();
+void *emscripten_main_browser_thread_id(void);
 
 // Direct syscall access, second argument is a varargs pointer. used in proxying
 int emscripten_syscall(int, void*);
