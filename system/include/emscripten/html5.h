@@ -451,6 +451,12 @@ extern EMSCRIPTEN_RESULT emscripten_get_canvas_element_size(const char *target, 
 extern EMSCRIPTEN_RESULT emscripten_set_element_css_size(const char *target, double width, double height);
 extern EMSCRIPTEN_RESULT emscripten_get_element_css_size(const char *target, double *width, double *height);
 
+#define EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD ((void*)0x1)
+#define EM_CALLBACK_THREAD_CONTEXT_CALLING_THREAD ((void*)0x2)
+
+extern void emscripten_set_html5_callback_register_thread_context(void *thread_context);
+extern void *emscripten_get_html5_callback_register_thread_context(void);
+
 #ifdef __cplusplus
 } // ~extern "C"
 #endif
