@@ -20,7 +20,6 @@ typedef struct __main_args
 
 void *__emscripten_thread_main(void *param)
 {
-  emscripten_register_main_runtime_thread_id((void*)pthread_self());
   emscripten_set_thread_name(pthread_self(), "Application main thread"); // This is the main runtime thread for the application.
   __main_args *args = (__main_args*)param;
   int ret = emscripten_main(args->argc, args->argv);
@@ -36,8 +35,6 @@ static volatile __main_args args;
 
 int main(int argc, char **argv)
 {
-  emscripten_register_main_browser_thread_id((void*)pthread_self());
-
   if (emscripten_has_threading_support())
   {
     pthread_attr_t attr;
@@ -63,7 +60,6 @@ int main(int argc, char **argv)
     {
       emscripten_log(EM_LOG_ERROR | EM_LOG_C_STACK | EM_LOG_JS_STACK | EM_LOG_DEMANGLE, "Failed to create pthread for main()!\n");
       // Proceed by running main() on the main browser thread as a fallback.
-      emscripten_register_main_runtime_thread_id((void*)pthread_self());
       return emscripten_main(argc, argv);
     }
     EM_ASM(Module['noExitRuntime'] = true;);
@@ -71,7 +67,6 @@ int main(int argc, char **argv)
   }
   else
   {
-    emscripten_register_main_runtime_thread_id((void*)pthread_self());
     emscripten_log(EM_LOG_CONSOLE | EM_LOG_C_STACK | EM_LOG_JS_STACK | EM_LOG_DEMANGLE, "Multithreading not available, attempting to run on main thread.\n");
     return emscripten_main(argc, argv);
   }
