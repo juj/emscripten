@@ -1,8 +1,11 @@
-// This file contains definitions of keyCodes at
-// https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/keyCode
-
 #pragma once
 
+// The following are definitions of "virtual" key codes from
+// https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/keyCode
+
+// In keydown and keyup events, the EmscriptenKeyboardEvent::keyCode field
+// has one of these values. In keypress events, the keyCode field may no
+// longer be present.
 #define DOM_VK_CANCEL              0x03
 #define DOM_VK_HELP                0x06
 #define DOM_VK_BACK_SPACE          0x08
@@ -380,6 +383,6 @@ static const char *emscripten_dom_vk_to_string(int dom_vk_code)
     case DOM_VK_ZOOM:                 return "DOM_VK_ZOOM";
     case DOM_VK_PA1:                  return "DOM_VK_PA1";
     case DOM_VK_WIN_OEM_CLEAR:        return "DOM_VK_WIN_OEM_CLEAR";
-    default:                          return "UNKNOWN DOM_VK CODE";
+    default:                          return "Unknown DOM_VK code";
   }
 }

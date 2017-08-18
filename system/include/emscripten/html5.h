@@ -106,7 +106,6 @@ extern EMSCRIPTEN_RESULT emscripten_set_keypress_callback(const char *target, vo
 extern EMSCRIPTEN_RESULT emscripten_set_keydown_callback(const char *target, void *userData, EM_BOOL useCapture, em_key_callback_func callback);
 extern EMSCRIPTEN_RESULT emscripten_set_keyup_callback(const char *target, void *userData, EM_BOOL useCapture, em_key_callback_func callback);
 
-
 typedef struct EmscriptenMouseEvent {
   double timestamp;
   long screenX;
