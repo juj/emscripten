@@ -1,5 +1,8 @@
 var LibraryJSEvents = {
   $JSEvents__postset: 'JSEvents.staticInit();',
+#if USE_PTHREADS_AND_BACKPROXY_DOM_EVENT_CALLBACKS_TO_CALLER_THREAD
+  $JSEvents__deps: ['emscripten_get_html5_callback_register_thread_context', 'emscripten_main_browser_thread_id'],
+#endif
   $JSEvents: {
     // pointers to structs malloc()ed to Emscripten HEAP for JS->C interop.
     keyEvent: 0,
