@@ -801,7 +801,6 @@ var LibraryJSEvents = {
           target.height = newHeight;
         } else {
           emscripten_set_canvas_element_size_js(target.id, newWidth, newHeight);
-//          console.error('TODO: Cannot change canvas size, as control has been transferred to OffscreenCanvas!');
         }
         if (target.GLctxObject) target.GLctxObject.GLctx.viewport(0, 0, newWidth, newHeight);
       }
@@ -1540,7 +1539,6 @@ var LibraryJSEvents = {
           canvas.width = oldWidth;
           canvas.height = oldHeight;
         } else {
-//          console.error('TODO: Cannot change canvas size, as control has been transferred to OffscreenCanvas!');
           emscripten_set_canvas_element_size_js(canvas.id, oldWidth, oldHeight);
         }
 
@@ -1659,7 +1657,6 @@ var LibraryJSEvents = {
         canvas.width = w;
         canvas.height = h;
       } else {
-//        console.error('TODO: Cannot change canvas size, as control has been transferred to OffscreenCanvas!');
         emscripten_set_canvas_element_size_js(canvas.id, w, h);
       }
       if (canvas.GLctxObject) canvas.GLctxObject.GLctx.viewport(0, 0, w, h);
@@ -2387,18 +2384,38 @@ var LibraryJSEvents = {
     var canvas = JSEvents.findCanvasEventTarget(target);
     if (!canvas) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
-    if (canvas.canvasSharedPtr && !canvas.controlTransferredOffscreen) {
+    if (canvas.canvasSharedPtr) {
+      // N.B. We hold the canvasSharedPtr info structure as the authoritative source for specifying the size of a canvas
+      // since the actual canvas size changes are asynchronous if the canvas is owned by an OffscreenCanvas on another thread.
+      // Therefore when setting the size, eagerly set the size of the canvas on the calling thread here, though this thread
+      // might not be the one that actually ends up specifying the size, but the actual size change may be dispatched
+      // as an asynchronous event below.
       {{{ makeSetValue('canvas.canvasSharedPtr', 0, 'width', 'i32') }}};
       {{{ makeSetValue('canvas.canvasSharedPtr', 4, 'height', 'i32') }}};
     }
 
-    if (canvas.offscreenCanvas) {
-      canvas = canvas.offscreenCanvas;
+    if (canvas.offscreenCanvas || !canvas.controlTransferredOffscreen) {
+      if (canvas.offscreenCanvas) canvas = canvas.offscreenCanvas;
+      var autoResizeViewport = false;
+      if (canvas.GLctxObject && canvas.GLctxObject.GLctx) {
+        var prevViewport = canvas.GLctxObject.GLctx.getParameter(canvas.GLctxObject.GLctx.VIEWPORT);
+        // TODO: Perhaps autoResizeViewport should only be true if FBO 0 is currently active?
+        autoResizeViewport = (prevViewport[0] === 0 && prevViewport[1] === 0 && prevViewport[2] === canvas.width && prevViewport[3] === canvas.height);
+#if GL_DEBUG
+        console.error('Resizing canvas from ' + canvas.width + 'x' + canvas.height + ' to ' + width + 'x' + height + '. Previous GL viewport size was ' 
+          + str(prevViewport) + ', so autoResizeViewport=' + autoResizeViewport);
+#endif
+      }
       canvas.width = width;
       canvas.height = height;
-    } else if (!canvas.controlTransferredOffscreen) {
-      canvas.width = width;
-      canvas.height = height;      
+      if (autoResizeViewport) {
+#if GL_DEBUG
+        console.error('Automatically resizing GL viewport to cover whole render target ' + width + 'x' + height);
+#endif
+        // TODO: Add -s CANVAS_RESIZE_SETS_GL_VIEWPORT=0/1 option (default=1). This is commonly done and several graphics engines depend on this,
+        // but this can be quite disruptive.
+        canvas.GLctxObject.GLctx.viewport(0, 0, width, height);
+      }
     } else if (canvas.canvasSharedPtr) {
       var stackTop = Runtime.stackSave();
       var varargs = Runtime.stackAlloc(12);
@@ -2470,17 +2487,20 @@ var LibraryJSEvents = {
     var canvas = JSEvents.findCanvasEventTarget(target);
     if (!canvas) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
-    if (canvas.offscreenCanvas) {
+    if (canvas.canvasSharedPtr) {
+      // N.B. Reading the size of the Canvas takes priority from our shared state structure, which is not the actual size.
+      // However if is possible that there is a canvas size set event pending on an OffscreenCanvas owned by another thread,
+      // so that the real sizes of the canvas have not updated yet. Therefore reading the real values would be racy.
+      var w = {{{ makeGetValue('canvas.canvasSharedPtr', 0, 'i32') }}};
+      var h = {{{ makeGetValue('canvas.canvasSharedPtr', 4, 'i32') }}};
+      {{{ makeSetValue('width', 0, 'w', 'i32') }}};
+      {{{ makeSetValue('height', 0, 'h', 'i32') }}};
+    } else if (canvas.offscreenCanvas) {
       {{{ makeSetValue('width', 0, 'canvas.offscreenCanvas.width', 'i32') }}};
       {{{ makeSetValue('height', 0, 'canvas.offscreenCanvas.height', 'i32') }}};
     } else if (!canvas.controlTransferredOffscreen) {
       {{{ makeSetValue('width', 0, 'canvas.width', 'i32') }}};
       {{{ makeSetValue('height', 0, 'canvas.height', 'i32') }}};
-    } else if (canvas.canvasSharedPtr) {
-      var w = {{{ makeGetValue('canvas.canvasSharedPtr', 0, 'i32') }}};
-      var h = {{{ makeGetValue('canvas.canvasSharedPtr', 4, 'i32') }}};
-      {{{ makeSetValue('width', 0, 'w', 'i32') }}};
-      {{{ makeSetValue('height', 0, 'h', 'i32') }}};
     } else {
 #if GL_DEBUG
       console.error('canvas.controlTransferredOffscreen but we do not own the canvas, and do not know who has (no canvas.canvasSharedPtr present, an internal bug?)!\n');
