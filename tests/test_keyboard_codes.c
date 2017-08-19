@@ -17,8 +17,8 @@ static inline const char *emscripten_event_type_to_string(int eventType) {
 
 int interpret_charcode_for_keyevent(int eventType, const EmscriptenKeyboardEvent *e)
 {
-  // Only KeyPress events carry a charCode. For KeyDown and KeyUp events, these don't seem to be present yet, until the KeyDown
-  // is transformed to KeyPress. Sometimes it can be useful to already at KeyDown time interpret what the charCode of the resulting
+  // Only KeyPress events carry a charCode. For KeyDown and KeyUp events, these don't seem to be present yet, until later when the KeyDown
+  // is transformed to KeyPress. Sometimes it can be useful to already at KeyDown time to know what the charCode of the resulting
   // KeyPress will be. The following attempts to do this:
   if (eventType == EMSCRIPTEN_EVENT_KEYPRESS && e->which) return e->which;
   if (e->charCode) return e->charCode;
@@ -33,8 +33,7 @@ int number_of_characters_in_utf8_string(const char *str)
   int num_chars = 0;
   while(*str)
   {
-    if ((*str & 0xC0) != 0x80) ++num_chars; // Skip all continuation bytes
-    ++str;
+    if ((*str++ & 0xC0) != 0x80) ++num_chars; // Skip all continuation bytes
   }
   return num_chars;
 }
@@ -60,18 +59,19 @@ EM_BOOL key_callback(int eventType, const EmscriptenKeyboardEvent *e, void *user
 
   if (eventType == EMSCRIPTEN_EVENT_KEYUP) printf("\n"); // Visual cue
 
+  // Return true for events we want to suppress default web browser handling for.
   // For testing purposes, want to return false here on most KeyDown messages so that they get transformed to KeyPress messages.
-
   return e->keyCode == DOM_VK_BACK_SPACE // Don't navigate away from this test page on backspace.
-  || e->keyCode == DOM_VK_TAB // Don't change keyboard focus to different browser UI elements while testing.
-  || (e->keyCode >= DOM_VK_F1 && e->keyCode <= DOM_VK_F24) // Don't F5 refresh the test page to reload.
-  || e->ctrlKey // Don't trigger e.g. Ctrl-B to open bookmarks
-  || e->altKey // Don't trigger any alt-X based shortcuts either (Alt-F4 is not overrideable though)
-  || eventType == EMSCRIPTEN_EVENT_KEYPRESS || eventType == EMSCRIPTEN_EVENT_KEYUP; // Don't perform any default actions on these.
+    || e->keyCode == DOM_VK_TAB // Don't change keyboard focus to different browser UI elements while testing.
+    || (e->keyCode >= DOM_VK_F1 && e->keyCode <= DOM_VK_F24) // Don't F5 refresh the test page to reload.
+    || e->ctrlKey // Don't trigger e.g. Ctrl-B to open bookmarks
+    || e->altKey // Don't trigger any alt-X based shortcuts either (Alt-F4 is not overrideable though)
+    || eventType == EMSCRIPTEN_EVENT_KEYPRESS || eventType == EMSCRIPTEN_EVENT_KEYUP; // Don't perform any default actions on these.
 }
 
 int main()
 {
+  printf("Press any keys on the keyboard to test the appropriate generated EmscriptenKeyboardEvent structure.\n");
   emscripten_set_keydown_callback(0, 0, 1, key_callback);
   emscripten_set_keyup_callback(0, 0, 1, key_callback);
   emscripten_set_keypress_callback(0, 0, 1, key_callback);
