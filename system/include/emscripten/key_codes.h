@@ -386,3 +386,5 @@ static const char *emscripten_dom_vk_to_string(int dom_vk_code)
     default:                          return "Unknown DOM_VK code";
   }
 }
+
+#include "dom_pk_codes.h"
