@@ -3,7 +3,7 @@
 
 #include <inttypes.h>
 #include <pthread.h>
-#include <emscripten/html5.h>
+#include "html5.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -176,6 +176,8 @@ void emscripten_async_waitable_close(em_queued_call *call);
 
 // Queues the given function call to be performed on the specified thread.
 void emscripten_async_queue_on_thread_(void *threadId, EM_FUNC_SIGNATURE sig, void *func_ptr, void *satellite, ...);
+
+#define emscripten_async_queue_on_thread(threadId, sig, func_ptr, satellite, ...) emscripten_async_queue_on_thread_((threadId), (sig), (void*)(func_ptr), (satellite),##__VA_ARGS__)
 
 // Returns 1 if the current thread is the thread that hosts the Emscripten runtime.
 int emscripten_is_main_runtime_thread(void);

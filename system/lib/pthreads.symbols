@@ -78,8 +78,6 @@
          U emscripten_get_now
          U emscripten_is_main_runtime_thread
          T emscripten_main_thread_process_queued_calls
-         T emscripten_get_html5_callback_register_thread_context
-         T emscripten_set_html5_callback_register_thread_context
          T emscripten_pthread_attr_settransferredcanvases
          T emscripten_pthread_attr_gettransferredcanvases
          T emscripten_sync_run_in_main_thread
