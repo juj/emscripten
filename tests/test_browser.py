@@ -3673,6 +3673,14 @@ window.close = function() {
     for args in [[], ['-DTEST_SYNC_BLOCKING_LOOP=1']]:
       self.btest('html5_callbacks_on_calling_thread.c', expected='1', args=args + ['-s', 'USE_PTHREADS=1'])
 
+  # Test that it is possible to register HTML5 event callbacks on either main browser thread, or application main thread,
+  # and that the application can manually proxy the event from main browser thread to the application main thread, to
+  # implement event suppression capabilities.
+  def test_html5_callback_on_two_threads(self):
+    # TODO: Make this automatic by injecting enter key press in e.g. shell html file.
+    for args in [[], ['-s', 'USE_PTHREADS=1']]:
+      self.btest('html5_event_callback_in_two_threads.c', expected='1', args=args)
+
   # Tests the absolute minimum pthread-enabled application.
   def test_hello_thread(self):
     self.btest(path_from_root('tests', 'pthread', 'hello_thread.c'), expected='1', args=['-s', 'USE_PTHREADS=1'])
