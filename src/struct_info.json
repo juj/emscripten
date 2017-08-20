@@ -1393,7 +1393,8 @@
               "canvasResolutionScaleMode",
               "filteringMode",
               "canvasResizedCallback",
-              "canvasResizedCallbackUserData"
+              "canvasResizedCallbackUserData",
+              "canvasResizedCallbackTargetThread"
             ]
         }
     },

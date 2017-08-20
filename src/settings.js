@@ -781,7 +781,6 @@ var IN_TEST_HARNESS = 0; // If true, the current build is performed for the Emsc
 var USE_PTHREADS = 0; // If true, enables support for pthreads.
 
 var PTHREADS_DEBUG = 2; // If 1, outputs debug information about multithreading. If == 2, outputs even more verbose multithreading debugging
-var BACKPROXY_DOM_EVENT_CALLBACKS_TO_CALLER_THREAD = 1;
 
 var PTHREAD_POOL_SIZE = 0; // Specifies the number of web workers that are preallocated before runtime is initialized. If 0, workers are created on demand.
 
