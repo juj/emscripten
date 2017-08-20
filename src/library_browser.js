@@ -1091,7 +1091,11 @@ var LibraryBrowser = {
   },
 
   // Runs natively in pthread, no __proxy needed.
+#if OFFSCREEN_FRAMEBUFFER
+  emscripten_set_main_loop__deps: ['emscripten_set_main_loop_timing', 'emscripten_get_now', 'emscripten_webgl_commit_frame'],
+#else
   emscripten_set_main_loop__deps: ['emscripten_set_main_loop_timing', 'emscripten_get_now'],
+#endif
   emscripten_set_main_loop: function(func, fps, simulateInfiniteLoop, arg, noSetTiming) {
     Module['noExitRuntime'] = true;
 
@@ -1159,20 +1163,21 @@ var LibraryBrowser = {
       GL.newRenderingFrameStarted();
 #endif
 
-#if OFFSCREENCANVAS_SUPPORT
-      // If the current GL context is an OffscreenCanvas, but it was initialized with implicit swap mode, perform the swap
-      // in behalf of the user.
-      if (typeof GL !== 'undefined' && GL.currentContext) {
 #if USE_PTHREADS
-        if (GLctxIsOnParentThread) {
-          Runtime.warnOnce("TODO: We are currently in a pthread and WebGL context is being proxied to main thread. If GL.currentContext.attributes.explicitSwapControl == false, we should commit() now, but here in a pthread, we don't currently know which value this flag has.");
-          // TODO: This should only be called if GL.currentContext.attributes.explicitSwapControl == false, but in a pthread, we don't currently know which value this flag has.
-//          _emscripten_webgl_commit_frame();
-        } else
+#if OFFSCREEN_FRAMEBUFFER
+      // If the current GL context is a proxied regular WebGL context, and was initialized with implicit swap mode on the main thread, and we are on the parent thread,
+      // perform the swap on behalf of the user.
+      if (typeof GL !== 'undefined' && GL.currentContext && GLctxIsOnParentThread) {
+        var explicitSwapControl = {{{ makeGetValue('GL.currentContext', 0, 'i32') }}};
+        if (!explicitSwapControl) _emscripten_webgl_commit_frame();
+      }
 #endif
-        if (!GL.currentContext.attributes.explicitSwapControl && GL.currentContext.GLctx.commit) {
-          GL.currentContext.GLctx.commit();
-        }
+#endif
+
+#if OFFSCREENCANVAS_SUPPORT
+      // If the current GL context is an OffscreenCanvas, but it was initialized with implicit swap mode, perform the swap on behalf of the user.
+      if (typeof GL !== 'undefined' && GL.currentContext && !GLctxIsOnParentThread && !GL.currentContext.attributes.explicitSwapControl && GL.currentContext.GLctx.commit) {
+        GL.currentContext.GLctx.commit();
       }
 #endif
 
