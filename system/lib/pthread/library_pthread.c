@@ -320,7 +320,9 @@ void * EMSCRIPTEN_KEEPALIVE emscripten_main_browser_thread_id(void)
 static void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_call_on_thread(void *target_thread, em_queued_call *call)
 {
 	assert(call);
+	// Can't be a null pointer here, but can't be EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD either.
 	assert(target_thread);
+	if (target_thread == EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD) target_thread = emscripten_main_browser_thread_id();
 
 	/*
 	// If we are the main Emscripten runtime thread, we can just call the operation directly.
@@ -330,7 +332,7 @@ static void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_call_on_thread(void *tar
 	}
 	*/
 	// If we are the target recipient of this message, we can just call the operation directly.
-	if (pthread_self() == target_thread) {
+	if (target_thread == EM_CALLBACK_THREAD_CONTEXT_CALLING_THREAD || target_thread == pthread_self()) {
 		_do_call(call);
 		return;
 	}
@@ -667,20 +669,6 @@ void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_on_thread_(void *threadId, EM_F
 	// and it is the callee's responsibility to free up the memory after the call has been performed.
 	q->calleeDelete = 1;
 	emscripten_async_queue_call_on_thread(threadId, q);
-}
-
-static void *html5_callback_thread_context = EM_CALLBACK_THREAD_CONTEXT_CALLING_THREAD;
-
-// TODO: These should operate thread-local, but it's tricky since it should propagate to the call sites that register callbacks.
-void emscripten_set_html5_callback_register_thread_context(void *thread_context)
-{
-	html5_callback_thread_context = thread_context;
-}
-
-// TODO: These should operate thread-local, but it's tricky since it should propagate to the call sites that register callbacks.
-void * EMSCRIPTEN_KEEPALIVE emscripten_get_html5_callback_register_thread_context(void)
-{
-	return html5_callback_thread_context;
 }
 
 float EMSCRIPTEN_KEEPALIVE emscripten_atomic_load_f32(const void *addr)
