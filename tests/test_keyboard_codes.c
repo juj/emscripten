@@ -46,14 +46,11 @@ int emscripten_key_event_is_printable_character(const EmscriptenKeyboardEvent *k
 
 EM_BOOL key_callback(int eventType, const EmscriptenKeyboardEvent *e, void *userData)
 {
-  int keyCharCode = e->charCode;
-  if (!keyCharCode) {
-    if (strlen(e->key) == 1) keyCharCode = (int)e->key[0];
-    else if (e->which) keyCharCode = e->which;
-  }
+  int dom_pk_code = emscripten_compute_dom_pk_code(e->code);
 
-  printf("%s, key: \"%s\" (printable: %s), code: \"%s\", location: %lu,%s%s%s%s repeat: %d, locale: \"%s\", char: \"%s\", charCode: %lu (interpreted: %d), keyCode: %s(%lu), which: %lu\n",
-    emscripten_event_type_to_string(eventType), e->key, emscripten_key_event_is_printable_character(e) ? "true" : "false", e->code, e->location, 
+  printf("%s, key: \"%s\" (printable: %s), code: \"%s\" = %s (%d), location: %lu,%s%s%s%s repeat: %d, locale: \"%s\", char: \"%s\", charCode: %lu (interpreted: %d), keyCode: %s(%lu), which: %lu\n",
+    emscripten_event_type_to_string(eventType), e->key, emscripten_key_event_is_printable_character(e) ? "true" : "false", e->code,
+    emscripten_dom_pk_code_to_string(dom_pk_code), dom_pk_code, e->location,
     e->ctrlKey ? " CTRL" : "", e->shiftKey ? " SHIFT" : "", e->altKey ? " ALT" : "", e->metaKey ? " META" : "", 
     e->repeat, e->locale, e->charValue, e->charCode, interpret_charcode_for_keyevent(eventType, e), emscripten_dom_vk_to_string(e->keyCode), e->keyCode, e->which);
 
