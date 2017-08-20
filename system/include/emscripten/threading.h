@@ -175,9 +175,9 @@ EMSCRIPTEN_RESULT emscripten_wait_for_call_i(em_queued_call *call, double timeou
 void emscripten_async_waitable_close(em_queued_call *call);
 
 // Queues the given function call to be performed on the specified thread.
-void emscripten_async_queue_on_thread_(void *threadId, EM_FUNC_SIGNATURE sig, void *func_ptr, void *satellite, ...);
+void emscripten_async_queue_on_thread_(pthread_t target_thread, EM_FUNC_SIGNATURE sig, void *func_ptr, void *satellite, ...);
 
-#define emscripten_async_queue_on_thread(threadId, sig, func_ptr, satellite, ...) emscripten_async_queue_on_thread_((threadId), (sig), (void*)(func_ptr), (satellite),##__VA_ARGS__)
+#define emscripten_async_queue_on_thread(target_thread, sig, func_ptr, satellite, ...) emscripten_async_queue_on_thread_((target_thread), (sig), (void*)(func_ptr), (satellite),##__VA_ARGS__)
 
 // Returns 1 if the current thread is the thread that hosts the Emscripten runtime.
 int emscripten_is_main_runtime_thread(void);
@@ -193,9 +193,9 @@ void emscripten_main_thread_process_queued_calls(void);
 
 void emscripten_current_thread_process_queued_calls(void);
 
-void emscripten_register_main_browser_thread_id(void *main_browser_thread_id);
+void emscripten_register_main_browser_thread_id(pthread_t mainBrowserThreadId);
 
-void *emscripten_main_browser_thread_id(void);
+pthread_t emscripten_main_browser_thread_id(void);
 
 // Direct syscall access, second argument is a varargs pointer. used in proxying
 int emscripten_syscall(int, void*);

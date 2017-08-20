@@ -305,19 +305,19 @@ EMSCRIPTEN_RESULT emscripten_wait_for_call_i(em_queued_call *call, double timeou
 	return res;
 }
 
-static void *main_browser_thread_id_ = 0;
+static volatile pthread_t main_browser_thread_id_ = 0;
 
-void EMSCRIPTEN_KEEPALIVE emscripten_register_main_browser_thread_id(void *main_browser_thread_id)
+void EMSCRIPTEN_KEEPALIVE emscripten_register_main_browser_thread_id(pthread_t main_browser_thread_id)
 {
 	main_browser_thread_id_ = main_browser_thread_id;
 }
 
-void * EMSCRIPTEN_KEEPALIVE emscripten_main_browser_thread_id(void)
+pthread_t EMSCRIPTEN_KEEPALIVE emscripten_main_browser_thread_id(void)
 {
 	return main_browser_thread_id_;
 }
 
-static void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_call_on_thread(void *target_thread, em_queued_call *call)
+static void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_call_on_thread(pthread_t target_thread, em_queued_call *call)
 {
 	assert(call);
 	// Can't be a null pointer here, but can't be EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD either.
@@ -649,7 +649,7 @@ em_queued_call *emscripten_async_waitable_run_in_main_runtime_thread_(EM_FUNC_SI
 	return q;
 }
 
-void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_on_thread_(void *threadId, EM_FUNC_SIGNATURE sig, void *func_ptr, void *satellite, ...)
+void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_on_thread_(pthread_t targetThread, EM_FUNC_SIGNATURE sig, void *func_ptr, void *satellite, ...)
 {
 	int numArguments = EM_FUNC_SIG_NUM_FUNC_ARGUMENTS(sig);
 	em_queued_call *q = em_queued_call_malloc();
@@ -668,7 +668,7 @@ void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_on_thread_(void *threadId, EM_F
 	// 'async' runs are fire and forget, where the caller detaches itself from the call object after returning here,
 	// and it is the callee's responsibility to free up the memory after the call has been performed.
 	q->calleeDelete = 1;
-	emscripten_async_queue_call_on_thread(threadId, q);
+	emscripten_async_queue_call_on_thread(targetThread, q);
 }
 
 float EMSCRIPTEN_KEEPALIVE emscripten_atomic_load_f32(const void *addr)
