@@ -3693,3 +3693,6 @@ window.close = function() {
     Popen([PYTHON, EMCC, 'src.c', '-s', 'USE_PTHREADS=1', '-o', 'hello_thread_with_blob_url.js']).communicate()
     shutil.copyfile(path_from_root('tests', 'pthread', 'main_js_as_blob_loader.html'), os.path.join(self.get_dir(), 'hello_thread_with_blob_url.html'))
     self.run_browser('hello_thread_with_blob_url.html', 'hello from thread!', '/report_result?1')
+
+  def test_emscripten_thread_sleep(self):
+    self.btest(path_from_root('tests', 'pthread', 'emscripten_thread_sleep.c'), expected='1', args=['-s', 'USE_PTHREADS=1'])
