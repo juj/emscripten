@@ -260,13 +260,22 @@ var LibraryPThread = {
     receiveObjectTransfer: function(data) {
 #if OFFSCREENCANVAS_SUPPORT
 #if PTHREADS_DEBUG
-      console.error('[thread ' + _pthread_self() + ', ENVIRONMENT_IS_PTHREAD: ' + ENVIRONMENT_IS_PTHREAD + ']: PThread.receiveObjectTransfer()');
+      console.error('[thread ' + _pthread_self() + ', ENVIRONMENT_IS_PTHREAD: ' + ENVIRONMENT_IS_PTHREAD + ']: PThread.receiveObjectTransfer():');
 #endif
       if (typeof GL !== 'undefined') {
         for (var i in data.offscreenCanvases) {
           GL.offscreenCanvases[i] = data.offscreenCanvases[i];
+#if PTHREADS_DEBUG
+          console.error(GL.offscreenCanvases[i]);
+#endif
         }
-        if (!Module['canvas'] && data.moduleCanvasId && GL.offscreenCanvases[data.moduleCanvasId]) Module['canvas'] = GL.offscreenCanvases[data.moduleCanvasId].offscreenCanvas;
+#if PTHREADS_DEBUG
+        console.error('data.moduleCanvasId="' + data.moduleCanvasId + '"');
+#endif
+        if (!Module['canvas'] && data.moduleCanvasId && GL.offscreenCanvases[data.moduleCanvasId]) {
+          Module['canvas'] = GL.offscreenCanvases[data.moduleCanvasId].offscreenCanvas;
+          Module['canvas'].id = data.moduleCanvasId;
+        }
       }
 #endif
     },
@@ -598,7 +607,7 @@ var LibraryPThread = {
     if (transferredCanvasNames) transferredCanvasNames = Pointer_stringify(transferredCanvasNames).trim();
     if (transferredCanvasNames) transferredCanvasNames = transferredCanvasNames.split(',');
 #if GL_DEBUG
-    console.log('pthread_create: transferredCanvasNames= ' + transferredCanvasNames);
+    console.log('pthread_create: transferredCanvasNames="' + transferredCanvasNames + '"');
 #endif
 
     var offscreenCanvases = {}; // Dictionary of OffscreenCanvas objects we'll transfer to the created thread to own
@@ -630,7 +639,7 @@ var LibraryPThread = {
           }
           if (canvas.transferControlToOffscreen) {
 #if GL_DEBUG
-            Module['printErr']('canvas.transferControlToOffscreen(), transferring canvas from main thread to pthread');
+            Module['printErr']('pthread_create: canvas.transferControlToOffscreen(), transferring canvas by name "' + name + '" (DOM id="' + canvas.id + '") from main thread to pthread');
 #endif
             // Create a shared information block in heap so that we can control the canvas size from any thread.
             if (!canvas.canvasSharedPtr) {
