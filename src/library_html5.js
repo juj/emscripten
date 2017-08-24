@@ -2134,9 +2134,9 @@ var LibraryJSEvents = {
     target = Pointer_stringify(target);
     var canvas;
     if ((!target || target === '#canvas') && Module['canvas']) {
-      canvas = Module['canvas'].id ? (GL.offscreenCanvases[Module['canvas'].id] || JSEvents.findEventTarget(Module['canvas'].id)) : Module['canvas'];
+      canvas = Module['canvas'].id ? (GL.offscreenCanvases[Module['canvas'].id].offscreenCanvas || JSEvents.findEventTarget(Module['canvas'].id)) : Module['canvas'];
     } else {
-      canvas = GL.offscreenCanvases[target] || JSEvents.findEventTarget(target);
+      canvas = GL.offscreenCanvases[target].offscreenCanvas || JSEvents.findEventTarget(target);
     }
 
 #if USE_PTHREADS
@@ -2169,7 +2169,7 @@ var LibraryJSEvents = {
 #if OFFSCREENCANVAS_SUPPORT
 #if GL_DEBUG
     if (typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas) console.log('emscripten_webgl_create_context: Creating an OffscreenCanvas-based WebGL context on target "' + target + '"');
-    else if (canvas instanceof HTMLCanvasElement) console.log('emscripten_webgl_create_context: Creating an HTMLCanvasElement-based WebGL context on target "' + target + '"');
+    else if (typeof HTMLCanvasElement !== 'undefined' && canvas instanceof HTMLCanvasElement) console.log('emscripten_webgl_create_context: Creating an HTMLCanvasElement-based WebGL context on target "' + target + '"');
 #endif
 
     if (contextAttributes['explicitSwapControl']) {
