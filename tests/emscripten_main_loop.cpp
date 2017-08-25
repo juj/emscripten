@@ -63,7 +63,6 @@ void looper() {
 
 #include <emscripten/pthread_proxy_main.h>
 int emscripten_main(int argc, char **argv) {
-  printf("Main!\n");
   emscripten_set_main_loop(looper, 5, 1);
   return 0;
 }
