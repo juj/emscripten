@@ -26,7 +26,8 @@ void read_file()
   fclose(file);
 }
 
-int main()
+#include <emscripten/pthread_proxy_main.h>
+int emscripten_main(int argc, char **argv)
 {
   read_file();
   read_file();
