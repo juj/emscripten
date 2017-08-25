@@ -23,7 +23,7 @@ void *ThreadMain(void *arg)
 
 #define N 100
 
-	EM_ASM_INT( { Module['printErr']('Thread idx '+$0+': sorting ' + $1 + ' numbers with param ' + $2 + '.') }, idx, N, param);
+	THREAD_LOCAL_EM_ASM_INT( { Module['printErr']('Thread idx '+$0+': sorting ' + $1 + ' numbers with param ' + $2 + '.') }, idx, N, param);
 
 	unsigned int n[N];
 	for(unsigned int i = 0; i < N; ++i)
@@ -44,9 +44,9 @@ void *ThreadMain(void *arg)
 	int numGood = 0;
 	for(unsigned int i = 0; i < N; ++i)
 		if (n[i] == i) ++numGood;
-		else EM_ASM_INT( { Module['printErr']('n['+$0+']='+$1); }, i, n[i]);
+		else THREAD_LOCAL_EM_ASM_INT( { Module['printErr']('n['+$0+']='+$1); }, i, n[i]);
 
-	EM_ASM_INT( { Module['print']('Thread idx ' + $0 + ' with param '+$1+': all done with result '+$2+'.'); }, idx, param, numGood);
+	THREAD_LOCAL_EM_ASM_INT( { Module['print']('Thread idx ' + $0 + ' with param '+$1+': all done with result '+$2+'.'); }, idx, param, numGood);
 	pthread_exit((void*)numGood);
 }
 
@@ -61,7 +61,7 @@ void CreateThread(int i)
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 	static int counter = 1;
 	global_shared_data[i] = (counter++ * 12141231) & 0x7FFFFFFF; // Arbitrary random'ish data for perturbing the sort for this thread task.
-//	EM_ASM_INT( { Module['print']('Main: Creating thread idx ' + $0 + ' (param ' + $1 + ')'); }, i, global_shared_data[i]);
+//	THREAD_LOCAL_EM_ASM_INT( { Module['print']('Main: Creating thread idx ' + $0 + ' (param ' + $1 + ')'); }, i, global_shared_data[i]);
 	int rc = pthread_create(&thread[i], &attr, ThreadMain, (void*)i);
 	assert(rc == 0);
 	pthread_attr_destroy(&attr);

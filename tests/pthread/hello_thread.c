@@ -3,7 +3,7 @@
 
 void *thread_main(void *arg)
 {
-	EM_ASM(Module.print('hello from thread!'));
+	THREAD_LOCAL_EM_ASM(Module.print('hello from thread!'));
 #ifdef REPORT_RESULT
 	REPORT_RESULT(1);
 #endif

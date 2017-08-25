@@ -19,6 +19,6 @@ int emscripten_main(int argc, char **argv)
 	emscripten_hide_mouse();
 	EMSCRIPTEN_RESULT ret = emscripten_set_click_callback("#canvas", 0, 1, mouse_callback);
 	assert(ret == 0);
-	EM_ASM(Module['noExitRuntime'] = true);
+	THREAD_LOCAL_EM_ASM(Module['noExitRuntime'] = true);
 	return 0;
 }

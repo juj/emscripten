@@ -18,9 +18,9 @@ int fib(int n)
 static void *thread_start(void *arg)
 {
   int n = (int)arg;
-  EM_ASM_INT( { Module['print']('Thread: Computing fib('+$0+')...'); }, n);
+  THREAD_LOCAL_EM_ASM_INT( { Module['print']('Thread: Computing fib('+$0+')...'); }, n);
   int fibn = fib(n);
-  EM_ASM_INT( { Module['print']('Thread: Computation done. fib('+$0+') = '+$1+'.'); }, n, fibn);
+  THREAD_LOCAL_EM_ASM_INT( { Module['print']('Thread: Computation done. fib('+$0+') = '+$1+'.'); }, n, fibn);
   pthread_exit((void*)fibn);
 }
 
