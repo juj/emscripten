@@ -18,8 +18,7 @@ void EMSCRIPTEN_KEEPALIVE later() {
   emscripten_force_exit(0);
 }
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv) {
+int main() {
   atexit(success);
 
   EM_ASM({
@@ -34,6 +33,4 @@ int emscripten_main(int argc, char **argv) {
   printf("HORRIBLE\n");
   result += 100; // should never happen
 
-  return 0;
 }
-

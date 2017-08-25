@@ -48,10 +48,8 @@ void main_loop_blocker(void*) {
   emscripten_resume_main_loop();
 }
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv) {
+int main() {
   prevTime = emscripten_get_now();
   emscripten_push_uncounted_main_loop_blocker(main_loop_blocker, NULL);
   emscripten_set_main_loop(looper, 60, 1);
-  return 0;
 }

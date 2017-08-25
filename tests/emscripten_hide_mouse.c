@@ -12,13 +12,11 @@ EM_BOOL mouse_callback(int eventType, const EmscriptenMouseEvent *e, void *userD
 	return 0;
 }
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv)
+int main()
 {
 	printf("The mouse cursor should be hidden when hovering over the canvas rectangle. Click on the canvas to finish test.\n");
 	emscripten_hide_mouse();
 	EMSCRIPTEN_RESULT ret = emscripten_set_click_callback("#canvas", 0, 1, mouse_callback);
 	assert(ret == 0);
 	THREAD_LOCAL_EM_ASM(Module['noExitRuntime'] = true);
-	return 0;
 }

@@ -8,8 +8,7 @@
 
 #define TEST_SIZE 512000
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv)
+int main()
 {
   // 1. Populate an IndexedDB file entry with custom data bytes in memory.
   emscripten_fetch_attr_t attr;
@@ -64,5 +63,4 @@ int emscripten_main(int argc, char **argv)
 #ifdef REPORT_RESULT
   REPORT_RESULT(0);
 #endif
-  return 0;
 }

@@ -292,8 +292,7 @@ void report_result(void *arg)
 }
 #endif
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv)
+int main()
 {
 
   EMSCRIPTEN_RESULT ret = emscripten_set_keypress_callback(0, 0, 1, key_callback);
@@ -479,5 +478,4 @@ int emscripten_main(int argc, char **argv)
   // Keep the page running for a moment.
   emscripten_async_call(report_result, 0, 5000);
 #endif
-  return 0;
 }

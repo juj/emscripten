@@ -20,8 +20,7 @@
 // Leaving EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES undefined will also transfer the default Module.canvas object
 #endif
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv)
+int main()
 {
   EmscriptenWebGLContextAttributes attr;
   emscripten_webgl_init_context_attributes(&attr);
@@ -50,5 +49,4 @@ int emscripten_main(int argc, char **argv)
 #ifdef REPORT_RESULT
   REPORT_RESULT(1);
 #endif
-  exit(0);
 }

@@ -4,8 +4,7 @@
 #include <assert.h>
 #include <emscripten/fetch.h>
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv)
+int main()
 {
   // 1. Populate file to IndexedDB by a GET.
   emscripten_fetch_attr_t attr;
@@ -51,5 +50,4 @@ int emscripten_main(int argc, char **argv)
 #ifdef REPORT_RESULT
   REPORT_RESULT(0);
 #endif
-  return 0;
 }

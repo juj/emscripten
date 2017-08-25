@@ -58,8 +58,7 @@ void *threadMain(void *arg)
   return 0;
 }
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv)
+int main()
 {
   mainRuntimeThreadId = pthread_self();
 
@@ -68,5 +67,4 @@ int emscripten_main(int argc, char **argv)
   assert(rc == 0);
 
   THREAD_LOCAL_EM_ASM(Module['noExitRuntime'] = true);
-  return 0;
 }

@@ -6,8 +6,7 @@
 
 int result = 0;
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv)
+int main()
 {
   emscripten_fetch_attr_t attr;
   emscripten_fetch_attr_init(&attr);
@@ -51,5 +50,4 @@ int emscripten_main(int argc, char **argv)
 #ifdef REPORT_RESULT
     REPORT_RESULT(result);
 #endif
-  return 0;
 }

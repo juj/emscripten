@@ -54,8 +54,7 @@ void main_tick(void *arg)
   alSourcef(source, AL_PITCH, pitch);
 }
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv) {
+int main() {
   int major, minor;
   alcGetIntegerv(NULL, ALC_MAJOR_VERSION, 1, &major);
   alcGetIntegerv(NULL, ALC_MAJOR_VERSION, 1, &minor);
@@ -212,6 +211,4 @@ int emscripten_main(int argc, char **argv) {
   usleep(700000);
   playSource(reinterpret_cast<void*>(sources[0]));
 #endif
-
-  return 0;
 }

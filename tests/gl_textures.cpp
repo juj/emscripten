@@ -50,9 +50,7 @@ void draw()
   report_result(0);
 }
 
-#define EMSCRIPTEN_PTHREAD_STACK_SIZE 512*1024
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv)
+int main()
 {
   emscripten_set_canvas_size(256, 256);
   EmscriptenWebGLContextAttributes attr;
@@ -134,5 +132,4 @@ int emscripten_main(int argc, char **argv)
     }
   glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, 256, 256, 0, GL_LUMINANCE, GL_FLOAT, texData);
   emscripten_set_main_loop(draw, 0, 0);
-  return 0;
 }

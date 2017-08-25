@@ -4,8 +4,7 @@
 #include <string.h>
 #include <emscripten/emscripten.h>
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv)
+int main()
 {
   FILE *file = fopen("dirrey/hello file !#$%&'()+,-.;=@[]^_`{}~ %%.txt", "rb");
   assert(file);

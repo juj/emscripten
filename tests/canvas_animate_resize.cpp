@@ -11,8 +11,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-//#define TEST_PTHREAD_PROXY_MAIN
-//  - If set, test the usage of <emscripten/pthread_proxy_main.h>. Otherwise, use plain main()
 //#define TEST_TRANSFER_CANVAS_TO_PTHREAD
 //  - If set, transfer the main canvas element to pthread as an OffscreenCanvas. If unset, resort to proxying WebGL
 //#define TEST_EXPLICIT_CONTEXT_SWAP
@@ -22,8 +20,8 @@
 //#define TEST_MANUALLY_SET_ELEMENT_CSS_SIZE
 //  - If set, manually update CSS pixel size of the canvas. If unset, leave the CSS size to auto and expect the browser to resize the canvas size.
 
-#if !defined(TEST_EMSCRIPTEN_SET_MAIN_LOOP) && (!defined(TEST_PTHREAD_PROXY_MAIN) || !defined(__EMSCRIPTEN_PTHREADS__))
-#error TEST_EMSCRIPTEN_SET_MAIN_LOOP=false, but blocking main loops require using emscripten/pthread_proxy_main.h and multithreading (build with -DTEST_PTHREAD_PROXY_MAIN=1 and -s USE_PTHREADS=1)
+#if !defined(TEST_EMSCRIPTEN_SET_MAIN_LOOP) && !defined(__EMSCRIPTEN_PTHREADS__)
+#error TEST_EMSCRIPTEN_SET_MAIN_LOOP=false, but blocking main loops require using -s PROXY_TO_PTHREADS= and multithreading (build with -s PROXY_TO_PTHREAD=1 and -s USE_PTHREADS=1)
 #endif
 
 #if !defined(TEST_EMSCRIPTEN_SET_MAIN_LOOP) && !defined(TEST_EXPLICIT_CONTEXT_SWAP)
@@ -36,7 +34,7 @@
 // Test using OffscreenCanvas API
 #define EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES "#canvas"
 #else
-// Test pthread_proxy_main.h with WebGL proxying to main thread
+// Test -s PROXY_TO_PTHREAD=1 with WebGL proxying to main thread
 #define EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES ""
 #endif
 
@@ -130,12 +128,7 @@ void init()
   glLinkProgram(program);
 }
 
-#if TEST_PTHREAD_PROXY_MAIN
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv)
-#else
-int main(int argc, char **argv)
-#endif
+int main()
 {
   EmscriptenWebGLContextAttributes attr;
   emscripten_webgl_init_context_attributes(&attr);
@@ -159,5 +152,4 @@ int main(int argc, char **argv)
     usleep(16*1000);
   }
 #endif
-  return 0;
 }

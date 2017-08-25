@@ -38,8 +38,7 @@ void AsyncScriptFailed()
   TestAsyncRunScript();
 }
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv) {
+int main() {
 
   // 1. Test that emscripten_run_script() works in a pthread, and it gets executed in the web worker and not on the main thread.
 #if __EMSCRIPTEN_PTHREADS__
@@ -70,6 +69,4 @@ int emscripten_main(int argc, char **argv) {
 
   // 4. Test emscripten_async_load_script() runs in a pthread.
   emscripten_async_load_script("foo.js", AsyncScriptLoaded, AsyncScriptFailed);
-
-  return 0;
 }

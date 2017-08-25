@@ -97,8 +97,7 @@ EM_BOOL keyup_callback_on_application_main_thread(int eventType, const Emscripte
   return 0;
 }
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv)
+int main()
 {
   main_browser_thread_id = emscripten_main_browser_thread_id();
   assert(main_browser_thread_id);
@@ -112,5 +111,4 @@ int emscripten_main(int argc, char **argv)
   printf("Please press the Enter key.\n");
 
   THREAD_LOCAL_EM_ASM(Module['noExitRuntime'] = true);
-  return 0;
 }

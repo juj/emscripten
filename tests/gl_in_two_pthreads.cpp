@@ -57,8 +57,7 @@ void run_thread(int param)
   assert(rc == 0);
 }
 
-#include <emscripten/pthread_proxy_main.h>
-int emscripten_main(int argc, char **argv)
+int main()
 {
   // Create a context
   EmscriptenWebGLContextAttributes attr;
@@ -90,6 +89,4 @@ int emscripten_main(int argc, char **argv)
 
   // And render with it again
   fill(1);
-
-  return 0;
 }
