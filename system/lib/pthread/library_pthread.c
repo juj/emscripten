@@ -197,6 +197,9 @@ void emscripten_async_waitable_close(em_queued_call *call)
 
 static void _do_call(em_queued_call *q)
 {
+// #if PTHREADS_DEBUG // TODO: Create a debug version of pthreads library
+//	THREAD_LOCAL_EM_ASM_INT({dump('thread ' + _pthread_self() + ' (ENVIRONMENT_IS_WORKER: ' + ENVIRONMENT_IS_WORKER + ', processing queueing call of function enum=' + $0 + '/ptr=' + $1 + '\n')}, q->functionEnum, q->functionPtr);
+// #endif
 	switch(q->functionEnum)
 	{
 		case EM_PROXIED_UTIME: q->returnValue.i = utime(q->args[0].cp, (struct utimbuf*)q->args[1].vp); break;
@@ -328,6 +331,11 @@ pthread_t EMSCRIPTEN_KEEPALIVE emscripten_main_browser_thread_id(void)
 static void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_call_on_thread(pthread_t target_thread, em_queued_call *call)
 {
 	assert(call);
+
+// #if PTHREADS_DEBUG // TODO: Create a debug version of pthreads library
+//	THREAD_LOCAL_EM_ASM_INT({dump('thread ' + _pthread_self() + ' (ENVIRONMENT_IS_WORKER: ' + ENVIRONMENT_IS_WORKER + '), queueing call of function enum=' + $0 + '/ptr=' + $1 + ' on thread ' + $2 + '\n' + new Error().stack)}, call->functionEnum, call->functionPtr, target_thread);
+// #endif
+
 	// Can't be a null pointer here, but can't be EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD either.
 	assert(target_thread);
 	if (target_thread == EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD) target_thread = emscripten_main_browser_thread_id();
@@ -553,6 +561,8 @@ void EMSCRIPTEN_KEEPALIVE emscripten_current_thread_process_queued_calls(void)
 //	THREAD_LOCAL_EM_ASM(console.error('thread ' + _pthread_self() + ': emscripten_current_thread_process_queued_calls(), ' + new Error().stack));
 // #endif
 
+	// TODO: Under certain conditions we may want to have a nesting guard also for pthreads (and it will certainly be cleaner that way), but
+	// we don't yet have TLS variables outside pthread_set/getspecific, so convert this to TLS after TLS is implemented.
 	static int bool_main_thread_inside_nested_process_queued_calls = 0;
 
 	if (emscripten_is_main_browser_thread())
@@ -570,6 +580,7 @@ void EMSCRIPTEN_KEEPALIVE emscripten_current_thread_process_queued_calls(void)
 	if (!q)
 	{
 		pthread_mutex_unlock(&call_queue_lock);
+		if (emscripten_is_main_browser_thread()) bool_main_thread_inside_nested_process_queued_calls = 0;
 		return;
 	}
 
@@ -591,10 +602,7 @@ void EMSCRIPTEN_KEEPALIVE emscripten_current_thread_process_queued_calls(void)
 	// If the queue was full and we had waiters pending to get to put data to queue, wake them up.
 	emscripten_futex_wake((void*)&q->call_queue_head, 0x7FFFFFFF);
 
-	if (emscripten_is_main_browser_thread())
-	{
-		bool_main_thread_inside_nested_process_queued_calls = 0;
-	}
+	if (emscripten_is_main_browser_thread()) bool_main_thread_inside_nested_process_queued_calls = 0;
 }
 
 void EMSCRIPTEN_KEEPALIVE emscripten_main_thread_process_queued_calls(void)

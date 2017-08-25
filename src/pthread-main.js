@@ -31,18 +31,25 @@ var ENVIRONMENT_IS_PTHREAD = true;
 // Therefore implement custom logging facility for threads running in a worker, which queue the messages to main thread to print.
 var Module = {};
 
+//#if PTHREADS_DEBUG == 2
+function debugDump(msg) {
+  if (typeof dump === 'function') dump(msg + '\n');
+  console.error(msg);
+}
+//#endif
+
 this.addEventListener('error', function(e) {
   if (e.message.indexOf('SimulateInfiniteLoop') != -1) {
 //#if PTHREADS_DEBUG == 2
-    console.error('Pthread ' + selfThreadId + ': threw SimulateInfiniteLoop to exit to event handler');
+    debugDump('Pthread ' + selfThreadId + ': threw SimulateInfiniteLoop to exit to event handler');
 //#endif
     return e.preventDefault();
   } else {
     // Other errors propagate back to main browser thread's .onerror handler.
 //#if PTHREADS_DEBUG
     var errorSource = ' in ' + e.filename + ':' + e.lineno + ':' + e.colno;
-    console.error('Pthread ' + selfThreadId + ' uncaught exception' + (e.filename || e.lineno || e.colno ? errorSource : '') + ': ' + e.message + '. Error object:');
-    console.error(e.error);
+    debugDump('Pthread ' + selfThreadId + ' uncaught exception' + (e.filename || e.lineno || e.colno ? errorSource : '') + ': ' + e.message + '. Error object:');
+    debugDump(e.error);
 //#endif
   }
 });
@@ -59,7 +66,7 @@ function threadPrintErr() {
 function threadAlert() {
   var text = Array.prototype.slice.call(arguments).join(' ');
 //#if PTHREADS_DEBUG
-  console.error('Pthread ' + selfThreadId + ' calling alert(): ' + text);
+  debugDump('Pthread ' + selfThreadId + ' calling alert(): ' + text + '\n' + new Error().stack);
 //#endif
   postMessage({cmd: 'alert', text: text, threadId: selfThreadId});
 }
@@ -72,8 +79,8 @@ this.onmessage = function(e) {
 //#if PTHREADS_DEBUG == 2
 /*
     if (e.data.target != 'setimmediate') { // Logging this message would spam too much.
-      console.error('Pthread ' + selfThreadId + ' onmessage: ' + (e.data.cmd || e.data.target));
-      console.error(e.data);
+      debugDump('Pthread ' + selfThreadId + ' onmessage: ' + (e.data.cmd || e.data.target));
+      debugDump(e.data);
     }
 */    
 //#endif
@@ -90,7 +97,7 @@ this.onmessage = function(e) {
 
     PthreadWorkerInit = e.data.PthreadWorkerInit;
 //#if PTHREADS_DEBUG
-    console.error('Web Worker load: importing ' + e.data.urlOrBlob);
+    debugDump('Web Worker load: importing ' + e.data.urlOrBlob);
 //#endif
     if (typeof e.data.urlOrBlob === 'string') {
       importScripts(e.data.urlOrBlob);
@@ -109,7 +116,7 @@ this.onmessage = function(e) {
     selfThreadId = e.data.selfThreadId;
     parentThreadId = e.data.parentThreadId;
 //#if PTHREADS_DEBUG
-    console.error('Web Worker run: threadInfoStruct: ' + threadInfoStruct + ', selfThreadId: ' + selfThreadId + ', parentThreadId: ' + parentThreadId);
+    debugDump('Web Worker run: threadInfoStruct: ' + threadInfoStruct + ', selfThreadId: ' + selfThreadId + ', parentThreadId: ' + parentThreadId);
 //#endif
     assert(threadInfoStruct);
     assert(selfThreadId);
@@ -119,7 +126,7 @@ this.onmessage = function(e) {
     STACK_BASE = STACKTOP = e.data.stackBase;
     STACK_MAX = STACK_BASE + e.data.stackSize;
 //#if PTHREADS_DEBUG == 2
-    console.error('Web Worker run: STACK_BASE: ' + STACK_BASE + ', Stack size: ' + e.data.stackSize + ', STACK_MAX: ' + STACK_MAX);
+    debugDump('Web Worker run: STACK_BASE: ' + STACK_BASE + ', Stack size: ' + e.data.stackSize + ', STACK_MAX: ' + STACK_MAX);
 //#endif
     assert(STACK_BASE != 0);
     assert(STACK_MAX > STACK_BASE);
@@ -138,7 +145,7 @@ this.onmessage = function(e) {
     var result = 0;
     try {
 //#if PTHREADS_DEBUG == 2
-      console.error('Web Worker calling pthread main');
+      debugDump('Web Worker calling pthread main');
 //#endif
       // HACK: Some code in the wild has instead signatures of form 'void *ThreadMain()', which seems to be ok in native code.
       // To emulate supporting both in test suites, use the following form. This is brittle!
@@ -153,8 +160,8 @@ this.onmessage = function(e) {
 
     } catch(e) {
 //#if PTHREADS_DEBUG == 2
-      console.error('Web Worker main() threw an exception: ' + e);
-      console.error(e.stack);
+      debugDump('Web Worker main() threw an exception: ' + e);
+      debugDump(e.stack);
 //#endif
       if (e === 'Canceled!') {
         PThread.threadCancel();
@@ -172,7 +179,7 @@ this.onmessage = function(e) {
     // (This is a no-op if explicit pthread_exit() had been called prior.)
     if (!Module['noExitRuntime']) {
 //#if PTHREADS_DEBUG == 2
-      console.error('pthread ' + selfThreadId + ' exited, no Module["noExitRuntime"] set, so quitting the thread.');
+      debugDump('pthread ' + selfThreadId + ' exited, no Module["noExitRuntime"] set, so quitting the thread.');
 //#endif
       PThread.threadExit(result);
     }
@@ -184,12 +191,12 @@ this.onmessage = function(e) {
   } else if (e.data.cmd === 'cancel') { // Main thread is asking for a pthread_cancel() on this thread.
     if (threadInfoStruct && PThread.thisThreadCancelState == 0/*PTHREAD_CANCEL_ENABLE*/) {
 //#if PTHREADS_DEBUG == 2
-      console.error('pthread ' + selfThreadId + ' is cancelling on request.');
+      debugDump('pthread ' + selfThreadId + ' is cancelling on request.');
 //#endif
       PThread.threadCancel();
     } 
 //#if PTHREADS_DEBUG == 2
-    else console.error('pthread ' + selfThreadId + ' requested to be cancelled, but threadInfoStruct: ' + threadInfoStruct + ' no longer present, or PThread.thisThreadCancelState: ' + PThread.thisThreadCancelState + ' does not allow cancelling.');
+    else debugDump('pthread ' + selfThreadId + ' requested to be cancelled, but threadInfoStruct: ' + threadInfoStruct + ' no longer present, or PThread.thisThreadCancelState: ' + PThread.thisThreadCancelState + ' does not allow cancelling.');
 //#endif      
   } else if (e.data.target === 'setimmediate') {
     // no-op
@@ -198,16 +205,16 @@ this.onmessage = function(e) {
       _emscripten_current_thread_process_queued_calls();
     }
 //#if PTHREADS_DEBUG == 2
-    else console.error('pthread ' + selfThreadId + ' requested to process its thread queue, but but threadInfoStruct: ' + threadInfoStruct + ' no longer present, so ignoring.');
+    else debugDump('pthread ' + selfThreadId + ' requested to process its thread queue, but but threadInfoStruct: ' + threadInfoStruct + ' no longer present, so ignoring.');
 //#endif
   } else {
     Module['printErr']('pthread-main.js received unknown command ' + e.data.cmd);
-    console.error(e.data);
+    debugDump(e.data);
   }
 
   } catch(e) {
-    console.error('pthread-main.js onmessage() captured an uncaught exception: ' + e);
-    console.error(e.stack);
+    debugDump('pthread-main.js onmessage() captured an uncaught exception: ' + e);
+    debugDump(e.stack);
     throw e;
   }
 }
