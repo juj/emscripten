@@ -2531,12 +2531,6 @@ integrateWasmJS(Module);
 #endif
 
 #if USE_PTHREADS
-#if PROXY_TO_WORKER
-// Initialize the synchronous message pipe between this Web Worker hosting the Emscripten runtime thread, and the browser's main thread.
-if (typeof SharedArrayBuffer !== 'undefined' && !ENVIRONMENT_IS_PTHREAD) {
-  postMessage({target: 'buffer', buffer: buffer});
-}
-#endif
 
 // TODO: instead of handwriting any of these here, write a generator in jsifier.js that dynamically generates exactly the needed
 //       set of functions to invoke the proxy calls.

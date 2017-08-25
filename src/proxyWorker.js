@@ -497,15 +497,6 @@ if (!ENVIRONMENT_IS_PTHREAD) {
 }
 #endif
 
-function _emscripten_sync_run_in_browser_thread_d(func) {
-  var returnValue = allocate(2, 'f64', ALLOC_STACK);
-  var waitAddress = returnValue + 8;
-  Atomics.store(HEAP32, waitAddress >> 2, 0);
-  postMessage({ target: 'proxiedCall', returnValue: returnValue, func: func });
-  Atomics.wait(HEAP32, waitAddress >> 2, 0);
-  return Atomics.load(HEAPF64, returnValue >> 3);
-}
-
 function postCustomMessage(data) {
   postMessage({ target: 'custom', userData: data });
 }

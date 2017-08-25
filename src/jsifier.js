@@ -18,12 +18,7 @@ var functionStubSigs = {};
 
 // Some JS-implemented library functions are proxied to be called on the main browser thread, if the Emscripten runtime is executing in a Web Worker.
 // Each such proxied function is identified via an ordinal number (this is not the same namespace as function pointers in general).
-var proxiedFunctionOrdinal = 1;
 var proxiedFunctionTable = ["null" /* Reserve index 0 for an undefined function*/];
-
-// Body of the library code that is proxied to run on the main browser thread (when the rest of the application runs in a Worker)
-var proxyJsContent = '';
-
 
 // JSifier
 function JSify(data, functionsOnly) {
@@ -241,11 +236,10 @@ function JSify(data, functionsOnly) {
           contentText = "function " + finalName + "(param1) {\n"
           + "  assert(ENVIRONMENT_IS_WORKER);\n"
           + "  assert(runtimeInitialized);\n"
-          + "  return _emscripten_sync_run_in_browser_thread_1(" + proxiedFunctionOrdinal++ + "/*" + finalName + "()*/, param1);\n"
+          + "  return _emscripten_sync_run_in_browser_thread_1(" + proxiedFunctionTable.length + "/*" + finalName + "()*/, param1);\n"
           + "}";
 
           // Code for the main browser thread:
-          proxyJsContent += snippet;
           proxiedFunctionTable.push(finalName);
         } else if (USE_PTHREADS && (proxyingMode === 'main' || proxyingMode === 'main_gl' || proxyingMode === 'async' || proxyingMode === 'async_gl')) {
           var sig = LibraryManager.library[ident + '__sig'];
@@ -255,10 +249,10 @@ function JSify(data, functionsOnly) {
           var proxyingFunc = (proxyingMode === 'main' || proxyingMode === 'main_gl') ? '_emscripten_sync_run_in_browser_thread_' : '_emscripten_async_run_in_browser_thread_';
           if (sig.length > 1) {
             // If the function takes parameters, forward those to the proxied function call
-            snippet = snippet.replace(/function\s+(.*)?\s*\((.*?)\)\s*{/, 'function $1($2) {\nif (' + proxyingCondition + ') return ' + proxyingFunc + sig + '(' + proxiedFunctionOrdinal++ + ', $2);');
+            snippet = snippet.replace(/function\s+(.*)?\s*\((.*?)\)\s*{/, 'function $1($2) {\nif (' + proxyingCondition + ') return ' + proxyingFunc + sig + '(' + proxiedFunctionTable.length + ', $2);');
           } else {
             // No parameters to the function
-            snippet = snippet.replace(/function (.*)? {/, 'function $1 {\nif (' + proxyingCondition + ') return ' + proxyingFunc + sig + '(' + proxiedFunctionOrdinal++ + ');');
+            snippet = snippet.replace(/function (.*)? {/, 'function $1 {\nif (' + proxyingCondition + ') return ' + proxyingFunc + sig + '(' + proxiedFunctionTable.length + ');');
           }
           contentText = snippet;
           proxiedFunctionTable.push(finalName);
@@ -442,6 +436,7 @@ function JSify(data, functionsOnly) {
 
     if (!BUILD_AS_SHARED_LIB && !SIDE_MODULE) {
       if (USE_PTHREADS) {
+        print('\n // proxiedFunctionTable specifies the list of functions that can be called either synchronously or asynchronously from other threads in postMessage()d or internally queued events. This way a pthread in a Worker can synchronously access e.g. the DOM on the main thread.')
         print('\nvar proxiedFunctionTable = [' + proxiedFunctionTable.join() + '];\n');
         print('if (!ENVIRONMENT_IS_PTHREAD) {\n // Only main thread initializes these, pthreads copy them over at thread worker init time (in pthread-main.js)');
       }
@@ -475,10 +470,6 @@ function JSify(data, functionsOnly) {
     // rest of the output that we started to print out earlier (see comment on the
     // "Final shape that will be created").
     print('// EMSCRIPTEN_END_FUNCS\n');
-
-    print(proxyJsContent);
-    print('\nvar proxiedFunctionTable = [' + proxiedFunctionTable.join() + '];\n');
-    print('// EMSCRIPTEN_END_PROXIED_FUNCS\n');
 
     if (HEADLESS) {
       print('if (!ENVIRONMENT_IS_WEB) {');

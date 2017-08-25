@@ -236,18 +236,6 @@ worker.onmessage = function worker_onmessage(event) {
       worker.postMessage({target: 'setimmediate'});
       break;
     }
-    case 'buffer': {
-      buffer = data.buffer;
-      HEAP32 = new Int32Array(buffer);
-      break;
-    }
-    case 'proxiedCall': {
-      var retValue = proxiedFunctionTable[data.func](data.param1);
-      Atomics.store(HEAP32, data.syncReturnValueAddress>>2, retValue);
-      Atomics.store(HEAP32, (data.syncReturnValueAddress+4)>>2, 1);
-      Atomics.wake(HEAP32, (data.syncReturnValueAddress+4)>>2, 1);
-      break;
-    }
 
     default: throw 'what? ' + data.target;
   }
