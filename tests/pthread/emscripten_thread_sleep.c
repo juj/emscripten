@@ -15,7 +15,7 @@ void Sleep(double msecs)
 
 void *thread_main(void *arg)
 {
-	EM_ASM(Module.print('hello from thread!'));
+	THREAD_LOCAL_EM_ASM(Module.print('hello from thread!'));
 
 	Sleep(1);
 	Sleep(10);

@@ -473,6 +473,7 @@ int emscripten_main(int argc, char **argv)
   /* For the events to function, one must either call emscripten_set_main_loop or enable Module.noExitRuntime by some other means. 
      Otherwise the application will exit after leaving main(), and the atexit handlers will clean up all event hooks (by design). */
   EM_ASM(Module['noExitRuntime'] = true);
+  THREAD_LOCAL_EM_ASM(Module['noExitRuntime'] = true);
   
 #ifdef REPORT_RESULT
   // Keep the page running for a moment.
