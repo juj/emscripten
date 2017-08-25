@@ -1073,6 +1073,9 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         if shared.Settings.EMTERPRETIFY:
           logging.error('-s EMTERPRETIFY=1 is not supported with -s USE_PTHREADS>0!')
           exit(1)
+        if shared.Settings.PROXY_TO_WORKER:
+          logging.error('--proxy-to-worker is not supported with -s USE_PTHREADS>0! See file #include <emscripten/pthread_proxy_main.h> on how to proxy main thread to a worker in multithreaded builds!')
+          exit(1)
 
       if shared.Settings.OUTLINING_LIMIT:
         if not options.js_opts:

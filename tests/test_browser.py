@@ -3160,7 +3160,7 @@ window.close = function() {
 
   # Test that a pthread can spawn another pthread of its own.
   def test_pthread_create_pthread(self):
-    for opt in [['-s', 'USE_PTHREADS=2', '--separate-asm'], ['-s', 'USE_PTHREADS=1', '--proxy-to-worker']]:
+    for opt in [['-s', 'USE_PTHREADS=2', '--separate-asm'], ['-s', 'USE_PTHREADS=1']]:
       self.btest(path_from_root('tests', 'pthread', 'test_pthread_create_pthread.cpp'), expected='1', args=opt + ['-O3', '-s', 'PTHREAD_POOL_SIZE=2', '-s', 'NO_EXIT_RUNTIME=1'], timeout=30)
 
   # Test another case of pthreads spawning pthreads, but this time the callers immediately join on the threads they created.
