@@ -46,8 +46,7 @@ int main(int argc, char **argv)
     emscripten_pthread_attr_settransferredcanvases(&attr, (EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES));
 #else
     // Otherwise by default, transfer whatever is set to Module.canvas.
-    bool hasCanvas = EM_ASM_INT_V({ return !!(Module['canvas']); });
-    if (hasCanvas) emscripten_pthread_attr_settransferredcanvases(&attr, "#canvas");
+    if (EM_ASM_INT_V({ return !!(Module['canvas']); })) emscripten_pthread_attr_settransferredcanvases(&attr, "#canvas");
 #endif
     args.argc = argc;
     args.argv = argv;
