@@ -231,17 +231,11 @@ function JSify(data, functionsOnly) {
       if (isFunction) {
         // Emit the body of a JS library function.
         var proxyingMode = LibraryManager.library[ident + '__proxy'];
-        if (PROXY_TO_WORKER && proxyingMode === 'main') {
-          // Code for the Worker thread: a JS function that needs to be executed in the main browser thread (to e.g. access the DOM or other APIs not available in Workers)
-          contentText = "function " + finalName + "(param1) {\n"
-          + "  assert(ENVIRONMENT_IS_WORKER);\n"
-          + "  assert(runtimeInitialized);\n"
-          + "  return _emscripten_sync_run_in_browser_thread_1(" + proxiedFunctionTable.length + "/*" + finalName + "()*/, param1);\n"
-          + "}";
+        if (proxyingMode && proxyingMode !== 'main' && proxyingMode !== 'main_gl' && proxyingMode !== 'async' && proxyingMode !== 'async_gl') {
+          throw 'Invalid proxyingMode ' + ident + '__proxy: \'' + proxyingMode + '\' specified!';
+        }
 
-          // Code for the main browser thread:
-          proxiedFunctionTable.push(finalName);
-        } else if (USE_PTHREADS && (proxyingMode === 'main' || proxyingMode === 'main_gl' || proxyingMode === 'async' || proxyingMode === 'async_gl')) {
+        if (USE_PTHREADS && proxyingMode) {
           var sig = LibraryManager.library[ident + '__sig'];
           sig = sig.replace(/f/g, 'i'); // TODO: Implement float signatures.
           if (!sig) throw 'Missing function signature field "' + ident + '__sig"! (Using proxying mode requires specifying the signature of the function)';
