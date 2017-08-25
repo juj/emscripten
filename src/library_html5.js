@@ -62,21 +62,20 @@ var LibraryJSEvents = {
 
     // Find a DOM element with the given ID.
     findEventTarget: function(target) {
-      if (target) {
-        if (typeof target == "number") target = Pointer_stringify(target);
-        if (target == '#window' && typeof window !== 'undefined') return window;
-        else if (target == '#document') return document;
-        else if (target == '#screen') return window.screen;
-        else if (target == '#canvas') return Module['canvas'];
-
-        if (typeof target == 'string') return document.getElementById(target);
-        else return target;
-      } else if (typeof window !== 'undefined') {
-        // The sensible target varies between events, but use window as the default
+      try {
+        // The sensible "default" target varies between events, but use window as the default
         // since DOM events mostly can default to that. Specific callback registrations
         // override their own defaults.
-        return window;
-      } else {
+        if (!target) return window;
+        if (typeof target === "number") target = Pointer_stringify(target);
+        if (target === '#window') return window;
+        else if (target === '#document') return document;
+        else if (target === '#screen') return window.screen;
+        else if (target === '#canvas') return Module['canvas'];
+        return (typeof target === 'string') ? document.getElementById(target) : target;
+      } catch(e) {
+        // In Web Workers, some objects above, such as '#document' do not exist. Gracefully
+        // return null for them.
         return null;
       }
     },
@@ -84,11 +83,9 @@ var LibraryJSEvents = {
     // Like findEventTarget, but looks for OffscreenCanvas elements first
     findCanvasEventTarget: function(target) {
       if (typeof target === 'number') target = Pointer_stringify(target);
-      if (target) {
-        if (target === '#canvas' && GL.offscreenCanvases['canvas']) return GL.offscreenCanvases['canvas'];
-        else return GL.offscreenCanvases[target] || JSEvents.findEventTarget(target);
-      }
-      else return GL.offscreenCanvases['canvas'] || Module['canvas'];
+      if (!target) return GL.offscreenCanvases['canvas'] || Module['canvas'];
+      if (target === '#canvas' && GL.offscreenCanvases['canvas']) return GL.offscreenCanvases['canvas'];
+      else return GL.offscreenCanvases[target] || JSEvents.findEventTarget(target);
     },
 
     deferredCalls: [],
@@ -2134,29 +2131,32 @@ var LibraryJSEvents = {
     target = Pointer_stringify(target);
     var canvas;
     if ((!target || target === '#canvas') && Module['canvas']) {
-      canvas = Module['canvas'].id ? (GL.offscreenCanvases[Module['canvas'].id].offscreenCanvas || JSEvents.findEventTarget(Module['canvas'].id)) : Module['canvas'];
+      canvas = (Module['canvas'].id && GL.offscreenCanvases[Module['canvas'].id]) ? (GL.offscreenCanvases[Module['canvas'].id].offscreenCanvas || JSEvents.findEventTarget(Module['canvas'].id)) : Module['canvas'];
     } else {
-      canvas = GL.offscreenCanvases[target].offscreenCanvas || JSEvents.findEventTarget(target);
+      canvas = GL.offscreenCanvases[target] ? GL.offscreenCanvases[target].offscreenCanvas : JSEvents.findEventTarget(target);
     }
 
 #if USE_PTHREADS
-      // Create a WebGL context that is proxied to main thread if canvas was not found on worker, or if explicitly requested to do so.
-      if (ENVIRONMENT_IS_PTHREAD) {
-        if (contextAttributes['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS') }}} ||
-           (!canvas && contextAttributes['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK') }}})) {
-          // When WebGL context is being proxied via the main thread, we must render using an offscreen FBO render target to avoid WebGL's
-          // "implicit swap when callback exits" behavior. TODO: If OffscreenCanvas is supported, explicitSwapControl=true and still proxying,
-          // then this can be avoided, since OffscreenCanvas enables explicit swap control.
+    // Create a WebGL context that is proxied to main thread if canvas was not found on worker, or if explicitly requested to do so.
+    if (ENVIRONMENT_IS_PTHREAD) {
+      if (contextAttributes['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS') }}} ||
+         (!canvas && contextAttributes['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK') }}})) {
+        // When WebGL context is being proxied via the main thread, we must render using an offscreen FBO render target to avoid WebGL's
+        // "implicit swap when callback exits" behavior. TODO: If OffscreenCanvas is supported, explicitSwapControl=true and still proxying,
+        // then this can be avoided, since OffscreenCanvas enables explicit swap control.
 #if GL_DEBUG
-          if (contextAttributes['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS') }}}) console.error('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS enabled, proxying WebGL rendering from pthread to main thread.');
-          if (!canvas && contextAttributes['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK') }}}) console.error('Specified canvas target "' + target + '" is not an OffscreenCanvas in the current pthread, but EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK is set. Proxying WebGL rendering from pthread to main thread.');
-          console.error('Performance warning: forcing renderViaOffscreenBackBuffer=true and preserveDrawingBuffer=true since proxying WebGL rendering.');
+        if (contextAttributes['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS') }}}) console.error('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS enabled, proxying WebGL rendering from pthread to main thread.');
+        if (!canvas && contextAttributes['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK') }}}) console.error('Specified canvas target "' + target + '" is not an OffscreenCanvas in the current pthread, but EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK is set. Proxying WebGL rendering from pthread to main thread.');
+        console.error('Performance warning: forcing renderViaOffscreenBackBuffer=true and preserveDrawingBuffer=true since proxying WebGL rendering.');
 #endif
+        // We will be proxying - if OffscreenCanvas is supported, we can proxy a bit more efficiently by avoiding having to create an Offscreen FBO.
+        if (typeof OffscreenCanvas === 'undefined') {
           {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, '1', 'i32') }}}
           {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.preserveDrawingBuffer, '1', 'i32') }}}
-          return _emscripten_sync_run_in_main_thread_2({{{ cDefine('EM_PROXIED_CREATE_CONTEXT') }}}, target, attributes);
         }
+        return _emscripten_sync_run_in_main_thread_2({{{ cDefine('EM_PROXIED_CREATE_CONTEXT') }}}, target, attributes);
       }
+    }
 #endif
 
     if (!canvas) {
@@ -2193,9 +2193,16 @@ var LibraryJSEvents = {
 #if GL_DEBUG
         console.log('explicitSwapControl requested: canvas.transferControlToOffscreen() on canvas "' + target + '" to get .commit() function and not rely on implicit WebGL swap');
 #endif
-        GL.offscreenCanvases[canvas.id] = canvas.transferControlToOffscreen();
-        canvas.controlTransferredOffscreen = true;
-        GL.offscreenCanvases[canvas.id].id = canvas.id;
+        if (!canvas.controlTransferredOffscreen) {
+          GL.offscreenCanvases[canvas.id] = canvas.transferControlToOffscreen();
+          canvas.controlTransferredOffscreen = true;
+          GL.offscreenCanvases[canvas.id].id = canvas.id;
+        } else if (!GL.offscreenCanvases[canvas.id]) {
+#if GL_DEBUG
+          console.error('OffscreenCanvas is supported, and canvas "' + canvas.id + '" has already before been transferred offscreen, but there is no known OffscreenCanvas with that name!');
+#endif
+          return 0;
+        }
         canvas = GL.offscreenCanvases[canvas.id];
       }
     }
@@ -2284,6 +2291,9 @@ var LibraryJSEvents = {
 #if OFFSCREEN_FRAMEBUFFER
     if (GL.currentContext.defaultFbo) {
       GL.blitOffscreenFramebuffer(GL.currentContext);
+#if GL_DEBUG
+      if (GL.currentContext.GLctx.commit) console.error('emscripten_webgl_commit_frame(): Offscreen framebuffer should never have gotten created when canvas is in OffscreenCanvas mode, since it is redundant and not necessary');
+#endif
       return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     }
 #endif
