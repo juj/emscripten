@@ -7,7 +7,7 @@
 
 static void *thread1_start(void *arg)
 {
-  EM_ASM(Module['print']('thread1_start!'););
+  THREAD_LOCAL_EM_ASM(Module['print']('thread1_start!'););
 
   FILE *handle = fopen("file1.txt", "r");
   assert(handle);
@@ -39,7 +39,8 @@ int main()
   fclose(handle);
   pthread_t thr;
   pthread_create(&thr, NULL, thread1_start, 0);
-  pthread_join(thr, 0);
+  int rc = pthread_join(thr, 0);
+  assert(rc == 0);
 
   handle = fopen("file2.txt", "r");
   char str[256] = {};
