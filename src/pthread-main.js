@@ -53,7 +53,8 @@ function threadPrint() {
 }
 function threadPrintErr() {
   var text = Array.prototype.slice.call(arguments).join(' ');
-  console.error(text);
+  console.error(text + '\n' + new Error().stack);
+  console.error(new Error().stack);
 }
 function threadAlert() {
   var text = Array.prototype.slice.call(arguments).join(' ');
@@ -67,6 +68,7 @@ Module['printErr'] = threadPrintErr;
 this.alert = threadAlert;
 
 this.onmessage = function(e) {
+  try {
 //#if PTHREADS_DEBUG == 2
 /*
     if (e.data.target != 'setimmediate') { // Logging this message would spam too much.
@@ -194,5 +196,11 @@ this.onmessage = function(e) {
   } else {
     Module['printErr']('pthread-main.js received unknown command ' + e.data.cmd);
     console.error(e.data);
+  }
+
+  } catch(e) {
+    console.error('pthread-main.js onmessage() captured an uncaught exception: ' + e);
+    console.error(e.stack);
+    throw e;
   }
 }
