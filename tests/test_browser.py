@@ -1201,7 +1201,7 @@ keydown(100);keyup(100); // trigger the end
     self.btest('preinitialized_webgl_context.cpp', '5', args=['-s', 'GL_PREINITIALIZED_CONTEXT=1', '--shell-file', path_from_root('tests/preinitialized_webgl_context.html')])
 
   def test_emscripten_get_now(self):
-    for args in [[], ['-s', 'USE_PTHREADS=1', '--proxy-to-worker']]:
+    for args in [[], ['-s', 'USE_PTHREADS=1']]:
       self.btest('emscripten_get_now.cpp', '1', args=args)
 
   def test_fflush(self):
@@ -3579,7 +3579,7 @@ window.close = function() {
   # Tests emscripten_fetch() usage in synchronous mode.
   def test_fetch_sync_xhr(self):
     shutil.copyfile(path_from_root('tests', 'gears.png'), os.path.join(self.get_dir(), 'gears.png'))
-    self.btest('fetch/sync_xhr.cpp', expected='1', args=['--std=c++11', '-s', 'FETCH_DEBUG=1', '-s', 'FETCH=1', '--proxy-to-worker', '-s', 'USE_PTHREADS=1'])
+    self.btest('fetch/sync_xhr.cpp', expected='1', args=['--std=c++11', '-s', 'FETCH_DEBUG=1', '-s', 'FETCH=1', '-s', 'USE_PTHREADS=1'])
 
   def test_fetch_idb_store(self):
     self.btest('fetch/idb_store.cpp', expected='0', args=['-s', 'USE_PTHREADS=1', '-s', 'FETCH_DEBUG=1', '-s', 'FETCH=1', '--proxy-to-worker'])
@@ -3630,7 +3630,7 @@ window.close = function() {
     for args in [
         [],
         ['-s', 'USE_PTHREADS=1', '-s', 'PTHREAD_POOL_SIZE=2'],
-        ['-s', 'USE_PTHREADS=1', '--proxy-to-worker', '-s', 'PTHREAD_POOL_SIZE=2'],
+        ['-s', 'USE_PTHREADS=1', '-s', 'PTHREAD_POOL_SIZE=2'],
     ]:
       print "Testing with: ", args
       self.btest('pthread/test_pthread_locale.c', expected='1', args=args)
