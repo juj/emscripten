@@ -140,7 +140,8 @@ void test() {
   errno = 0;
 }
 
-int main() {
+#include <emscripten/pthread_proxy_main.h>
+int emscripten_main(int argc, char **argv) {
   atexit(cleanup);
   signal(SIGABRT, cleanup);
   setup();
