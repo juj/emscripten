@@ -211,13 +211,8 @@ var LibraryPThreadStub = {
   sem_trywait: function() {},
   sem_destroy: function() {},
 
-  emscripten_register_main_browser_thread_id_: 0,
-
-  emscripten_register_main_browser_thread_id__deps: ['emscripten_register_main_browser_thread_id_', 'emscripten_register_main_runtime_thread_id_'],
-  emscripten_register_main_browser_thread_id: function(id) { _emscripten_register_main_browser_thread_id_ = id; },
-
-  emscripten_main_browser_thread_id__deps: ['emscripten_register_main_browser_thread_id_', 'emscripten_register_main_runtime_thread_id_'],
-  emscripten_main_browser_thread_id: function() { return _emscripten_register_main_browser_thread_id_; },
+  emscripten_main_browser_thread_id__deps: ['pthread_self'],
+  emscripten_main_browser_thread_id: function() { return _pthread_self(); },
 
   // When pthreads is not enabled, we can't use the Atomics futex api to do proper sleeps, so simulate a busy spin wait loop instead.
   usleep: function(useconds) {

@@ -83,9 +83,12 @@ var LibraryJSEvents = {
     // Like findEventTarget, but looks for OffscreenCanvas elements first
     findCanvasEventTarget: function(target) {
       if (typeof target === 'number') target = Pointer_stringify(target);
-      if (!target) return GL.offscreenCanvases['canvas'] || Module['canvas'];
-      if (target === '#canvas' && GL.offscreenCanvases['canvas']) return GL.offscreenCanvases['canvas'];
-      else return GL.offscreenCanvases[target] || JSEvents.findEventTarget(target);
+      if (!target || target === '#canvas') {
+        if (typeof GL !== 'undefined' && GL.offscreenCanvases['canvas']) return GL.offscreenCanvases['canvas']; // TODO: Remove this line, target '#canvas' should refer only to Module['canvas'], not to GL.offscreenCanvases['canvas'] - but need stricter tests to be able to remove this line.
+        return Module['canvas'];
+      }
+      if (typeof GL !== 'undefined' && GL.offscreenCanvases[target]) return GL.offscreenCanvases[target];
+      return JSEvents.findEventTarget(target);
     },
 
     deferredCalls: [],
@@ -1998,7 +2001,7 @@ var LibraryJSEvents = {
   
   emscripten_set_gamepadconnected_callback_on_thread__proxy: 'main',
   emscripten_set_gamepadconnected_callback_on_thread__sig: 'iiiii',
-  emscripten_set_gamepadconnected_callback_on_thread: function(userData, useCapture, callbackfunc) {
+  emscripten_set_gamepadconnected_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
     if (!navigator.getGamepads && !navigator.webkitGetGamepads) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     JSEvents.registerGamepadEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_GAMEPADCONNECTED') }}}, "gamepadconnected", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
@@ -2006,7 +2009,7 @@ var LibraryJSEvents = {
   
   emscripten_set_gamepaddisconnected_callback_on_thread__proxy: 'main',
   emscripten_set_gamepaddisconnected_callback_on_thread__sig: 'iiiii',
-  emscripten_set_gamepaddisconnected_callback_on_thread: function(userData, useCapture, callbackfunc) {
+  emscripten_set_gamepaddisconnected_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
     if (!navigator.getGamepads && !navigator.webkitGetGamepads) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     JSEvents.registerGamepadEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_GAMEPADDISCONNECTED') }}}, "gamepaddisconnected", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
@@ -2057,8 +2060,11 @@ var LibraryJSEvents = {
   
   emscripten_set_beforeunload_callback_on_thread__proxy: 'main',
   emscripten_set_beforeunload_callback_on_thread__sig: 'iii',
-  emscripten_set_beforeunload_callback_on_thread: function(userData, callbackfunc) {
+  emscripten_set_beforeunload_callback_on_thread: function(userData, callbackfunc, targetThread) {
     if (typeof window.onbeforeunload === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
+    // beforeunload callback can only be registered on the main browser thread, because the page will go away immediately after returning from the handler,
+    // and there is no time to start proxying it anywhere.
+    if (targetThread !== {{{ cDefine('EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD') }}}) return {{{ cDefine('EMSCRIPTEN_RESULT_INVALID_PARAM') }}};
     JSEvents.registerBeforeUnloadEventCallback(window, userData, true, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BEFOREUNLOAD') }}}, "beforeunload"); 
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },

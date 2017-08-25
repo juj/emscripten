@@ -406,7 +406,8 @@ EGLAPI EGLContext EGLAPIENTRY eglCreateContext(EGLDisplay dpy, EGLConfig config,
 
   EmscriptenWebGLContextAttributes attr;
   emscripten_webgl_init_context_attributes(&attr);
-  attr.explicitSwapControl = 1;
+  // TODO: Make this the default
+//  attr.explicitSwapControl = 1;
   windowID = emscripten_webgl_create_context(0, &attr);
   eglError = windowID ? EGL_SUCCESS : EGL_BAD_MATCH;
   return (EGLContext)windowID;
