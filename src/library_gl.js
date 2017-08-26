@@ -524,7 +524,6 @@ var LibraryGL = {
       if (webGLContextAttributes['renderViaOffscreenBackBuffer']) webGLContextAttributes['preserveDrawingBuffer'] = true;
 #endif
 
-
 #if GL_TESTING
       webGLContextAttributes['preserveDrawingBuffer'] = true;
 #endif
