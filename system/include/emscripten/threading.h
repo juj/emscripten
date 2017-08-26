@@ -102,6 +102,9 @@ typedef struct em_queued_call
   em_variant_val args[EM_QUEUED_CALL_MAX_ARGS];
   em_variant_val returnValue;
 
+  // An optional pointer to a secondary data block that should be free()d when this queued call is freed.
+  void *satelliteData;
+
   // If true, the caller has "detached" itself from this call
   // object and the Emscripten main runtime thread should free up
   // this em_queued_call object after it has been executed. If
@@ -171,6 +174,11 @@ EMSCRIPTEN_RESULT emscripten_wait_for_call_i(em_queued_call *call, double timeou
 
 void emscripten_async_waitable_close(em_queued_call *call);
 
+// Queues the given function call to be performed on the specified thread.
+void emscripten_async_queue_on_thread_(pthread_t target_thread, EM_FUNC_SIGNATURE sig, void *func_ptr, void *satellite, ...);
+
+#define emscripten_async_queue_on_thread(target_thread, sig, func_ptr, satellite, ...) emscripten_async_queue_on_thread_((target_thread), (sig), (void*)(func_ptr), (satellite),##__VA_ARGS__)
+
 // Returns 1 if the current thread is the thread that hosts the Emscripten runtime.
 int emscripten_is_main_runtime_thread(void);
 
@@ -183,8 +191,22 @@ int emscripten_is_main_browser_thread(void);
 // that are considered cancellation points.
 void emscripten_main_thread_process_queued_calls(void);
 
+void emscripten_current_thread_process_queued_calls(void);
+
+pthread_t emscripten_main_browser_thread_id(void);
+
 // Direct syscall access, second argument is a varargs pointer. used in proxying
 int emscripten_syscall(int, void*);
+
+// Synchronously sleeps the calling thread for the given number of milliseconds.
+// Note: Calling this on the main browser thread is _very_ _very_ bad for application logic throttling,
+// because it does not save any battery, it will spin up the CPU at 100%, lock up the UI, printfs will not come
+// through on web page or the console, and eventually it will show up the slow script dialog.
+// Calling this function in a pthread (Web Worker) is fine, and a good way to go if you need to synchronously
+// sleep for a specific amount of time while saving power.
+// Note 2: This function will process the pthread-specific event queue for the calling thread while sleeping,
+//         and this function also acts as a cancellation point.
+void emscripten_thread_sleep(double msecs);
 
 #define EM_THREAD_STATUS int
 #define EM_THREAD_STATUS_NOTSTARTED 0
@@ -234,6 +256,8 @@ struct thread_profiler_block
 
 #define EM_PROXIED_PTHREAD_CREATE 137
 #define EM_PROXIED_SYSCALL 138
+#define EM_PROXIED_CREATE_CONTEXT 200
+#define EM_PROXIED_RESIZE_OFFSCREENCANVAS (4096 + 3) // EM_FUNC_SIG_NUM_FUNC_ARGUMENTS(EM_PROXIED_RESIZE_OFFSCREENCANVAS) == 3
 
 #ifdef __cplusplus
 }

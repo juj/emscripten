@@ -1226,7 +1226,14 @@
 
             "EM_HTML5_SHORT_STRING_LEN_BYTES",
             "EM_HTML5_MEDIUM_STRING_LEN_BYTES",
-            "EM_HTML5_LONG_STRING_LEN_BYTES"
+            "EM_HTML5_LONG_STRING_LEN_BYTES",
+
+            "EMSCRIPTEN_WEBGL_CONTEXT_PROXY_DISALLOW",
+            "EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK",
+            "EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS",
+
+            "EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD",
+            "EM_CALLBACK_THREAD_CONTEXT_CALLING_THREAD"
         ],
         "structs": {
             "EmscriptenKeyboardEvent": [
@@ -1381,6 +1388,7 @@
               "minorVersion",
               "enableExtensionsByDefault",
               "explicitSwapControl",
+              "proxyContextToMainThread",
               "renderViaOffscreenBackBuffer"
             ],
             "EmscriptenFullscreenStrategy": [
@@ -1388,7 +1396,8 @@
               "canvasResolutionScaleMode",
               "filteringMode",
               "canvasResizedCallback",
-              "canvasResizedCallbackUserData"
+              "canvasResizedCallbackUserData",
+              "canvasResizedCallbackTargetThread"
             ]
         }
     },
@@ -1476,12 +1485,22 @@
         "defines": [
             "EM_PROXIED_PTHREAD_CREATE",
             "EM_PROXIED_SYSCALL",
+            "EM_PROXIED_CREATE_CONTEXT",
+            "EM_PROXIED_RESIZE_OFFSCREENCANVAS",
             "EM_THREAD_STATUS_NOTSTARTED",
             "EM_THREAD_STATUS_RUNNING",
             "EM_THREAD_STATUS_SLEEPING",
             "EM_THREAD_STATUS_WAITFUTEX",
             "EM_THREAD_STATUS_WAITPROXY",
-            "EM_THREAD_STATUS_FINISHED"
+            "EM_THREAD_STATUS_FINISHED",
+            "EM_FUNC_SIG_V",
+            "EM_FUNC_SIG_VI",
+            "EM_FUNC_SIG_VII",
+            "EM_FUNC_SIG_VIII",
+            "EM_FUNC_SIG_I",
+            "EM_FUNC_SIG_II",
+            "EM_FUNC_SIG_III",
+            "EM_FUNC_SIG_IIII"
             ]
     },
     {
