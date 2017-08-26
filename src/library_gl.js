@@ -696,7 +696,8 @@ var LibraryGL = {
 #endif
 
     registerContext: function(ctx, webGLContextAttributes) {
-      var handle = GL.getNewId(GL.contexts);
+      var handle = _malloc(4); // Make space on the heap to store GL context attributes that need to be accessible as shared between threads.
+      {{{ makeSetValue('handle', 0, 'webGLContextAttributes["explicitSwapControl"]', 'i32')}}}; // explicitSwapControl
       var context = {
         handle: handle,
         attributes: webGLContextAttributes,
@@ -736,8 +737,22 @@ var LibraryGL = {
     },
 
     makeContextCurrent: function(contextHandle) {
+      // Deactivating current context?
+      if (!contextHandle) {
+        GLctx = Module.ctx = GL.currentContext = null;
+        return true;
+      }
       var context = GL.contexts[contextHandle];
-      if (!context) return false;
+      if (!context) {
+#if GL_DEBUG
+#if USE_PTHREADS
+        console.error('GL.makeContextCurrent() failed! WebGL context ' + contextHandle + ' does not exist, or was created on another thread!');
+#else
+        console.error('GL.makeContextCurrent() failed! WebGL context ' + contextHandle + ' does not exist!');
+#endif
+#endif
+        return false;
+      }
       GLctx = Module.ctx = context.GLctx; // Active WebGL context object.
       GL.currentContext = context; // Active Emscripten GL layer context object.
       return true;
@@ -748,9 +763,11 @@ var LibraryGL = {
     },
 
     deleteContext: function(contextHandle) {
+      if (!contextHandle) return;
       if (GL.currentContext === GL.contexts[contextHandle]) GL.currentContext = null;
       if (typeof JSEvents === 'object') JSEvents.removeAllHandlersOnTarget(GL.contexts[contextHandle].GLctx.canvas); // Release all JS event handlers on the DOM element that the GL context is associated with since the context is now deleted.
       if (GL.contexts[contextHandle] && GL.contexts[contextHandle].GLctx.canvas) GL.contexts[contextHandle].GLctx.canvas.GLctxObject = undefined; // Make sure the canvas object no longer refers to the context object so there are no GC surprises.
+      _free(GL.contexts[contextHandle]);
       GL.contexts[contextHandle] = null;
     },
 
