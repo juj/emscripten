@@ -126,6 +126,11 @@ function JSify(data, functionsOnly) {
       // dependencies can be JS functions, which we just run
       if (typeof ident == 'function') return ident();
 
+      // don't process any special identifiers. These are looked up when processing the base name of the identifier.
+      if (ident.endsWith('__sig') || ident.endsWith('__proxy') || ident.endsWith('__asm') || ident.endsWith('__inline') || ident.endsWith('__deps') || ident.endsWith('__postset')) {
+        return '';
+      }
+
       // $ident's are special, we do not prefix them with a '_'.
       if (ident[0] === '$') {
         var finalName = ident.substr(1);
