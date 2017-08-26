@@ -126,40 +126,48 @@ int pthread_getattr_np(pthread_t t, pthread_attr_t *a)
 
 static uint32_t dummyZeroAddress = 0;
 
-static void do_sleep(double msecs)
+void emscripten_thread_sleep(double msecs)
 {
-	int is_main_thread = emscripten_is_main_runtime_thread();
 	double now = emscripten_get_now();
 	double target = now + msecs;
-#ifdef __EMSCRIPTEN__
+
+	__pthread_testcancel(); // pthreads spec: usleep is a cancellation point, so it must test if this thread is cancelled during the sleep.
+	emscripten_current_thread_process_queued_calls();
+
+	// If we have less than this many msecs left to wait, busy spin that instead.
+	const double minimumTimeSliceToSleep = 0.1;
+
+	// main thread may need to run proxied calls, so sleep in very small slices to be responsive.
+	const double maxMsecsSliceToSleep = emscripten_is_main_browser_thread() ? 1 : 100;
+
 	emscripten_conditional_set_current_thread_status(EM_THREAD_STATUS_RUNNING, EM_THREAD_STATUS_SLEEPING);
-#endif
-	while(now < target) {
-		if (is_main_thread) emscripten_main_thread_process_queued_calls(); // Assist other threads by executing proxied operations that are effectively singlethreaded.
+	now = emscripten_get_now();
+	while(now < target)
+	{
+		// Keep processing the main loop of the calling thread.
 		__pthread_testcancel(); // pthreads spec: usleep is a cancellation point, so it must test if this thread is cancelled during the sleep.
+		emscripten_current_thread_process_queued_calls();
+
 		now = emscripten_get_now();
 		double msecsToSleep = target - now;
-		if (msecsToSleep > 1.0) {
-			if (msecsToSleep > 100.0) msecsToSleep = 100.0;
-			if (is_main_thread && msecsToSleep > 1) msecsToSleep = 1; // main thread may need to run proxied calls, so sleep in very small slices to be responsive.
-			emscripten_futex_wait(&dummyZeroAddress, 0, msecsToSleep);
-		}
-	}
-#ifdef __EMSCRIPTEN__
+		if (msecsToSleep > maxMsecsSliceToSleep) msecsToSleep = maxMsecsSliceToSleep;
+		if (msecsToSleep >= minimumTimeSliceToSleep) emscripten_futex_wait(&dummyZeroAddress, 0, msecsToSleep);
+		now = emscripten_get_now();
+	};
+
 	emscripten_conditional_set_current_thread_status(EM_THREAD_STATUS_SLEEPING, EM_THREAD_STATUS_RUNNING);
-#endif	
 }
 
 int nanosleep(const struct timespec *req, struct timespec *rem)
 {
 	if (!req || req->tv_nsec < 0 || req->tv_nsec > 999999999L || req->tv_sec < 0) return EINVAL;
-	do_sleep(req->tv_sec * 1000.0 + req->tv_nsec / 1e6);
+	emscripten_thread_sleep(req->tv_sec * 1000.0 + req->tv_nsec / 1e6);
 	return 0;
 }
 
 int usleep(unsigned usec)
 {
-	do_sleep(usec / 1e3);
+	emscripten_thread_sleep(usec / 1e3);
 	return 0;
 }
 
@@ -172,11 +180,13 @@ static em_queued_call *em_queued_call_malloc()
 	{
 		call->operationDone = 0;
 		call->functionPtr = 0;
+		call->satelliteData = 0;
 	}
 	return call;
 }
 static void em_queued_call_free(em_queued_call *call)
 {
+	if (call) free(call->satelliteData);
 	free(call);
 }
 
@@ -187,10 +197,15 @@ void emscripten_async_waitable_close(em_queued_call *call)
 
 static void _do_call(em_queued_call *q)
 {
+// #if PTHREADS_DEBUG // TODO: Create a debug version of pthreads library
+//	THREAD_LOCAL_EM_ASM_INT({dump('thread ' + _pthread_self() + ' (ENVIRONMENT_IS_WORKER: ' + ENVIRONMENT_IS_WORKER + ', processing queueing call of function enum=' + $0 + '/ptr=' + $1 + '\n')}, q->functionEnum, q->functionPtr);
+// #endif
 	switch(q->functionEnum)
 	{
 		case EM_PROXIED_PTHREAD_CREATE: q->returnValue.i = pthread_create(q->args[0].vp, q->args[1].vp, q->args[2].vp, q->args[3].vp); break;
 		case EM_PROXIED_SYSCALL: q->returnValue.i = emscripten_syscall(q->args[0].i, q->args[1].vp); break;
+		case EM_PROXIED_CREATE_CONTEXT: q->returnValue.i = emscripten_webgl_create_context(q->args[0].cp, q->args[1].vp); break;
+		case EM_PROXIED_RESIZE_OFFSCREENCANVAS: q->returnValue.i = emscripten_set_canvas_element_size(q->args[0].cp, q->args[1].i, q->args[2].i); break;
 		case EM_FUNC_SIG_V: ((em_func_v)q->functionPtr)(); break;
 		case EM_FUNC_SIG_VI: ((em_func_vi)q->functionPtr)(q->args[0].i); break;
 		case EM_FUNC_SIG_VII: ((em_func_vii)q->functionPtr)(q->args[0].i, q->args[1].i); break;
@@ -214,10 +229,52 @@ static void _do_call(em_queued_call *q)
 }
 
 #define CALL_QUEUE_SIZE 128
-static em_queued_call **call_queue = 0;
-static volatile int call_queue_head = 0; // Shared data synchronized by call_queue_lock.
-static volatile int call_queue_tail = 0;
+
+typedef struct CallQueue
+{
+	void *target_thread;
+	em_queued_call **call_queue;
+	volatile int call_queue_head; // Shared data synchronized by call_queue_lock.
+	volatile int call_queue_tail;
+	volatile struct CallQueue *next;
+} CallQueue;
+
+// Currently global to the queue, but this can be improved to be per-queue specific. (TODO: with lockfree list operations on callQueue_head, or removing the list by moving this data to pthread_t)
 static pthread_mutex_t call_queue_lock = PTHREAD_MUTEX_INITIALIZER;
+static volatile CallQueue *callQueue_head = 0;
+
+static volatile CallQueue *GetQueue(void *target) // Not thread safe, call while having call_queue_lock obtained.
+{
+	assert(target);
+	volatile CallQueue *q = callQueue_head;
+	while(q && q->target_thread != target)
+		q = q->next;
+	return q;
+}
+
+static volatile CallQueue *GetOrAllocateQueue(void *target) // Not thread safe, call while having call_queue_lock obtained.
+{
+	volatile CallQueue *q = GetQueue(target);
+	if (q) return q;
+
+	q = (CallQueue *)malloc(sizeof(CallQueue));
+	q->target_thread = target;
+	q->call_queue = 0;
+	q->call_queue_head = 0;
+	q->call_queue_tail = 0;
+	q->next = 0;
+	if (callQueue_head)
+	{
+		volatile CallQueue *last = callQueue_head;
+		while(last->next) last = last->next;
+		last->next = q;
+	}
+	else
+	{
+		callQueue_head = q;
+	}
+	return q;
+}
 
 EMSCRIPTEN_RESULT emscripten_wait_for_call_v(em_queued_call *call, double timeoutMSecs)
 {
@@ -246,43 +303,120 @@ EMSCRIPTEN_RESULT emscripten_wait_for_call_i(em_queued_call *call, double timeou
 	return res;
 }
 
-void EMSCRIPTEN_KEEPALIVE emscripten_async_run_in_main_thread(em_queued_call *call)
+static volatile pthread_t main_browser_thread_id_ = 0;
+
+void EMSCRIPTEN_KEEPALIVE emscripten_register_main_browser_thread_id(pthread_t main_browser_thread_id)
+{
+	main_browser_thread_id_ = main_browser_thread_id;
+}
+
+pthread_t EMSCRIPTEN_KEEPALIVE emscripten_main_browser_thread_id()
+{
+	return main_browser_thread_id_;
+}
+
+static void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_call_on_thread(pthread_t target_thread, em_queued_call *call)
 {
 	assert(call);
+
+// #if PTHREADS_DEBUG // TODO: Create a debug version of pthreads library
+//	THREAD_LOCAL_EM_ASM_INT({dump('thread ' + _pthread_self() + ' (ENVIRONMENT_IS_WORKER: ' + ENVIRONMENT_IS_WORKER + '), queueing call of function enum=' + $0 + '/ptr=' + $1 + ' on thread ' + $2 + '\n' + new Error().stack)}, call->functionEnum, call->functionPtr, target_thread);
+// #endif
+
+	// Can't be a null pointer here, but can't be EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD either.
+	assert(target_thread);
+	if (target_thread == EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD) target_thread = emscripten_main_browser_thread_id();
+
+	/*
 	// If we are the main Emscripten runtime thread, we can just call the operation directly.
 	if (emscripten_is_main_runtime_thread()) {
+		_do_call(call);
+		return;
+	}
+	*/
+	// If we are the target recipient of this message, we can just call the operation directly.
+	if (target_thread == EM_CALLBACK_THREAD_CONTEXT_CALLING_THREAD || target_thread == pthread_self()) {
 		_do_call(call);
 		return;
 	}
 
 	// Add the operation to the call queue of the main runtime thread.
 	pthread_mutex_lock(&call_queue_lock);
-	if (!call_queue) call_queue = malloc(sizeof(em_queued_call*) * CALL_QUEUE_SIZE); // Shared data synchronized by call_queue_lock.
+	volatile CallQueue *q = GetOrAllocateQueue(target_thread);
+	if (!q->call_queue) q->call_queue = malloc(sizeof(em_queued_call*) * CALL_QUEUE_SIZE); // Shared data synchronized by call_queue_lock.
 
-	int head = emscripten_atomic_load_u32((void*)&call_queue_head);
-	int tail = emscripten_atomic_load_u32((void*)&call_queue_tail);
+	int head = emscripten_atomic_load_u32((void*)&q->call_queue_head);
+	int tail = emscripten_atomic_load_u32((void*)&q->call_queue_tail);
 	int new_tail = (tail + 1) % CALL_QUEUE_SIZE;
 
 	while(new_tail == head) { // Queue is full?
 		pthread_mutex_unlock(&call_queue_lock);
-		emscripten_futex_wait((void*)&call_queue_head, head, INFINITY);
-		pthread_mutex_lock(&call_queue_lock);
-		head = emscripten_atomic_load_u32((void*)&call_queue_head);
-		tail = emscripten_atomic_load_u32((void*)&call_queue_tail);
-		new_tail = (tail + 1) % CALL_QUEUE_SIZE;
+
+		// If queue of the main browser thread is full, then we wait. (never drop messages for the main browser thread)
+		if (target_thread == emscripten_main_browser_thread_id())
+		{
+			emscripten_futex_wait((void*)&q->call_queue_head, head, INFINITY);
+			pthread_mutex_lock(&call_queue_lock);
+			head = emscripten_atomic_load_u32((void*)&q->call_queue_head);
+			tail = emscripten_atomic_load_u32((void*)&q->call_queue_tail);
+			new_tail = (tail + 1) % CALL_QUEUE_SIZE;
+		}
+		else
+		{
+			// For the queues of other threads, just drop the message.
+// #if DEBUG TODO: a debug build of pthreads library?
+			THREAD_LOCAL_EM_ASM(console.error('Pthread queue overflowed, dropping queued message to thread. ' + new Error().stack));
+// #endif
+			em_queued_call_free(call);
+			return;
+		}
 	}
 
-	call_queue[tail] = call;
+	q->call_queue[tail] = call;
 
 	// If the call queue was empty, the main runtime thread is likely idle in the browser event loop,
 	// so send a message to it to ensure that it wakes up to start processing the command we have posted.
 	if (head == tail) {
-		EM_ASM(postMessage({ cmd: 'processQueuedMainThreadWork' }));
+		if (target_thread == emscripten_main_browser_thread_id())
+		{
+			THREAD_LOCAL_EM_ASM(postMessage({ cmd: 'processQueuedMainThreadWork' }));
+		}
+		else
+		{
+			int success = THREAD_LOCAL_EM_ASM_INT({
+				if (!ENVIRONMENT_IS_PTHREAD) {
+					if (!PThread.pthreads[$0] || !PThread.pthreads[$0].worker) {
+// #if DEBUG
+						Module.printErr('Cannot send message to thread with ID ' + $0 + ', unknown thread ID!');
+// #endif
+						return 0;
+					}
+					PThread.pthreads[$0].worker.postMessage({ cmd: 'processThreadQueue' });
+				} else {
+					postMessage({ targetThread: $0, cmd: 'processThreadQueue' });
+				}
+				return 1;
+			}, target_thread);
+
+			// Failed to dispatch the thread, delete the crafted message.
+			if (!success) {
+				em_queued_call_free(call);
+				pthread_mutex_unlock(&call_queue_lock);
+				return;
+			}
+
+			// TODO: Need to postMessage() to a specific target Worker that is hosting target_thread....
+		}
 	}
 
-	emscripten_atomic_store_u32((void*)&call_queue_tail, new_tail);
+	emscripten_atomic_store_u32((void*)&q->call_queue_tail, new_tail);
 
 	pthread_mutex_unlock(&call_queue_lock);
+}
+
+void EMSCRIPTEN_KEEPALIVE emscripten_async_run_in_main_thread(em_queued_call *call)
+{
+	emscripten_async_queue_call_on_thread(emscripten_main_browser_thread_id(), call);
 }
 
 void EMSCRIPTEN_KEEPALIVE emscripten_sync_run_in_main_thread(em_queued_call *call)
@@ -408,39 +542,61 @@ void * EMSCRIPTEN_KEEPALIVE emscripten_sync_run_in_main_thread_7(int function, v
 	return q.returnValue.vp;
 }
 
-static int bool_inside_nested_process_queued_calls = 0;
-
-void EMSCRIPTEN_KEEPALIVE emscripten_main_thread_process_queued_calls()
+void EMSCRIPTEN_KEEPALIVE emscripten_current_thread_process_queued_calls()
 {
-	assert(emscripten_is_main_runtime_thread() && "emscripten_main_thread_process_queued_calls must be called from the main thread!");
-	if (!emscripten_is_main_runtime_thread()) return;
+// #if PTHREADS_DEBUG == 2
+//	THREAD_LOCAL_EM_ASM(console.error('thread ' + _pthread_self() + ': emscripten_current_thread_process_queued_calls(), ' + new Error().stack));
+// #endif
 
-	// It is possible that when processing a queued call, the call flow leads back to calling this function in a nested fashion!
-	// Therefore this scenario must explicitly be detected, and processing the queue must be avoided if we are nesting, or otherwise
-	// the same queued calls would be processed again and again.
-	if (bool_inside_nested_process_queued_calls) return;
-	// This must be before pthread_mutex_lock(), since pthread_mutex_lock() can call back to this function.
-	bool_inside_nested_process_queued_calls = 1;
+	// TODO: Under certain conditions we may want to have a nesting guard also for pthreads (and it will certainly be cleaner that way), but
+	// we don't yet have TLS variables outside pthread_set/getspecific, so convert this to TLS after TLS is implemented.
+	static int bool_main_thread_inside_nested_process_queued_calls = 0;
+
+	if (emscripten_is_main_browser_thread())
+	{
+		// It is possible that when processing a queued call, the call flow leads back to calling this function in a nested fashion!
+		// Therefore this scenario must explicitly be detected, and processing the queue must be avoided if we are nesting, or otherwise
+		// the same queued calls would be processed again and again.
+		if (bool_main_thread_inside_nested_process_queued_calls) return;
+		// This must be before pthread_mutex_lock(), since pthread_mutex_lock() can call back to this function.
+		bool_main_thread_inside_nested_process_queued_calls = 1;
+	}
+
 	pthread_mutex_lock(&call_queue_lock);
-	int head = emscripten_atomic_load_u32((void*)&call_queue_head);
-	int tail = emscripten_atomic_load_u32((void*)&call_queue_tail);
+	volatile CallQueue *q = GetQueue(pthread_self());
+	if (!q)
+	{
+		pthread_mutex_unlock(&call_queue_lock);
+		if (emscripten_is_main_browser_thread()) bool_main_thread_inside_nested_process_queued_calls = 0;
+		return;
+	}
+
+	int head = emscripten_atomic_load_u32((void*)&q->call_queue_head);
+	int tail = emscripten_atomic_load_u32((void*)&q->call_queue_tail);
 	while (head != tail)
 	{
 		// Assume that the call is heavy, so unlock access to the call queue while it is being performed.
 		pthread_mutex_unlock(&call_queue_lock);
-		_do_call(call_queue[head]);
+		_do_call(q->call_queue[head]);
 		pthread_mutex_lock(&call_queue_lock);
 
 		head = (head + 1) % CALL_QUEUE_SIZE;
-		emscripten_atomic_store_u32((void*)&call_queue_head, head);
-		tail = emscripten_atomic_load_u32((void*)&call_queue_tail);
+		emscripten_atomic_store_u32((void*)&q->call_queue_head, head);
+		tail = emscripten_atomic_load_u32((void*)&q->call_queue_tail);
 	}
 	pthread_mutex_unlock(&call_queue_lock);
 
 	// If the queue was full and we had waiters pending to get to put data to queue, wake them up.
-	emscripten_futex_wake((void*)&call_queue_head, 0x7FFFFFFF);
+	emscripten_futex_wake((void*)&q->call_queue_head, 0x7FFFFFFF);
 
-	bool_inside_nested_process_queued_calls = 0;
+	if (emscripten_is_main_browser_thread()) bool_main_thread_inside_nested_process_queued_calls = 0;
+}
+
+void EMSCRIPTEN_KEEPALIVE emscripten_main_thread_process_queued_calls()
+{
+	if (!emscripten_is_main_browser_thread()) return;
+
+	emscripten_current_thread_process_queued_calls();
 }
 
 int emscripten_sync_run_in_main_runtime_thread_(EM_FUNC_SIGNATURE sig, void *func_ptr, ...)
@@ -494,6 +650,28 @@ em_queued_call *emscripten_async_waitable_run_in_main_runtime_thread_(EM_FUNC_SI
 	q->calleeDelete = 0;
 	emscripten_async_run_in_main_thread(q);
 	return q;
+}
+
+void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_on_thread_(pthread_t targetThread, EM_FUNC_SIGNATURE sig, void *func_ptr, void *satellite, ...)
+{
+	int numArguments = EM_FUNC_SIG_NUM_FUNC_ARGUMENTS(sig);
+	em_queued_call *q = em_queued_call_malloc();
+	assert(q);
+	if (!q) return;
+	q->functionEnum = sig;
+	q->functionPtr = func_ptr;
+	q->satelliteData = satellite;
+
+	va_list args;
+	va_start(args, satellite);
+	for(int i = 0; i < numArguments; ++i)
+		q->args[i].i = va_arg(args, int);
+	va_end(args);
+
+	// 'async' runs are fire and forget, where the caller detaches itself from the call object after returning here,
+	// and it is the callee's responsibility to free up the memory after the call has been performed.
+	q->calleeDelete = 1;
+	emscripten_async_queue_call_on_thread(targetThread, q);
 }
 
 float EMSCRIPTEN_KEEPALIVE emscripten_atomic_load_f32(const void *addr)
