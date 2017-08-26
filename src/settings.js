@@ -849,7 +849,7 @@ var CYBERDWARF = 0; // see http://kripken.github.io/emscripten-site/docs/debuggi
 
 var BUNDLED_CD_DEBUG_FILE = ""; // Path to the CyberDWARF debug file passed to the compiler
 
-var TEXTDECODER = 1; // Is enabled, use the JavaScript TextDecoder API for string marshalling.
+var TEXTDECODER = 0; // Is enabled, use the JavaScript TextDecoder API for string marshalling.
                      // Enabled by default, set this to 0 to disable.
 
 var OFFSCREENCANVAS_SUPPORT = 0; // If set to 1, enables support for transferring canvases to pthreads and creating WebGL contexts in them,
