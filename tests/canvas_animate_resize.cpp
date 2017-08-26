@@ -137,6 +137,18 @@ int main()
 #endif
   ctx = emscripten_webgl_create_context(0, &attr);
   printf("Created context with handle %u\n", (unsigned int)ctx);
+  if (!ctx)
+  {
+    THREAD_LOCAL_EM_ASM({
+      if (typeof OffscreenCanvas === 'undefined') {
+        xhr = new XMLHttpRequest();
+        xhr.open('GET', 'http://localhost:8888/report_result?skipped:%20OffscreenCanvas%20is%20not%20supported!');
+        xhr.send();
+        setTimeout(function() { window.close() }, 2000);
+      }
+    });
+    return 0;
+  }
   emscripten_webgl_make_context_current(ctx);
 
   init();
