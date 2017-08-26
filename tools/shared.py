@@ -2271,7 +2271,7 @@ class Building(object):
     js_system_libraries = {
       'c': '',
       'dl': '',
-      'EGL': 'library_egl.js',
+      'EGL': '',
       'GL': 'library_gl.js',
       'GLESv2': 'library_gl.js',
       'GLEW': 'library_glew.js',
@@ -2291,9 +2291,6 @@ class Building(object):
     if library_name in js_system_libraries:
       if len(js_system_libraries[library_name]) > 0:
         library_files += [js_system_libraries[library_name]]
-
-        # TODO: This is unintentional due to historical reasons. Improve EGL to use HTML5 API to avoid depending on GLUT.
-        if library_name == 'EGL': library_files += ['library_glut.js']
 
     elif library_name.endswith('.js') and os.path.isfile(path_from_root('src', 'library_' + library_name)):
       library_files += ['library_' + library_name]
@@ -2315,7 +2312,7 @@ class Building(object):
     if 'ASYNCIFY=1' in link_settings: system_js_libraries += ['library_async.js']
     if 'LZ4=1' in link_settings: system_js_libraries += ['library_lz4.js']
     if 'USE_SDL=1' in link_settings: system_js_libraries += ['library_sdl.js']
-    if 'USE_SDL=2' in link_settings: system_js_libraries += ['library_egl.js', 'library_glut.js', 'library_gl.js']
+    if 'USE_SDL=2' in link_settings: system_js_libraries += ['library_glut.js', 'library_gl.js']
     return map(lambda x: path_from_root('src', x), system_js_libraries)
 
 # compatibility with existing emcc, etc. scripts
