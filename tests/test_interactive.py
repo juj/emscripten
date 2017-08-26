@@ -104,8 +104,9 @@ class interactive(BrowserCore):
     shutil.copyfile(path_from_root('tests', 'sounds', 'audio.wav'), os.path.join(self.get_dir(), 'audio.wav'))
     open(os.path.join(self.get_dir(), 'openal_playback.cpp'), 'w').write(self.with_report_result(open(path_from_root('tests', 'openal_playback.cpp')).read()))
 
-    Popen([PYTHON, EMCC, '-O2', os.path.join(self.get_dir(), 'openal_playback.cpp'), '--preload-file', 'audio.wav', '-o', 'page.html']).communicate()
-    self.run_browser('page.html', '', '/report_result?1')
+    for args in [[], ['-s', 'USE_PTHREADS=1', '-s', 'PROXY_TO_PTHREAD=1']]:
+      Popen([PYTHON, EMCC, '-O2', os.path.join(self.get_dir(), 'openal_playback.cpp'), '--preload-file', 'audio.wav', '-o', 'page.html'] + args).communicate()
+      self.run_browser('page.html', '', '/report_result?1')
 
   def test_openal_buffers(self):
     self.btest('openal_buffers.c', '0', args=['--preload-file', path_from_root('tests', 'sounds', 'the_entertainer.wav') + '@/'],)
@@ -182,3 +183,8 @@ class interactive(BrowserCore):
 
   def test_threadprofiler(self):
     self.btest('pthread/test_pthread_mandelbrot.cpp', expected='0', args=['-O2', '--threadprofiler', '-s', 'USE_PTHREADS=1', '-DTEST_THREAD_PROFILING=1', '-msse', '-s', 'PTHREAD_POOL_SIZE=16', '--shell-file', path_from_root('tests', 'pthread', 'test_pthread_mandelbrot_shell.html')])
+
+  # Test that emscripten_hide_mouse() is callable from pthreads (and proxies to main thread to obtain the proper window.devicePixelRatio value).
+  def test_emscripten_hide_mouse(self):
+    for args in [[], ['-s', 'USE_PTHREADS=1']]:
+      self.btest('emscripten_hide_mouse.c', expected='0', args=args)
