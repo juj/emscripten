@@ -14,6 +14,8 @@
 #include <sys/stat.h>
 #include <ctype.h>
 #include "syscall_arch.h"
+#include <pthread.h>
+#include <emscripten/threading.h>
 
 extern "C" {
 
@@ -557,6 +559,7 @@ static int stderr_buffer_end = 0;
 
 static void print_stream(void *bytes, int numBytes, bool stdout)
 {
+/*
 	char *buffer = stdout ? stdout_buffer : stderr_buffer;
 	int &buffer_end = stdout ? stdout_buffer_end : stderr_buffer_end;
 
@@ -575,6 +578,15 @@ static void print_stream(void *bytes, int numBytes, bool stdout)
 	size_t new_buffer_size = buffer_end - new_buffer_start;
 	memmove(buffer, buffer + new_buffer_start, new_buffer_size);
 	buffer_end = new_buffer_size;
+*/
+	if (stdout)
+	{
+		EM_ASM_INT( { Module['writeStdout']($0, $1) }, bytes, numBytes);
+	}
+	else
+	{
+		EM_ASM_INT( { Module['writeStderr']($0, $1) }, bytes, numBytes);
+	}
 }
 
 long __syscall3(int which, ...) // read
@@ -1141,6 +1153,58 @@ long __syscall140(int which, ...) // llseek
 	return 0;
 }
 
+static char *stdinBuffer = 0;
+static volatile int stdinBufferUsed = 0;
+static volatile int stdinBufferCapacity = 0;
+static pthread_mutex_t stdinMutex = PTHREAD_MUTEX_INITIALIZER;
+
+void EMSCRIPTEN_KEEPALIVE writeStdin(char *buf, int numBytes)
+{
+	EM_ASM_INT({ Module['printErr']('writeStdin(buf=' + $0 + '(string ' + Pointer_stringify($0) + ', numBytes=' + $1 + ')') }, buf, numBytes);
+	pthread_mutex_lock(&stdinMutex); // todo: lock free
+	if (!stdinBufferUsed + numBytes > stdinBufferCapacity)
+	{
+		int newCapacity = stdinBufferUsed + numBytes > stdinBufferCapacity*2 ? stdinBufferUsed + numBytes : stdinBufferCapacity*2;
+		stdinBuffer = (char*)realloc(stdinBuffer, newCapacity);
+		EM_ASM_INT({ Module['printErr']('resized stdin buffer from ' + $0 + ' to ' + $1) }, stdinBufferCapacity, newCapacity);
+		stdinBufferCapacity = newCapacity;
+	}
+	memcpy(stdinBuffer + stdinBufferUsed, buf, numBytes);
+	stdinBufferUsed += numBytes;
+	pthread_mutex_unlock(&stdinMutex);
+	EM_ASM_INT({ Module['printErr']('stdinBufferUsed='+$0+', waking up all threads.') }, stdinBufferUsed);
+	emscripten_futex_wake(&stdinBufferUsed, 0x7FFFFFFFLL);
+}
+
+static int readStdin(char *dst, int numBytes)
+{
+	if (numBytes == 0) return 0;
+	int numRead = 0;
+	//while(numBytes > 0)
+	while(numRead == 0 && numBytes > 0)
+	{
+		pthread_mutex_lock(&stdinMutex); // todo: lock free
+		int numToRead = (numBytes < stdinBufferUsed) ? numBytes : stdinBufferUsed;
+		memcpy(dst, stdinBuffer, numToRead);
+		memmove(stdinBuffer, stdinBuffer + numToRead, stdinBufferUsed - numToRead);
+		stdinBufferUsed -= numToRead;
+		pthread_mutex_unlock(&stdinMutex);
+		dst += numToRead;
+		numBytes -= numToRead;
+		numRead += numToRead;
+		//if (numBytes > 0)
+		if (numRead == 0 && numBytes > 0)
+		{
+			EM_ASM_INT({ Module['printErr']('sleeping for more stdin (need still ' + $0 + ' bytes ') }, numBytes);
+			fflush(stdout);
+			fflush(stderr);
+			emscripten_futex_wait(&stdinBufferUsed, 0, INFINITY);
+			EM_ASM_INT({ Module['printErr']('sleep finished for more stdin (needed still ' + $0 + ' bytes ') }, numBytes);
+		}
+	}
+	return numRead;
+}
+
 // TODO: syscall144 msync
 
 long __syscall145(int which, ...) // readv
@@ -1152,6 +1216,16 @@ long __syscall145(int which, ...) // readv
 	int iovcnt = va_arg(vl, int);
 	va_end(vl);
 	EM_ASM_INT({ Module['printErr']('readv(fd=' + $0 + ', iov=0x' + ($1).toString(16) + ', iovcnt=' + $2 + ')') }, fd, iov, iovcnt);
+
+	if (fd == 0)
+	{
+		int numRead = 0;
+		for(int i = 0; i < iovcnt; ++i)
+		{
+			numRead += readStdin((char*)iov[i].iov_base, iov[i].iov_len);
+		}
+		return numRead;
+	}
 
 	FileDescriptor *desc = (FileDescriptor*)fd;
 	if (!desc || desc->magic != EM_FILEDESCRIPTOR_MAGIC) RETURN_ERRNO(EBADF, "fd isn't a valid open file descriptor");
