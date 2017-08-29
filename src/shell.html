@@ -1214,40 +1214,75 @@
     <div class="emscripten_border">
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
     </div>
-    <textarea id="output" rows="8"></textarea>
+    <textarea id="output" rows="8" autocomplete=off></textarea>
 
     <script type='text/javascript'>
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
       var spinnerElement = document.getElementById('spinner');
+      var consoleElement = document.getElementById('output');
+
+      function onkey(e) {
+        console.error(e);
+        Module.writeStdin(e.key);
+      }
+      window.addEventListener('keypress', onkey);
 
       var Module = {
         preRun: [],
         postRun: [],
-        print: (function() {
-          var element = document.getElementById('output');
-          if (element) element.value = ''; // clear browser cache
-          return function(text) {
-            if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-            // These replacements are necessary if you render to raw HTML
-            //text = text.replace(/&/g, "&amp;");
-            //text = text.replace(/</g, "&lt;");
-            //text = text.replace(/>/g, "&gt;");
-            //text = text.replace('\n', '<br>', 'g');
-            console.log(text);
-            if (element) {
-              element.value += text + "\n";
-              element.scrollTop = element.scrollHeight; // focus on bottom
-            }
-          };
-        })(),
-        printErr: function(text) {
-          if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-          if (0) { // XXX disabled for safety typeof dump == 'function') {
-            dump(text + '\n'); // fast, straight to the real console
-          } else {
-            console.error(text);
+        stdoutBuffer: '',
+        stderrBuffer: '',
+        writeStdin: function(text) {
+          var len = lengthBytesUTF8(text);
+          var buf = _malloc(len+1);
+          stringToUTF8(text, buf, len+1);
+          _writeStdin(buf, len);
+          _free(buf);
+        },
+        writeStdout: function(ptr, len) {
+          if (!ptr) return;
+          var str = (typeof ptr === 'number') ? String.fromCharCode.apply(String, HEAPU8.subarray(ptr, ptr + len)) : ptr;
+          consoleElement.value += str;
+          var nl = str.indexOf('\n');
+          if (nl == -1) {
+            Module.stdoutBuffer += str;
+            return;
           }
+          console.log(Module.stdoutBuffer + str.substr(0, nl));
+          var nextnl = str.indexOf('\n', nl+1);
+          while (nextnl != -1) {
+            console.log(str.substr(nl+1), nextnl-nl-1);
+            nl = nextnl;
+            nextnl = str.indexOf('\n', nl+1);
+          }
+          Module.stdoutBuffer = str.substr(nl+1);
+        },
+        writeStderr: function(ptr, len) {
+          if (!ptr) return;
+          var str = (typeof ptr === 'number') ? String.fromCharCode.apply(String, HEAPU8.subarray(ptr, ptr + len)) : ptr;
+          consoleElement.value += str;
+          var nl = str.indexOf('\n');
+          if (nl == -1) {
+            Module.stderrBuffer += str;
+            return;
+          }
+          console.error(Module.stderrBuffer + str.substr(0, nl));
+          var nextnl = str.indexOf('\n', nl+1);
+          while (nextnl != -1) {
+            console.error(str.substr(nl+1), nextnl-nl-1);
+            nl = nextnl;
+            nextnl = str.indexOf('\n', nl+1);
+          }
+          Module.stderrBuffer = str.substr(nl+1);
+        },
+        print: function() {
+          var text = Array.prototype.slice.call(arguments).join(' ');
+          Module.writeStdout(text + '\n');
+        },
+        printErr: function() {
+          var text = Array.prototype.slice.call(arguments).join(' ');
+          Module.writeStderr(text + '\n');
         },
         canvas: (function() {
           var canvas = document.getElementById('canvas');
