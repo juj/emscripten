@@ -645,7 +645,7 @@ var LibraryPThread = {
         schedPrio = {{{ makeGetValue('attr', 24/*_a_prio*/, 'i32') }}};
       }
     }
-    stackSize += 81920 /*DEFAULT_STACK_SIZE*/;
+    stackSize += 2*1024*1024;//81920 /*DEFAULT_STACK_SIZE*/;
     var allocatedOwnStack = stackBase == 0; // If allocatedOwnStack == true, then the pthread impl maintains the stack allocation.
     if (allocatedOwnStack) {
       stackBase = _malloc(stackSize); // Allocate a stack if the user doesn't want to place the stack in a custom memory area.
