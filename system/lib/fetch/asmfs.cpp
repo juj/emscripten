@@ -579,11 +579,11 @@ static void print_stream(void *bytes, int numBytes, bool stdout)
 */
 	if (stdout)
 	{
-		EM_ASM_INT( { Module['writeStdout']($0, $1) }, bytes, numBytes);
+		EM_ASM_INT( { Module['writeOut'](1, $0, $1) }, bytes, numBytes);
 	}
 	else
 	{
-		EM_ASM_INT( { Module['writeStderr']($0, $1) }, bytes, numBytes);
+		EM_ASM_INT( { Module['writeOut'](2, $0, $1) }, bytes, numBytes);
 	}
 }
 
@@ -1217,12 +1217,15 @@ long __syscall145(int which, ...) // readv
 
 	if (fd == 0)
 	{
-		int numRead = 0;
+		int totalRead = 0;
 		for(int i = 0; i < iovcnt; ++i)
 		{
-			numRead += readStdin((char*)iov[i].iov_base, iov[i].iov_len);
+			int numRead = readStdin((char*)iov[i].iov_base, iov[i].iov_len);
+			totalRead += numRead;
+			if (numRead < iov[i].iov_len)
+				break;
 		}
-		return numRead;
+		return totalRead;
 	}
 
 	FileDescriptor *desc = (FileDescriptor*)fd;
