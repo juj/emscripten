@@ -995,7 +995,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         options.js_libraries.append(shared.path_from_root('src', 'library_fetch.js'))
 
       if shared.Settings.ASMFS:
-        js_libraries.append(shared.path_from_root('src', 'library_asmfs.js'))
+        options.js_libraries.append(shared.path_from_root('src', 'library_asmfs.js'))
 
       forced_stdlibs = []
       if shared.Settings.DEMANGLE_SUPPORT:

@@ -106,7 +106,7 @@ this.onmessage = function(e) {
       importScripts(objectUrl);
       URL.revokeObjectURL(objectUrl);
     }
-    if (typeof FS !== 'undefined') FS.createStandardStreams();
+    if (typeof FS !== 'undefined' && typeof FS.createStandardStreams === 'function') FS.createStandardStreams();
     postMessage({ cmd: 'loaded' });
   } else if (e.data.cmd === 'objectTransfer') {
     PThread.receiveObjectTransfer(e.data);

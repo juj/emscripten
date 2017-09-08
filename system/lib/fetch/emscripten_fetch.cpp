@@ -37,8 +37,10 @@ void emscripten_proxy_fetch(emscripten_fetch_t *fetch)
 	__emscripten_fetch_queue *queue = _emscripten_get_fetch_queue();
 //	TODO handle case when queue->numQueuedItems >= queue->queueSize
 	queue->queuedOperations[queue->numQueuedItems++] = fetch;
+#ifdef FETCH_DEBUG
 	THREAD_LOCAL_EM_ASM_INT( { console.log('Queued fetch to fetch-worker to process. There are now ' + $0 + ' operations in the queue.') }, 
 		queue->numQueuedItems);
+#endif
 	// TODO: mutex unlock
 }
 
@@ -104,9 +106,9 @@ EMSCRIPTEN_RESULT emscripten_fetch_wait(emscripten_fetch_t *fetch, double timeou
 	uint32_t proxyState = emscripten_atomic_load_u32(&fetch->__proxyState);
 	if (proxyState == 2) return EMSCRIPTEN_RESULT_SUCCESS; // already finished.
 	if (proxyState != 1) return EMSCRIPTEN_RESULT_INVALID_PARAM; // the fetch should be ongoing?
-// #ifdef FETCH_DEBUG
+ #ifdef FETCH_DEBUG
 	THREAD_LOCAL_EM_ASM({ console.log('fetch: emscripten_fetch_wait..') });
-// #endif
+ #endif
 	// TODO: timeoutMsecs is currently ignored. Return EMSCRIPTEN_RESULT_TIMED_OUT on timeout.
 	while(proxyState == 1/*sent to proxy worker*/)
 	{
@@ -121,9 +123,9 @@ EMSCRIPTEN_RESULT emscripten_fetch_wait(emscripten_fetch_t *fetch, double timeou
 			return EMSCRIPTEN_RESULT_FAILED;
 		}
 	}
-// #ifdef FETCH_DEBUG
+#ifdef FETCH_DEBUG
 	THREAD_LOCAL_EM_ASM({ console.log('fetch: emscripten_fetch_wait done..') });
-// #endif
+#endif
 
 	if (proxyState == 2) return EMSCRIPTEN_RESULT_SUCCESS;
 	else return EMSCRIPTEN_RESULT_FAILED;

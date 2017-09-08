@@ -53,9 +53,9 @@ struct emscripten_fetch_attr_t
 	// Custom data that can be tagged along the process.
 	void *userData;
 
-	void (*onsuccess)(emscripten_fetch_t *fetch);
-	void (*onerror)(emscripten_fetch_t *fetch);
-	void (*onprogress)(emscripten_fetch_t *fetch);
+	void (*onsuccess)(struct emscripten_fetch_t *fetch);
+	void (*onerror)(struct emscripten_fetch_t *fetch);
+	void (*onprogress)(struct emscripten_fetch_t *fetch);
 
 	// EMSCRIPTEN_FETCH_* attributes
 	uint32_t attributes;
@@ -151,25 +151,25 @@ struct emscripten_fetch_t
 	uint32_t __proxyState;
 
 	// For internal use only.
-	emscripten_fetch_attr_t __attributes;
+	struct emscripten_fetch_attr_t __attributes;
 };
 
 // Clears the fields of an emscripten_fetch_attr_t structure to their default values in a future-compatible manner.
-void emscripten_fetch_attr_init(emscripten_fetch_attr_t *fetch_attr);
+void emscripten_fetch_attr_init(struct emscripten_fetch_attr_t *fetch_attr);
 
 // Initiates a new Emscripten fetch operation, which downloads data from the given URL or from IndexedDB database.
-emscripten_fetch_t *emscripten_fetch(emscripten_fetch_attr_t *fetch_attr, const char *url);
+struct emscripten_fetch_t *emscripten_fetch(struct emscripten_fetch_attr_t *fetch_attr, const char *url);
 
 // Synchronously blocks to wait for the given fetch operation to complete. This operation is not allowed in the main browser
 // thread, in which case it will return EMSCRIPTEN_RESULT_NOT_SUPPORTED. Pass timeoutMSecs=infinite to wait indefinitely. If
 // the wait times out, the return value will be EMSCRIPTEN_RESULT_TIMEOUT.
 // The onsuccess()/onerror()/onprogress() handlers will be called in the calling thread from within this function before
 // this function returns.
-EMSCRIPTEN_RESULT emscripten_fetch_wait(emscripten_fetch_t *fetch, double timeoutMSecs);
+EMSCRIPTEN_RESULT emscripten_fetch_wait(struct emscripten_fetch_t *fetch, double timeoutMSecs);
 
 // Closes a finished or an executing fetch operation and frees up all memory. If the fetch operation was still executing, the
 // onerror() handler will be called in the calling thread before this function returns.
-EMSCRIPTEN_RESULT emscripten_fetch_close(emscripten_fetch_t *fetch);
+EMSCRIPTEN_RESULT emscripten_fetch_close(struct emscripten_fetch_t *fetch);
 
 #define emscripten_asmfs_open_t int
 
