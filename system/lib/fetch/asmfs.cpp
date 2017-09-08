@@ -16,7 +16,7 @@
 #include "syscall_arch.h"
 #include <pthread.h>
 #include <emscripten/threading.h>
-#include <bits\ioctl.h>
+#include <bits/ioctl.h>
 
 extern "C" {
 
@@ -141,7 +141,7 @@ static void link_inode(inode *node, inode *parent)
 {
 	char parentName[PATH_MAX];
 	inode_abspath(parent, parentName, PATH_MAX);
-	EM_ASM(Module['printErr']('link_inode: node "' + Pointer_stringify($0) + '" to parent "' + Pointer_stringify($1) + '".'), node->name, parentName);
+//	EM_ASM(Module['printErr']('link_inode: node "' + Pointer_stringify($0) + '" to parent "' + Pointer_stringify($1) + '".'), node->name, parentName);
 	// When linking a node, it can't be part of the filesystem tree (but it can have children of its own)
 	assert(!node->parent);
 	assert(!node->sibling);
@@ -173,7 +173,7 @@ static inode *find_predecessor_sibling(inode *node, inode *parent)
 
 static void unlink_inode(inode *node)
 {
-	EM_ASM(Module['printErr']('unlink_inode: node ' + Pointer_stringify($0) + ' from its parent ' + Pointer_stringify($1) + '.'), node->name, node->parent->name);
+//	EM_ASM(Module['print/Err']('unlink_inode: node ' + Pointer_stringify($0) + ' from its parent ' + Pointer_stringify($1) + '.'), node->name, node->parent->name);
 	inode *parent = node->parent;
 	if (!parent) return;
 	node->parent = 0;
@@ -322,7 +322,7 @@ static inode *create_directory_hierarchy_for_file(inode *root, const char *path_
 		node = create_inode(INODE_DIR, mode);
 		path_to_file += strcpy_inodename(node->name, path_to_file) + 1;
 		link_inode(node, root);
-		EM_ASM(Module['print']('create_directory_hierarchy_for_file: created directory ' + Pointer_stringify($0) + ' under parent ' + Pointer_stringify($1) + '.'), 
+//		EM_ASM(Module['print']('create_directory_hierarchy_for_file: created directory ' + Pointer_stringify($0) + ' under parent ' + Pointer_stringify($1) + '.'), 
 			node->name, node->parent->name);
 		root = node;
 	}
@@ -345,7 +345,7 @@ static inode *find_parent_inode(inode *root, const char *path, int *out_errno)
 {
 	char rootName[PATH_MAX];
 	inode_abspath(root, rootName, PATH_MAX);
-	EM_ASM(Module['printErr']('find_parent_inode(root="' + Pointer_stringify($0) + '", path="' + Pointer_stringify($1) + '")'), rootName, path);
+//	EM_ASM(Module['printErr']('find_parent_inode(root="' + Pointer_stringify($0) + '", path="' + Pointer_stringify($1) + '")'), rootName, path);
 
 	assert(out_errno); // Passing in error is mandatory.
 
@@ -422,7 +422,7 @@ static inode *find_inode(inode *root, const char *path, int *out_errno)
 {
 	char rootName[PATH_MAX];
 	inode_abspath(root, rootName, PATH_MAX);
-	EM_ASM(Module['printErr']('find_inode(root="' + Pointer_stringify($0) + '", path="' + Pointer_stringify($1) + '")'), rootName, path);
+//	EM_ASM(Module['printErr']('find_inode(root="' + Pointer_stringify($0) + '", path="' + Pointer_stringify($1) + '")'), rootName, path);
 
 	assert(out_errno); // Passing in error is mandatory.
 
@@ -522,7 +522,7 @@ void EMSCRIPTEN_KEEPALIVE emscripten_asmfs_set_file_data(const char *filename, c
 	node->data = (uint8_t*)data;
 	node->size = node->capacity = size;
 
-	EM_ASM_INT( { Module['print']('Node ' + Pointer_stringify($0) + ' (' + Pointer_stringify($1) + ') got file data ptr ' + $1 + ', size ' + $2) }, node->name, filename, node->data, node->size);
+//	EM_ASM_INT( { Module['print']('Node ' + Pointer_stringify($0) + ' (' + Pointer_stringify($1) + ') got file data ptr ' + $1 + ', size ' + $2) }, node->name, filename, node->data, node->size);
 }
 
 char *find_last_occurrence(char *str, char ch)
@@ -668,15 +668,19 @@ void emscripten_dump_fs_tree(inode *root, char *path)
 
 void emscripten_dump_fs_root()
 {
-	EM_ASM({ Module['printErr']('emscripten_dump_fs_root()') });
+//	EM_ASM({ Module['printErr']('emscripten_dump_fs_root()') });
 	char path[PATH_MAX] = "/";
 	emscripten_dump_fs_tree(filesystem_root(), path);
 }
 
+#ifdef FETCH_DEBUG
 #define RETURN_ERRNO(errno, error_reason) do { \
-		EM_ASM(Module['printErr'](Pointer_stringify($0) + '() returned errno ' + #errno + '(' + $1 + '): ' + error_reason + '!'), __FUNCTION__, errno); \
+//		EM_ASM(Module['printErr'](Pointer_stringify($0) + '() returned errno ' + #errno + '(' + $1 + '): ' + error_reason + '!'), __FUNCTION__, errno); \
 		return -errno; \
 	} while(0)
+#else
+#define RETURN_ERRNO(errno, error_reason) do { return -(errno); } while(0)
+#endif
 
 static char stdout_buffer[4096] = {};
 static int stdout_buffer_end = 0;
@@ -730,7 +734,7 @@ long __syscall3(int which, ...) // read
 	void *buf = va_arg(vl, void *);
 	size_t count = va_arg(vl, size_t);
 	va_end(vl);
-	EM_ASM(Module['printErr']('read(fd=' + $0 + ', buf=0x' + ($1).toString(16) + ', count=' + $2 + ')'), fd, buf, count);
+//	EM_ASM(Module['printErr']('read(fd=' + $0 + ', buf=0x' + ($1).toString(16) + ', count=' + $2 + ')'), fd, buf, count);
 
 	iovec io = { buf, count };
 	return __syscall145(145/*readv*/, fd, &io, 1);
@@ -744,7 +748,7 @@ long __syscall4(int which, ...) // write
 	void *buf = va_arg(vl, void *);
 	size_t count = va_arg(vl, size_t);
 	va_end(vl);
-	EM_ASM(Module['printErr']('write(fd=' + $0 + ', buf=0x' + ($1).toString(16) + ', count=' + $2 + ')'), fd, buf, count);
+//	EM_ASM(Module['printErr']('write(fd=' + $0 + ', buf=0x' + ($1).toString(16) + ', count=' + $2 + ')'), fd, buf, count);
 
 	iovec io = { buf, count };
 	return __syscall146(146/*writev*/, fd, &io, 1);
@@ -765,7 +769,7 @@ emscripten_asmfs_open_t emscripten_asmfs_get_file_open_behavior()
 
 static long open(const char *pathname, int flags, int mode)
 {
-	EM_ASM(Module['printErr']('open(pathname="' + Pointer_stringify($0) + '", flags=0x' + ($1).toString(16) + ', mode=0' + ($2).toString(8) + ')'),
+//	EM_ASM(Module['printErr']('open(pathname="' + Pointer_stringify($0) + '", flags=0x' + ($1).toString(16) + ', mode=0' + ($2).toString(8) + ')'),
 		pathname, flags, mode);
 
 	int accessMode = (flags & O_ACCMODE);
@@ -944,7 +948,7 @@ long __syscall5(int which, ...) // open
 
 static long close(int fd)
 {
-	EM_ASM(Module['printErr']('close(fd=' + $0 + ')'), fd);
+//	EM_ASM(Module['printErr']('close(fd=' + $0 + ')'), fd);
 
 	FileDescriptor *desc = (FileDescriptor*)fd;
 	if (!desc || desc->magic != EM_FILEDESCRIPTOR_MAGIC) RETURN_ERRNO(EBADF, "fd isn't a valid open file descriptor");
@@ -962,11 +966,14 @@ static long close(int fd)
 
 void EMSCRIPTEN_KEEPALIVE emscripten_asmfs_populate(const char *pathname, int mode)
 {
+	emscripten_asmfs_open_t prevBehavior = emscripten_asmfs_get_file_open_behavior();
+	emscripten_asmfs_set_file_open_behavior(EMSCRIPTEN_ASMFS_OPEN_MEMORY);
 	int fd = open(pathname, O_WRONLY | O_CREAT | O_EXCL | O_TRUNC, mode);
 	if (fd > 0)
 	{
 		close(fd);
 	}
+	emscripten_asmfs_set_file_open_behavior(prevBehavior);
 }
 
 long __syscall6(int which, ...) // close
@@ -986,7 +993,7 @@ long __syscall9(int which, ...) // link
 	const char *oldpath = va_arg(vl, const char *);
 	const char *newpath = va_arg(vl, const char *);
 	va_end(vl);
-	EM_ASM(Module['printErr']('link(oldpath="' + Pointer_stringify($0) + '", newpath="' + Pointer_stringify($1) + '")'), oldpath, newpath);
+//	EM_ASM(Module['printErr']('link(oldpath="' + Pointer_stringify($0) + '", newpath="' + Pointer_stringify($1) + '")'), oldpath, newpath);
 
 	RETURN_ERRNO(ENOTSUP, "TODO: link() is a stub and not yet implemented in ASMFS");
 }
@@ -997,7 +1004,7 @@ long __syscall10(int which, ...) // unlink
 	va_start(vl, which);
 	const char *pathname = va_arg(vl, const char *);
 	va_end(vl);
-	EM_ASM(Module['printErr']('unlink(pathname="' + Pointer_stringify($0) + '")'), pathname);
+//	EM_ASM(Module['printErr']('unlink(pathname="' + Pointer_stringify($0) + '")'), pathname);
 
 	int len = strlen(pathname);
 	if (len > MAX_PATHNAME_LENGTH) RETURN_ERRNO(ENAMETOOLONG, "pathname was too long");
@@ -1039,7 +1046,7 @@ long __syscall12(int which, ...) // chdir
 	va_start(vl, which);
 	const char *pathname = va_arg(vl, const char *);
 	va_end(vl);
-	EM_ASM(Module['printErr']('chdir(pathname="' + Pointer_stringify($0) + '")'), pathname);
+//	EM_ASM(Module['printErr']('chdir(pathname="' + Pointer_stringify($0) + '")'), pathname);
 
 	int len = strlen(pathname);
 	if (len > MAX_PATHNAME_LENGTH) RETURN_ERRNO(ENAMETOOLONG, "pathname was too long");
@@ -1067,7 +1074,7 @@ long __syscall14(int which, ...) // mknod
 	mode_t mode = va_arg(vl, mode_t);
 	int dev = va_arg(vl, int);
 	va_end(vl);
-	EM_ASM(Module['printErr']('mknod(pathname="' + Pointer_stringify($0) + '", mode=0' + ($1).toString(8) + ', dev=' + $2 + ')'), pathname, mode, dev);
+//	EM_ASM(Module['printErr']('mknod(pathname="' + Pointer_stringify($0) + '", mode=0' + ($1).toString(8) + ', dev=' + $2 + ')'), pathname, mode, dev);
 
 	RETURN_ERRNO(ENOTSUP, "TODO: mknod() is a stub and not yet implemented in ASMFS");
 }
@@ -1079,7 +1086,7 @@ long __syscall15(int which, ...) // chmod
 	const char *pathname = va_arg(vl, const char *);
 	int mode = va_arg(vl, int);
 	va_end(vl);
-	EM_ASM(Module['printErr']('chmod(pathname="' + Pointer_stringify($0) + '", mode=0' + ($1).toString(8) + ')'), pathname, mode);
+//	EM_ASM(Module['printErr']('chmod(pathname="' + Pointer_stringify($0) + '", mode=0' + ($1).toString(8) + ')'), pathname, mode);
 
 	int len = strlen(pathname);
 	if (len > MAX_PATHNAME_LENGTH) RETURN_ERRNO(ENAMETOOLONG, "pathname was too long");
@@ -1108,7 +1115,7 @@ long __syscall33(int which, ...) // access
 	const char *pathname = va_arg(vl, const char *);
 	int mode = va_arg(vl, int);
 	va_end(vl);
-	EM_ASM(Module['printErr']('access(pathname="' + Pointer_stringify($0) + '", mode=0' + ($1).toString(8) + ')'), pathname, mode);
+//	EM_ASM(Module['printErr']('access(pathname="' + Pointer_stringify($0) + '", mode=0' + ($1).toString(8) + ')'), pathname, mode);
 
 	int len = strlen(pathname);
 	if (len > MAX_PATHNAME_LENGTH) RETURN_ERRNO(ENAMETOOLONG, "pathname was too long");
@@ -1139,7 +1146,7 @@ long __syscall33(int which, ...) // access
 
 long __syscall36(int which, ...) // sync
 {
-	EM_ASM(Module['printErr']('sync()'));
+//	EM_ASM(Module['printErr']('sync()'));
 
 	// Spec mandates that "sync() is always successful".
 	return 0;
@@ -1149,7 +1156,7 @@ long __syscall36(int which, ...) // sync
 
 long EMSCRIPTEN_KEEPALIVE emscripten_asmfs_mkdir(const char *pathname, mode_t mode)
 {
-	EM_ASM(Module['printErr']('mkdir(pathname="' + Pointer_stringify($0) + '", mode=0' + ($1).toString(8) + ')'), pathname, mode);
+//	EM_ASM_INT({Module['printErr']('mkdir(pathname="' + Pointer_stringify($0) + '", mode=0' + ($1).toString(8) + ')')}, pathname, mode);
 
 	int len = strlen(pathname);
 	if (len > MAX_PATHNAME_LENGTH) RETURN_ERRNO(ENAMETOOLONG, "pathname was too long");
@@ -1225,7 +1232,7 @@ long __syscall40(int which, ...) // rmdir
 	va_start(vl, which);
 	const char *pathname = va_arg(vl, const char *);
 	va_end(vl);
-	EM_ASM(Module['printErr']('rmdir(pathname="' + Pointer_stringify($0) + '")'), pathname);
+//	EM_ASM(Module['printErr']('rmdir(pathname="' + Pointer_stringify($0) + '")'), pathname);
 
 	int len = strlen(pathname);
 	if (len > MAX_PATHNAME_LENGTH) RETURN_ERRNO(ENAMETOOLONG, "pathname was too long");
@@ -1261,7 +1268,7 @@ long __syscall41(int which, ...) // dup
 	va_start(vl, which);
 	unsigned int fd = va_arg(vl, unsigned int);
 	va_end(vl);
-	EM_ASM(Module['printErr']('dup(fd=' + $0 + ')'), fd);
+//	EM_ASM(Module['printErr']('dup(fd=' + $0 + ')'), fd);
 
 	FileDescriptor *desc = (FileDescriptor*)fd;
 	if (!desc || desc->magic != EM_FILEDESCRIPTOR_MAGIC) RETURN_ERRNO(EBADF, "fd isn't a valid open file descriptor");
@@ -1289,11 +1296,11 @@ long __syscall54(int which, ...) // ioctl/sysctl
 	{
 		case TCGETS:
 			if (fd > 2) return -ENOTTY; // Currently hardcoded stdin, stdout and stderr fds 0, 1 and 2 (TODO)
-			EM_ASM(Module['printErr']('ioctl(fd=' + $0 + ', request=0x' + $1.toString(16) + ', argp=0x' + $2 + ') warning: not filling tio struct'), fd, request, argp);
+			EM_ASM_INT({Module['printErr']('ioctl(fd=' + $0 + ', request=0x' + $1.toString(16) + ', argp=0x' + $2 + ') warning: not filling tio struct')}, fd, request, argp);
 			return 0;
 		case TCSETS:
 			if (fd > 2) return -ENOTTY; // Currently hardcoded stdin, stdout and stderr fds 0, 1 and 2 (TODO)
-			EM_ASM(Module['printErr']('ioctl(fd=' + $0 + ', request=0x' + $1.toString(16) + ', argp=0x' + $2 + ') warning: not filling tio struct'), fd, request, argp);
+			EM_ASM_INT({Module['printErr']('ioctl(fd=' + $0 + ', request=0x' + $1.toString(16) + ', argp=0x' + $2 + ') warning: not filling tio struct')}, fd, request, argp);
 			return 0;
 		case TIOCGPGRP:
 			if (fd > 2) return -ENOTTY; // Currently hardcoded stdin, stdout and stderr fds 0, 1 and 2 (TODO)
@@ -1304,10 +1311,10 @@ long __syscall54(int which, ...) // ioctl/sysctl
 			return -EINVAL; // not supported
 		case FIONREAD:
 			*argp = 0;
-			EM_ASM(Module['printErr']('ioctl(fd=' + $0 + ', request=0x' + $1.toString(16) + ', argp=0x' + $2 + ') TODO: Returning hardcoded 0 bytes to read'), fd, request, argp);
+			EM_ASM_INT({Module['printErr']('ioctl(fd=' + $0 + ', request=0x' + $1.toString(16) + ', argp=0x' + $2 + ') TODO: Returning hardcoded 0 bytes to read')}, fd, request, argp);
 			return 0;
 		default:
-			EM_ASM(Module['printErr']('ioctl(fd=' + $0 + ', request=0x' + $1.toString(16) + ', argp=0x' + $2 + ')'), fd, request, argp);
+			EM_ASM_INT({Module['printErr']('ioctl(fd=' + $0 + ', request=0x' + $1.toString(16) + ', argp=0x' + $2 + ')')}, fd, request, argp);
 			RETURN_ERRNO(ENOTSUP, "TODO: ioctl() is a stub and not yet implemented in ASMFS");
 	}
 }
@@ -1349,7 +1356,7 @@ long __syscall140(int which, ...) // llseek
 	off_t *result = va_arg(vl, off_t *);
 	unsigned int whence = va_arg(vl, unsigned int);
 	va_end(vl);
-	EM_ASM(Module['printErr']('llseek(fd=' + $0 + ', offset_high=' + $1 + ', offset_low=' + $2 + ', result=0x' + ($3).toString(16) + ', whence=' + $4 + ')'),
+//	EM_ASM(Module['printErr']('llseek(fd=' + $0 + ', offset_high=' + $1 + ', offset_low=' + $2 + ', result=0x' + ($3).toString(16) + ', whence=' + $4 + ')'),
 		fd, offset_high, offset_low, result, whence);
 
 	FileDescriptor *desc = (FileDescriptor*)fd;
@@ -1386,19 +1393,19 @@ static pthread_mutex_t stdinMutex = PTHREAD_MUTEX_INITIALIZER;
 
 void EMSCRIPTEN_KEEPALIVE writeStdin(char *buf, int numBytes)
 {
-	EM_ASM_INT({ Module['printErr']('writeStdin(buf=' + $0 + '(string ' + Pointer_stringify($0) + ', numBytes=' + $1 + ')') }, buf, numBytes);
+//	EM_ASM_INT({ Module['printErr']('writeStdin(buf=' + $0 + '(string ' + Pointer_stringify($0) + ', numBytes=' + $1 + ')') }, buf, numBytes);
 	pthread_mutex_lock(&stdinMutex); // todo: lock free
 	if (!stdinBufferUsed + numBytes > stdinBufferCapacity)
 	{
 		int newCapacity = stdinBufferUsed + numBytes > stdinBufferCapacity*2 ? stdinBufferUsed + numBytes : stdinBufferCapacity*2;
 		stdinBuffer = (char*)realloc(stdinBuffer, newCapacity);
-		EM_ASM_INT({ Module['printErr']('resized stdin buffer from ' + $0 + ' to ' + $1) }, stdinBufferCapacity, newCapacity);
+//		EM_ASM_INT({ Module['printErr']('resized stdin buffer from ' + $0 + ' to ' + $1) }, stdinBufferCapacity, newCapacity);
 		stdinBufferCapacity = newCapacity;
 	}
 	memcpy(stdinBuffer + stdinBufferUsed, buf, numBytes);
 	stdinBufferUsed += numBytes;
 	pthread_mutex_unlock(&stdinMutex);
-	EM_ASM_INT({ Module['printErr']('stdinBufferUsed='+$0+', waking up all threads.') }, stdinBufferUsed);
+//	EM_ASM_INT({ Module['printErr']('stdinBufferUsed='+$0+', waking up all threads.') }, stdinBufferUsed);
 	emscripten_futex_wake(&stdinBufferUsed, 0x7FFFFFFFLL);
 }
 
@@ -1421,11 +1428,11 @@ static int readStdin(char *dst, int numBytes)
 		//if (numBytes > 0)
 		if (numRead == 0 && numBytes > 0)
 		{
-			EM_ASM_INT({ Module['printErr']('sleeping for more stdin (need still ' + $0 + ' bytes ') }, numBytes);
+//			EM_ASM_INT({ Module['printErr']('sleeping for more stdin (need still ' + $0 + ' bytes ') }, numBytes);
 			fflush(stdout);
 			fflush(stderr);
 			emscripten_futex_wait(&stdinBufferUsed, 0, INFINITY);
-			EM_ASM_INT({ Module['printErr']('sleep finished for more stdin (needed still ' + $0 + ' bytes ') }, numBytes);
+//			EM_ASM_INT({ Module['printErr']('sleep finished for more stdin (needed still ' + $0 + ' bytes ') }, numBytes);
 		}
 	}
 	return numRead;
@@ -1441,7 +1448,7 @@ long __syscall145(int which, ...) // readv
 	const iovec *iov = va_arg(vl, const iovec*);
 	int iovcnt = va_arg(vl, int);
 	va_end(vl);
-	EM_ASM(Module['printErr']('readv(fd=' + $0 + ', iov=0x' + ($1).toString(16) + ', iovcnt=' + $2 + ')'), fd, iov, iovcnt);
+//	EM_ASM(Module['printErr']('readv(fd=' + $0 + ', iov=0x' + ($1).toString(16) + ', iovcnt=' + $2 + ')'), fd, iov, iovcnt);
 
 	if (fd == 0)
 	{
@@ -1504,7 +1511,7 @@ long __syscall146(int which, ...) // writev
 	const iovec *iov = va_arg(vl, const iovec*);
 	int iovcnt = va_arg(vl, int);
 	va_end(vl);
-	EM_ASM(Module['printErr']('writev(fd=' + $0 + ', iov=0x' + ($1).toString(16) + ', iovcnt=' + $2 + ')'), fd, iov, iovcnt);
+//	EM_ASM(Module['printErr']('writev(fd=' + $0 + ', iov=0x' + ($1).toString(16) + ', iovcnt=' + $2 + ')'), fd, iov, iovcnt);
 
 	FileDescriptor *desc = (FileDescriptor*)fd;
 	if (fd != 1/*stdout*/ && fd != 2/*stderr*/) // TODO: Resolve the hardcoding of stdin,stdout & stderr
@@ -1576,7 +1583,7 @@ long __syscall183(int which, ...) // getcwd
 	char *buf = va_arg(vl, char *);
 	size_t size = va_arg(vl, size_t);
 	va_end(vl);
-	EM_ASM(Module['printErr']('getcwd(buf=0x' + $0 + ', size= ' + $1 + ')'), buf, size);
+//	EM_ASM(Module['printErr']('getcwd(buf=0x' + $0 + ', size= ' + $1 + ')'), buf, size);
 
 	if (!buf && size > 0) RETURN_ERRNO(EFAULT, "buf points to a bad address");
 	if (buf && size == 0) RETURN_ERRNO(EINVAL, "The size argument is zero and buf is not a null pointer");
@@ -1632,7 +1639,7 @@ long __syscall195(int which, ...) // SYS_stat64
 	const char *pathname = va_arg(vl, const char *);
 	struct stat *buf = va_arg(vl, struct stat *);
 	va_end(vl);
-	EM_ASM(Module['printErr']('SYS_stat64(pathname="' + Pointer_stringify($0) + '", buf=0x' + ($1).toString(16) + ')'), pathname, buf);
+//	EM_ASM(Module['printErr']('SYS_stat64(pathname="' + Pointer_stringify($0) + '", buf=0x' + ($1).toString(16) + ')'), pathname, buf);
 
 	int len = strlen(pathname);
 	if (len > MAX_PATHNAME_LENGTH) RETURN_ERRNO(ENAMETOOLONG, "pathname was too long");
@@ -1669,7 +1676,7 @@ long __syscall196(int which, ...) // SYS_lstat64
 	const char *pathname = va_arg(vl, const char *);
 	struct stat *buf = va_arg(vl, struct stat *);
 	va_end(vl);
-	EM_ASM(Module['printErr']('SYS_lstat64(pathname="' + Pointer_stringify($0) + '", buf=0x' + ($1).toString(16) + ')'), pathname, buf);
+//	EM_ASM(Module['printErr']('SYS_lstat64(pathname="' + Pointer_stringify($0) + '", buf=0x' + ($1).toString(16) + ')'), pathname, buf);
 
 	int len = strlen(pathname);
 	if (len > MAX_PATHNAME_LENGTH) RETURN_ERRNO(ENAMETOOLONG, "pathname was too long");
@@ -1698,7 +1705,7 @@ long __syscall197(int which, ...) // SYS_fstat64
 	int fd = va_arg(vl, int);
 	struct stat *buf = va_arg(vl, struct stat *);
 	va_end(vl);
-	EM_ASM(Module['printErr']('SYS_fstat64(fd="' + Pointer_stringify($0) + '", buf=0x' + ($1).toString(16) + ')'), fd, buf);
+//	EM_ASM(Module['printErr']('SYS_fstat64(fd="' + Pointer_stringify($0) + '", buf=0x' + ($1).toString(16) + ')'), fd, buf);
 
 	FileDescriptor *desc = (FileDescriptor*)fd;
 	if (!desc || desc->magic != EM_FILEDESCRIPTOR_MAGIC) RETURN_ERRNO(EBADF, "fd isn't a valid open file descriptor");
@@ -1724,7 +1731,7 @@ long __syscall220(int which, ...) // getdents64 (get directory entries 64-bit)
 	va_end(vl);
 	unsigned int dirents_size = count / sizeof(dirent); // The number of dirent structures that can fit into the provided buffer.
 	dirent *de_end = de + dirents_size;
-	EM_ASM(Module['printErr']('getdents64(fd=' + $0 + ', de=0x' + ($1).toString(16) + ', count=' + $2 + ')'), fd, de, count);
+//	EM_ASM(Module['printErr']('getdents64(fd=' + $0 + ', de=0x' + ($1).toString(16) + ', count=' + $2 + ')'), fd, de, count);
 
 	FileDescriptor *desc = (FileDescriptor*)fd;
 	if (!desc || desc->magic != EM_FILEDESCRIPTOR_MAGIC) RETURN_ERRNO(EBADF, "Invalid file descriptor fd");
