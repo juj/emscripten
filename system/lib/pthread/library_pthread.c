@@ -198,7 +198,7 @@ void emscripten_async_waitable_close(em_queued_call *call)
 static void _do_call(em_queued_call *q)
 {
 // #if PTHREADS_DEBUG // TODO: Create a debug version of pthreads library
-//	THREAD_LOCAL_EM_ASM_INT({dump('thread ' + _pthread_self() + ' (ENVIRONMENT_IS_WORKER: ' + ENVIRONMENT_IS_WORKER + ', processing queueing call of function enum=' + $0 + '/ptr=' + $1 + '\n')}, q->functionEnum, q->functionPtr);
+//	EM_ASM_INT({dump('thread ' + _pthread_self() + ' (ENVIRONMENT_IS_WORKER: ' + ENVIRONMENT_IS_WORKER + ', processing queueing call of function enum=' + $0 + '/ptr=' + $1 + '\n')}, q->functionEnum, q->functionPtr);
 // #endif
 	switch(q->functionEnum)
 	{
@@ -210,6 +210,7 @@ static void _do_call(em_queued_call *q)
 		case EM_FUNC_SIG_VI: ((em_func_vi)q->functionPtr)(q->args[0].i); break;
 		case EM_FUNC_SIG_VII: ((em_func_vii)q->functionPtr)(q->args[0].i, q->args[1].i); break;
 		case EM_FUNC_SIG_VIII: ((em_func_viii)q->functionPtr)(q->args[0].i, q->args[1].i, q->args[2].i); break;
+		case EM_FUNC_SIG_VFFFF: ((em_func_vffff)q->functionPtr)(q->args[0].f, q->args[1].f, q->args[2].f, q->args[3].f); break;
 		case EM_FUNC_SIG_I: q->returnValue.i = ((em_func_i)q->functionPtr)(); break;
 		case EM_FUNC_SIG_II: q->returnValue.i = ((em_func_ii)q->functionPtr)(q->args[0].i); break;
 		case EM_FUNC_SIG_III: q->returnValue.i = ((em_func_iii)q->functionPtr)(q->args[0].i, q->args[1].i); break;
@@ -320,7 +321,7 @@ static void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_call_on_thread(pthread_t
 	assert(call);
 
 // #if PTHREADS_DEBUG // TODO: Create a debug version of pthreads library
-//	THREAD_LOCAL_EM_ASM_INT({dump('thread ' + _pthread_self() + ' (ENVIRONMENT_IS_WORKER: ' + ENVIRONMENT_IS_WORKER + '), queueing call of function enum=' + $0 + '/ptr=' + $1 + ' on thread ' + $2 + '\n' + new Error().stack)}, call->functionEnum, call->functionPtr, target_thread);
+//	EM_ASM_INT({dump('thread ' + _pthread_self() + ' (ENVIRONMENT_IS_WORKER: ' + ENVIRONMENT_IS_WORKER + '), queueing call of function enum=' + $0 + '/ptr=' + $1 + ' on thread ' + $2 + '\n' + new Error().stack)}, call->functionEnum, call->functionPtr, target_thread);
 // #endif
 
 	// Can't be a null pointer here, but can't be EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD either.
@@ -365,7 +366,7 @@ static void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_call_on_thread(pthread_t
 		{
 			// For the queues of other threads, just drop the message.
 // #if DEBUG TODO: a debug build of pthreads library?
-			THREAD_LOCAL_EM_ASM(console.error('Pthread queue overflowed, dropping queued message to thread. ' + new Error().stack));
+			EM_ASM(console.error('Pthread queue overflowed, dropping queued message to thread. ' + new Error().stack));
 // #endif
 			em_queued_call_free(call);
 			return;
@@ -379,11 +380,11 @@ static void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_call_on_thread(pthread_t
 	if (head == tail) {
 		if (target_thread == emscripten_main_browser_thread_id())
 		{
-			THREAD_LOCAL_EM_ASM(postMessage({ cmd: 'processQueuedMainThreadWork' }));
+			EM_ASM(postMessage({ cmd: 'processQueuedMainThreadWork' }));
 		}
 		else
 		{
-			int success = THREAD_LOCAL_EM_ASM_INT({
+			int success = EM_ASM_INT({
 				if (!ENVIRONMENT_IS_PTHREAD) {
 					if (!PThread.pthreads[$0] || !PThread.pthreads[$0].worker) {
 // #if DEBUG
@@ -545,7 +546,7 @@ void * EMSCRIPTEN_KEEPALIVE emscripten_sync_run_in_main_thread_7(int function, v
 void EMSCRIPTEN_KEEPALIVE emscripten_current_thread_process_queued_calls()
 {
 // #if PTHREADS_DEBUG == 2
-//	THREAD_LOCAL_EM_ASM(console.error('thread ' + _pthread_self() + ': emscripten_current_thread_process_queued_calls(), ' + new Error().stack));
+//	EM_ASM(console.error('thread ' + _pthread_self() + ': emscripten_current_thread_process_queued_calls(), ' + new Error().stack));
 // #endif
 
 	// TODO: Under certain conditions we may want to have a nesting guard also for pthreads (and it will certainly be cleaner that way), but
@@ -604,10 +605,20 @@ int emscripten_sync_run_in_main_runtime_thread_(EM_FUNC_SIGNATURE sig, void *fun
 	int numArguments = EM_FUNC_SIG_NUM_FUNC_ARGUMENTS(sig);
 	em_queued_call q = { sig, func_ptr };
 
+	EM_FUNC_SIGNATURE argumentsType = sig & EM_FUNC_SIG_ARGUMENTS_TYPE_MASK;
 	va_list args;
 	va_start(args, func_ptr);
 	for(int i = 0; i < numArguments; ++i)
-		q.args[i].i = va_arg(args, int);
+	{
+		switch((argumentsType & EM_FUNC_SIG_ARGUMENT_TYPE_SIZE_MASK))
+		{
+			case EM_FUNC_SIG_PARAM_I: q.args[i].i = va_arg(args, int); break;
+			case EM_FUNC_SIG_PARAM_I64: q.args[i].i64 = va_arg(args, int64_t); break;
+			case EM_FUNC_SIG_PARAM_F: q.args[i].f = (float)va_arg(args, double); break;
+			case EM_FUNC_SIG_PARAM_D: q.args[i].d = va_arg(args, double); break;
+		}
+		argumentsType >>= EM_FUNC_SIG_ARGUMENT_TYPE_SIZE_SHIFT;
+	}
 	va_end(args);
 	emscripten_sync_run_in_main_thread(&q);
 	return q.returnValue.i;
@@ -621,10 +632,20 @@ void emscripten_async_run_in_main_runtime_thread_(EM_FUNC_SIGNATURE sig, void *f
 	q->functionEnum = sig;
 	q->functionPtr = func_ptr;
 
+	EM_FUNC_SIGNATURE argumentsType = sig & EM_FUNC_SIG_ARGUMENTS_TYPE_MASK;
 	va_list args;
 	va_start(args, func_ptr);
 	for(int i = 0; i < numArguments; ++i)
-		q->args[i].i = va_arg(args, int);
+	{
+		switch((argumentsType & EM_FUNC_SIG_ARGUMENT_TYPE_SIZE_MASK))
+		{
+			case EM_FUNC_SIG_PARAM_I: q->args[i].i = va_arg(args, int); break;
+			case EM_FUNC_SIG_PARAM_I64: q->args[i].i64 = va_arg(args, int64_t); break;
+			case EM_FUNC_SIG_PARAM_F: q->args[i].f = (float)va_arg(args, double); break;
+			case EM_FUNC_SIG_PARAM_D: q->args[i].d = va_arg(args, double); break;
+		}
+		argumentsType >>= EM_FUNC_SIG_ARGUMENT_TYPE_SIZE_SHIFT;
+	}
 	va_end(args);
 	// 'async' runs are fire and forget, where the caller detaches itself from the call object after returning here,
 	// and it is the callee's responsibility to free up the memory after the call has been performed.
@@ -640,10 +661,20 @@ em_queued_call *emscripten_async_waitable_run_in_main_runtime_thread_(EM_FUNC_SI
 	q->functionEnum = sig;
 	q->functionPtr = func_ptr;
 
+	EM_FUNC_SIGNATURE argumentsType = sig & EM_FUNC_SIG_ARGUMENTS_TYPE_MASK;
 	va_list args;
 	va_start(args, func_ptr);
 	for(int i = 0; i < numArguments; ++i)
-		q->args[i].i = va_arg(args, int);
+	{
+		switch((argumentsType & EM_FUNC_SIG_ARGUMENT_TYPE_SIZE_MASK))
+		{
+			case EM_FUNC_SIG_PARAM_I: q->args[i].i = va_arg(args, int); break;
+			case EM_FUNC_SIG_PARAM_I64: q->args[i].i64 = va_arg(args, int64_t); break;
+			case EM_FUNC_SIG_PARAM_F: q->args[i].f = (float)va_arg(args, double); break;
+			case EM_FUNC_SIG_PARAM_D: q->args[i].d = va_arg(args, double); break;
+		}
+		argumentsType >>= EM_FUNC_SIG_ARGUMENT_TYPE_SIZE_SHIFT;
+	}
 	va_end(args);
 	// 'async waitable' runs are waited on by the caller, so the call object needs to remain alive for the caller to
 	// access it after the operation is done. The caller is responsible in cleaning up the object after done.
@@ -662,10 +693,20 @@ void EMSCRIPTEN_KEEPALIVE emscripten_async_queue_on_thread_(pthread_t targetThre
 	q->functionPtr = func_ptr;
 	q->satelliteData = satellite;
 
+	EM_FUNC_SIGNATURE argumentsType = sig & EM_FUNC_SIG_ARGUMENTS_TYPE_MASK;
 	va_list args;
 	va_start(args, satellite);
 	for(int i = 0; i < numArguments; ++i)
-		q->args[i].i = va_arg(args, int);
+	{
+		switch((argumentsType & EM_FUNC_SIG_ARGUMENT_TYPE_SIZE_MASK))
+		{
+			case EM_FUNC_SIG_PARAM_I: q->args[i].i = va_arg(args, int); break;
+			case EM_FUNC_SIG_PARAM_I64: q->args[i].i64 = va_arg(args, int64_t); break;
+			case EM_FUNC_SIG_PARAM_F: q->args[i].f = (float)va_arg(args, double); break;
+			case EM_FUNC_SIG_PARAM_D: q->args[i].d = va_arg(args, double); break;
+		}
+		argumentsType >>= EM_FUNC_SIG_ARGUMENT_TYPE_SIZE_SHIFT;
+	}
 	va_end(args);
 
 	// 'async' runs are fire and forget, where the caller detaches itself from the call object after returning here,
@@ -964,7 +1005,7 @@ int EMSCRIPTEN_KEEPALIVE proxy_main(int argc, char **argv)
     emscripten_pthread_attr_settransferredcanvases(&attr, (EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES));
 #else
     // Otherwise by default, transfer whatever is set to Module.canvas.
-    if (EM_ASM_INT_V({ return !!(Module['canvas']); })) emscripten_pthread_attr_settransferredcanvases(&attr, "#canvas");
+    if (EM_ASM_INT(return !!(Module['canvas']))) emscripten_pthread_attr_settransferredcanvases(&attr, "#canvas");
 #endif
     _main_arguments.argc = argc;
     _main_arguments.argv = argv;

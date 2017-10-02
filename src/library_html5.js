@@ -2111,9 +2111,9 @@ var LibraryJSEvents = {
     {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 0, 'i32') }}};
   },
 
-  emscripten_webgl_create_context__deps: ['$GL'],
+  emscripten_webgl_do_create_context__deps: ['$GL'],
   // This function performs proxying manually, depending on the style of context that is to be created.
-  emscripten_webgl_create_context: function(target, attributes) {
+  emscripten_webgl_do_create_context: function(target, attributes) {
     var contextAttributes = {};
     contextAttributes['alpha'] = !!{{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.alpha, 'i32') }}};
     contextAttributes['depth'] = !!{{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.depth, 'i32') }}};
@@ -2234,8 +2234,8 @@ var LibraryJSEvents = {
 
 #if USE_PTHREADS
   // Runs on the calling thread, proxies manually.
-  emscripten_webgl_make_context_current__deps: ['emscripten_webgl_make_context_current_main_thread'],
-  emscripten_webgl_make_context_current: function(contextHandle) {
+  emscripten_webgl_do_make_context_current__deps: ['emscripten_webgl_make_context_current_main_thread'],
+  emscripten_webgl_do_make_context_current: function(contextHandle) {
     var success = GL.makeContextCurrent(contextHandle);
     if (success) {
       GLctxIsOnParentThread = false; // If succeeded above, we will have a local GL context from this thread (worker or main).
@@ -2284,9 +2284,8 @@ var LibraryJSEvents = {
   emscripten_webgl_get_drawing_buffer_size: 'emscripten_webgl_get_drawing_buffer_size_calling_thread',
 #endif
 
-  emscripten_webgl_commit_frame__proxy: 'main_gl',
-  emscripten_webgl_commit_frame__sig: 'i',
-  emscripten_webgl_commit_frame: function() {
+  emscripten_webgl_do_commit_frame__sig: 'i',
+  emscripten_webgl_do_commit_frame: function() {
     if (!GL.currentContext || !GL.currentContext.GLctx) {
 #if GL_DEBUG
       console.error('emscripten_webgl_commit_frame() failed: no GL context set current via emscripten_webgl_make_context_current()!');

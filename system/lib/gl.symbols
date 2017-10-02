@@ -1,1 +1,3 @@
          T emscripten_GetProcAddress
+         T glClearColor
+         T glClear
