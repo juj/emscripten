@@ -916,7 +916,6 @@ var LibraryGL = {
     }
   },
 
-  glPixelStorei__proxy: 'async_gl',
   glPixelStorei__sig: 'vii',
   glPixelStorei: function(pname, param) {
     if (pname == 0x0D05 /* GL_PACK_ALIGNMENT */) {
@@ -927,7 +926,6 @@ var LibraryGL = {
     GLctx.pixelStorei(pname, param);
   },
 
-  glGetString__proxy: 'main_gl',
   glGetString__sig: 'ii',
   glGetString: function(name_) {
     if (GL.stringCache[name_]) return GL.stringCache[name_];
@@ -1135,7 +1133,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glGetStringi__proxy: 'main_gl',
   glGetStringi__sig: 'iii',
   glGetStringi: function(name, index) {
     if (GLctx.canvas.GLctxObject.version < 2) {
@@ -1180,7 +1177,6 @@ var LibraryGL = {
     }
   },
 
-  glGetInteger64v__proxy: 'main_gl',
   glGetInteger64v__sig: 'vii',
   glGetInteger64v__deps: ['$emscriptenWebGLGet'],
   glGetInteger64v: function(name_, p) {
@@ -1188,28 +1184,24 @@ var LibraryGL = {
   },
 #endif
 
-  glGetIntegerv__proxy: 'main_gl',
   glGetIntegerv__sig: 'vii',
   glGetIntegerv__deps: ['$emscriptenWebGLGet'],
   glGetIntegerv: function(name_, p) {
     emscriptenWebGLGet(name_, p, 'Integer');
   },
 
-  glGetFloatv__proxy: 'main_gl',
   glGetFloatv__sig: 'vii',
   glGetFloatv__deps: ['$emscriptenWebGLGet'],
   glGetFloatv: function(name_, p) {
     emscriptenWebGLGet(name_, p, 'Float');
   },
 
-  glGetBooleanv__proxy: 'main_gl',
   glGetBooleanv__sig: 'vii',
   glGetBooleanv__deps: ['$emscriptenWebGLGet'],
   glGetBooleanv: function(name_, p) {
     emscriptenWebGLGet(name_, p, 'Boolean');
   },
 
-  glGenTextures__proxy: 'main_gl',
   glGenTextures__sig: 'vii',
   glGenTextures: function(n, textures) {
     for (var i = 0; i < n; i++) {
@@ -1229,7 +1221,6 @@ var LibraryGL = {
     }
   },
 
-  glDeleteTextures__proxy: 'main_gl',
   glDeleteTextures__sig: 'vii',
   glDeleteTextures: function(n, textures) {
     for (var i = 0; i < n; i++) {
@@ -1242,7 +1233,6 @@ var LibraryGL = {
     }
   },
 
-  glCompressedTexImage2D__proxy: 'main_gl',
   glCompressedTexImage2D__sig: 'viiiiiiii',
   glCompressedTexImage2D: function(target, level, internalFormat, width, height, border, imageSize, data) {
 #if USE_WEBGL2
@@ -1255,7 +1245,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glCompressedTexImage3D__proxy: 'main_gl',
   glCompressedTexImage3D__sig: 'viiiiiiiii',
   glCompressedTexImage3D: function(target, level, internalFormat, width, height, depth, border, imageSize, data) {
     if (GL.currentContext.supportsWebGL2EntryPoints) { // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
@@ -1266,7 +1255,6 @@ var LibraryGL = {
   },
 #endif
 
-  glCompressedTexSubImage2D__proxy: 'main_gl',
   glCompressedTexSubImage2D__sig: 'viiiiiiiii',
   glCompressedTexSubImage2D: function(target, level, xoffset, yoffset, width, height, format, imageSize, data) {
 #if USE_WEBGL2
@@ -1279,7 +1267,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glCompressedTexSubImage3D__proxy: 'main_gl',
   glCompressedTexSubImage3D__sig: 'viiiiiiiiiii',
   glCompressedTexSubImage3D: function(target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data) {
     if (GL.currentContext.supportsWebGL2EntryPoints) { // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
@@ -1503,7 +1490,6 @@ var LibraryGL = {
   },
 #endif
 
-  glTexImage2D__proxy: 'main_gl',
   glTexImage2D__sig: 'viiiiiiiii',
   glTexImage2D__deps: ['$emscriptenWebGLGetTexPixelData'
 #if USE_WEBGL2
@@ -1548,7 +1534,6 @@ var LibraryGL = {
     GLctx.texImage2D(target, level, internalFormat, width, height, border, format, type, pixelData);
   },
 
-  glTexSubImage2D__proxy: 'main_gl',
   glTexSubImage2D__sig: 'viiiiiiiii',
   glTexSubImage2D__deps: ['$emscriptenWebGLGetTexPixelData'
 #if USE_WEBGL2
@@ -1582,7 +1567,6 @@ var LibraryGL = {
     GLctx.texSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixelData);
   },
 
-  glReadPixels__proxy: 'main_gl',
   glReadPixels__sig: 'viiiiiii',
   glReadPixels__deps: ['$emscriptenWebGLGetTexPixelData'
 #if USE_WEBGL2
@@ -1611,7 +1595,6 @@ var LibraryGL = {
     GLctx.readPixels(x, y, width, height, format, type, pixelData);
   },
 
-  glBindTexture__proxy: 'async_gl',
   glBindTexture__sig: 'vii',
   glBindTexture: function(target, texture) {
 #if GL_ASSERTIONS
@@ -1620,7 +1603,6 @@ var LibraryGL = {
     GLctx.bindTexture(target, texture ? GL.textures[texture] : null);
   },
 
-  glGetTexParameterfv__proxy: 'main_gl',
   glGetTexParameterfv__sig: 'viii',
   glGetTexParameterfv: function(target, pname, params) {
     if (!params) {
@@ -1635,7 +1617,6 @@ var LibraryGL = {
     {{{ makeSetValue('params', '0', 'GLctx.getTexParameter(target, pname)', 'float') }}};
   },
 
-  glGetTexParameteriv__proxy: 'main_gl',
   glGetTexParameteriv__sig: 'viii',
   glGetTexParameteriv: function(target, pname, params) {
     if (!params) {
@@ -1650,21 +1631,18 @@ var LibraryGL = {
     {{{ makeSetValue('params', '0', 'GLctx.getTexParameter(target, pname)', 'i32') }}};
   },
 
-  glTexParameterfv__proxy: 'main_gl',
   glTexParameterfv__sig: 'viii',
   glTexParameterfv: function(target, pname, params) {
     var param = {{{ makeGetValue('params', '0', 'float') }}};
     GLctx.texParameterf(target, pname, param);
   },
 
-  glTexParameteriv__proxy: 'main_gl',
   glTexParameteriv__sig: 'viii',
   glTexParameteriv: function(target, pname, params) {
     var param = {{{ makeGetValue('params', '0', 'i32') }}};
     GLctx.texParameteri(target, pname, param);
   },
 
-  glIsTexture__proxy: 'main_gl',
   glIsTexture__sig: 'ii',
   glIsTexture: function(texture) {
     var texture = GL.textures[texture];
@@ -1672,7 +1650,6 @@ var LibraryGL = {
     return GLctx.isTexture(texture);
   },
 
-  glGenBuffers__proxy: 'main_gl',
   glGenBuffers__sig: 'vii',
   glGenBuffers: function(n, buffers) {
     for (var i = 0; i < n; i++) {
@@ -1692,7 +1669,6 @@ var LibraryGL = {
     }
   },
 
-  glDeleteBuffers__proxy: 'main_gl',
   glDeleteBuffers__sig: 'vii',
   glDeleteBuffers: function(n, buffers) {
     for (var i = 0; i < n; i++) {
@@ -1712,7 +1688,6 @@ var LibraryGL = {
     }
   },
 
-  glGetBufferParameteriv__proxy: 'main_gl',
   glGetBufferParameteriv__sig: 'viii',
   glGetBufferParameteriv: function(target, value, data) {
     if (!data) {
@@ -1728,7 +1703,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glGetBufferParameteri64v__proxy: 'main_gl',
   glGetBufferParameteri64v__sig: 'viii',
   glGetBufferParameteri64v: function(target, value, data) {
     if (!data) {
@@ -1744,7 +1718,6 @@ var LibraryGL = {
   },
 #endif
 
-  glBufferData__proxy: 'main_gl',
   glBufferData__sig: 'viiii',
   glBufferData: function(target, size, data, usage) {
 #if LEGACY_GL_EMULATION
@@ -1776,7 +1749,6 @@ var LibraryGL = {
     }
   },
 
-  glBufferSubData__proxy: 'main_gl',
   glBufferSubData__sig: 'viiii',
   glBufferSubData: function(target, offset, size, data) {
 #if USE_WEBGL2
@@ -1789,7 +1761,6 @@ var LibraryGL = {
   },
 
   // Queries EXT
-  glGenQueriesEXT__proxy: 'main_gl',
   glGenQueriesEXT__sig: 'vii',
   glGenQueriesEXT: function(n, ids) {
     for (var i = 0; i < n; i++) {
@@ -1809,7 +1780,6 @@ var LibraryGL = {
     }
   },
 
-  glDeleteQueriesEXT__proxy: 'main_gl',
   glDeleteQueriesEXT__sig: 'vii',
   glDeleteQueriesEXT: function(n, ids) {
     for (var i = 0; i < n; i++) {
@@ -1821,7 +1791,6 @@ var LibraryGL = {
     }
   },
 
-  glIsQueryEXT__proxy: 'main_gl',
   glIsQueryEXT__sig: 'ii',
   glIsQueryEXT: function(id) {
     var query = GL.timerQueriesEXT[query];
@@ -1829,7 +1798,6 @@ var LibraryGL = {
     return GLctx.disjointTimerQueryExt['isQueryEXT'](query);
   },
 
-  glBeginQueryEXT__proxy: 'async_gl',
   glBeginQueryEXT__sig: 'vii',
   glBeginQueryEXT: function(target, id) {
 #if GL_ASSERTIONS
@@ -1838,13 +1806,11 @@ var LibraryGL = {
     GLctx.disjointTimerQueryExt['beginQueryEXT'](target, id ? GL.timerQueriesEXT[id] : null);
   },
 
-  glEndQueryEXT__proxy: 'async_gl',
   glEndQueryEXT__sig: 'vi',
   glEndQueryEXT: function(target) {
     GLctx.disjointTimerQueryExt['endQueryEXT'](target);
   },
 
-  glQueryCounterEXT__proxy: 'async_gl',
   glQueryCounterEXT__sig: 'vii',
   glQueryCounterEXT: function(id, target) {
 #if GL_ASSERTIONS
@@ -1853,7 +1819,6 @@ var LibraryGL = {
     GLctx.disjointTimerQueryExt['queryCounterEXT'](id ? GL.timerQueriesEXT[id] : null, target);
   },
 
-  glGetQueryivEXT__proxy: 'main_gl',
   glGetQueryivEXT__sig: 'viii',
   glGetQueryivEXT: function(target, pname, params) {
     if (!params) {
@@ -1868,7 +1833,6 @@ var LibraryGL = {
     {{{ makeSetValue('params', '0', 'GLctx.disjointTimerQueryExt[\'getQueryEXT\'](target, pname)', 'i32') }}};
   },
 
-  glGetQueryObjectivEXT__proxy: 'main_gl',
   glGetQueryObjectivEXT__sig: 'viii',
   glGetQueryObjectivEXT: function(id, pname, params) {
     if (!params) {
@@ -1895,7 +1859,6 @@ var LibraryGL = {
   },
   glGetQueryObjectuivEXT: 'glGetQueryObjectivEXT',
 
-  glGetQueryObjecti64vEXT__proxy: 'main_gl',
   glGetQueryObjecti64vEXT__sig: 'viii',
   glGetQueryObjecti64vEXT: function(id, pname, params) {
     if (!params) {
@@ -1957,7 +1920,6 @@ var LibraryGL = {
     }
   },
 
-  glMapBufferRange__proxy: 'main_gl',
   glMapBufferRange__sig: 'iiiii',
   glMapBufferRange__deps: ['$emscriptenWebGLGetBufferBinding', '$emscriptenWebGLValidateMapBufferTarget'],
   glMapBufferRange: function(target, offset, length, access) {
@@ -1984,7 +1946,6 @@ var LibraryGL = {
     return mem;
   },
 
-  glGetBufferPointerv__proxy: 'main_gl',
   glGetBufferPointerv__sig: 'viii',
   glGetBufferPointerv__deps: ['$emscriptenWebGLGetBufferBinding'],
   glGetBufferPointerv: function(target, pname, params) {
@@ -2001,7 +1962,6 @@ var LibraryGL = {
     }
   },
 
-  glFlushMappedBufferRange__proxy: 'main_gl',
   glFlushMappedBufferRange__sig: 'viii',
   glFlushMappedBufferRange__deps: ['$emscriptenWebGLGetBufferBinding', '$emscriptenWebGLValidateMapBufferTarget'],
   glFlushMappedBufferRange: function(target, offset, length) {
@@ -2035,7 +1995,6 @@ var LibraryGL = {
       HEAPU8.subarray(mapping.mem + offset, mapping.mem + offset + length));
   },
 
-  glUnmapBuffer__proxy: 'main_gl',
   glUnmapBuffer__sig: 'ii',
   glUnmapBuffer__deps: ['$emscriptenWebGLGetBufferBinding', '$emscriptenWebGLValidateMapBufferTarget'],
   glUnmapBuffer: function(target) {
@@ -2066,7 +2025,6 @@ var LibraryGL = {
 #endif
 
 #if USE_WEBGL2
-  glInvalidateFramebuffer__proxy: 'main_gl',
   glInvalidateFramebuffer__sig: 'viii',
   glInvalidateFramebuffer: function(target, numAttachments, attachments) {
 #if GL_ASSERTIONS
@@ -2080,7 +2038,6 @@ var LibraryGL = {
     GLctx['invalidateFramebuffer'](target, list);
   },
 
-  glInvalidateSubFramebuffer__proxy: 'main_gl',
   glInvalidateSubFramebuffer__sig: 'viiiiiii',
   glInvalidateSubFramebuffer: function(target, numAttachments, attachments, x, y, width, height) {
 #if GL_ASSERTIONS
@@ -2094,7 +2051,6 @@ var LibraryGL = {
     GLctx['invalidateSubFramebuffer'](target, list, x, y, width, height);
   },
 
-  glTexImage3D__proxy: 'main_gl',
   glTexImage3D__sig: 'viiiiiiiiii',
   glTexImage3D__deps: ['$emscriptenWebGLGetTexPixelData', '$emscriptenWebGLGetHeapForType', '$emscriptenWebGLGetShiftForType'],
   glTexImage3D: function(target, level, internalFormat, width, height, depth, border, format, type, pixels) {
@@ -2107,7 +2063,6 @@ var LibraryGL = {
     }
   },
 
-  glTexSubImage3D__proxy: 'main_gl',
   glTexSubImage3D__sig: 'viiiiiiiiiii',
   glTexSubImage3D__deps: ['$emscriptenWebGLGetTexPixelData', '$emscriptenWebGLGetHeapForType', '$emscriptenWebGLGetShiftForType'],
   glTexSubImage3D: function(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels) {
@@ -2121,7 +2076,6 @@ var LibraryGL = {
   },
 
   // Queries
-  glGenQueries__proxy: 'main_gl',
   glGenQueries__sig: 'vii',
   glGenQueries: function(n, ids) {
     for (var i = 0; i < n; i++) {
@@ -2141,7 +2095,6 @@ var LibraryGL = {
     }
   },
 
-  glDeleteQueries__proxy: 'main_gl',
   glDeleteQueries__sig: 'vii',
   glDeleteQueries: function(n, ids) {
     for (var i = 0; i < n; i++) {
@@ -2153,7 +2106,6 @@ var LibraryGL = {
     }
   },
 
-  glIsQuery__proxy: 'main_gl',
   glIsQuery__sig: 'ii',
   glIsQuery: function(id) {
     var query = GL.queries[query];
@@ -2161,7 +2113,6 @@ var LibraryGL = {
     return GLctx['isQuery'](query);
   },
 
-  glBeginQuery__proxy: 'async_gl',
   glBeginQuery__sig: 'vii',
   glBeginQuery: function(target, id) {
 #if GL_ASSERTIONS
@@ -2170,7 +2121,6 @@ var LibraryGL = {
     GLctx['beginQuery'](target, id ? GL.queries[id] : null);
   },
 
-  glGetQueryiv__proxy: 'main_gl',
   glGetQueryiv__sig: 'viii',
   glGetQueryiv: function(target, pname, params) {
     if (!params) {
@@ -2185,7 +2135,6 @@ var LibraryGL = {
     {{{ makeSetValue('params', '0', 'GLctx[\'getQuery\'](target, pname)', 'i32') }}};
   },
 
-  glGetQueryObjectuiv__proxy: 'main_gl',
   glGetQueryObjectuiv__sig: 'viii',
   glGetQueryObjectuiv: function(id, pname, params) {
     if (!params) {
@@ -2212,7 +2161,6 @@ var LibraryGL = {
   },
 
   // Sampler objects
-  glGenSamplers__proxy: 'main_gl',
   glGenSamplers__sig: 'vii',
   glGenSamplers: function(n, samplers) {
     for (var i = 0; i < n; i++) {
@@ -2232,7 +2180,6 @@ var LibraryGL = {
     }
   },
 
-  glDeleteSamplers__proxy: 'main_gl',
   glDeleteSamplers__sig: 'vii',
   glDeleteSamplers: function(n, samplers) {
     for (var i = 0; i < n; i++) {
@@ -2245,7 +2192,6 @@ var LibraryGL = {
     }
   },
 
-  glIsSampler__proxy: 'main_gl',
   glIsSampler__sig: 'ii',
   glIsSampler: function(id) {
     var sampler = GL.samplers[id];
@@ -2253,7 +2199,6 @@ var LibraryGL = {
     return GLctx['isSampler'](sampler);
   },
 
-  glBindSampler__proxy: 'async_gl',
   glBindSampler__sig: 'vii',
   glBindSampler: function(unit, sampler) {
 #if GL_ASSERTIONS
@@ -2262,7 +2207,6 @@ var LibraryGL = {
     GLctx['bindSampler'](unit, sampler ? GL.samplers[sampler] : null);
   },
 
-  glSamplerParameterf__proxy: 'main_gl',
   glSamplerParameterf__sig: 'viif',
   glSamplerParameterf: function(sampler, pname, param) {
 #if GL_ASSERTIONS
@@ -2271,7 +2215,6 @@ var LibraryGL = {
     GLctx['samplerParameterf'](sampler ? GL.samplers[sampler] : null, pname, param);
   },
 
-  glSamplerParameteri__proxy: 'main_gl',
   glSamplerParameteri__sig: 'viii',
   glSamplerParameteri: function(sampler, pname, param) {
 #if GL_ASSERTIONS
@@ -2280,7 +2223,6 @@ var LibraryGL = {
     GLctx['samplerParameteri'](sampler ? GL.samplers[sampler] : null, pname, param);
   },
 
-  glSamplerParameterfv__proxy: 'main_gl',
   glSamplerParameterfv__sig: 'viii',
   glSamplerParameterfv: function(sampler, pname, params) {
 #if GL_ASSERTIONS
@@ -2290,7 +2232,6 @@ var LibraryGL = {
     GLctx['samplerParameterf'](sampler ? GL.samplers[sampler] : null, pname, param);
   },
 
-  glSamplerParameteriv__proxy: 'main_gl',
   glSamplerParameteriv__sig: 'viii',
   glSamplerParameteriv: function(sampler, pname, params) {
 #if GL_ASSERTIONS
@@ -2300,7 +2241,6 @@ var LibraryGL = {
     GLctx['samplerParameteri'](sampler ? GL.samplers[sampler] : null, pname, param);
   },
 
-  glGetSamplerParameterfv__proxy: 'main_gl',
   glGetSamplerParameterfv__sig: 'viii',
   glGetSamplerParameterfv: function(sampler, pname, params) {
     if (!params) {
@@ -2316,7 +2256,6 @@ var LibraryGL = {
     {{{ makeSetValue('params', '0', 'GLctx[\'getSamplerParameter\'](sampler, pname)', 'float') }}};
   },
 
-  glGetSamplerParameteriv__proxy: 'main_gl',
   glGetSamplerParameteriv__sig: 'viii',
   glGetSamplerParameteriv: function(sampler, pname, params) {
     if (!params) {
@@ -2333,7 +2272,6 @@ var LibraryGL = {
   },
 
   // Transform Feedback
-  glGenTransformFeedbacks__proxy: 'main_gl',
   glGenTransformFeedbacks__sig: 'vii',
   glGenTransformFeedbacks: function(n, ids) {
     for (var i = 0; i < n; i++) {
@@ -2353,7 +2291,6 @@ var LibraryGL = {
     }
   },
 
-  glDeleteTransformFeedbacks__proxy: 'main_gl',
   glDeleteTransformFeedbacks__sig: 'vii',
   glDeleteTransformFeedbacks: function(n, ids) {
     for (var i = 0; i < n; i++) {
@@ -2366,7 +2303,6 @@ var LibraryGL = {
     }
   },
 
-  glIsTransformFeedback__proxy: 'main_gl',
   glIsTransformFeedback__sig: 'ii',
   glIsTransformFeedback: function(transformFeedback) {
     var transformFeedback = GL.transformFeedbacks[transformFeedback];
@@ -2374,7 +2310,6 @@ var LibraryGL = {
     return GLctx['isTransformFeedback'](transformFeedback);
   },
 
-  glBindTransformFeedback__proxy: 'async_gl',
   glBindTransformFeedback__sig: 'vii',
   glBindTransformFeedback: function(target, id) {
 #if GL_ASSERTIONS
@@ -2388,7 +2323,6 @@ var LibraryGL = {
     GLctx['bindTransformFeedback'](target, transformFeedback);
   },
 
-  glTransformFeedbackVaryings__proxy: 'main_gl',
   glTransformFeedbackVaryings__sig: 'viiii',
   glTransformFeedbackVaryings: function(program, count, varyings, bufferMode) {
 #if GL_ASSERTIONS
@@ -2402,7 +2336,6 @@ var LibraryGL = {
     GLctx['transformFeedbackVaryings'](program, vars, bufferMode);
   },
 
-  glGetTransformFeedbackVarying__proxy: 'main_gl',
   glGetTransformFeedbackVarying__sig: 'viiiiiii',
   glGetTransformFeedbackVarying: function(program, index, bufSize, length, size, type, name) {
 #if GL_ASSERTIONS
@@ -2484,7 +2417,6 @@ var LibraryGL = {
     }
   },
 
-  glGetIntegeri_v__proxy: 'main_gl',
   glGetIntegeri_v__sig: 'viii',
   glGetIntegeri_v__deps: ['$emscriptenWebGLGetIndexed'],
   glGetIntegeri_v: function(target, index, data) {
@@ -2492,7 +2424,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glGetInteger64i_v__proxy: 'main_gl',
   glGetInteger64i_v__sig: 'viii',
   glGetInteger64i_v__deps: ['$emscriptenWebGLGetIndexed'],
   glGetInteger64i_v: function(target, index, data) {
@@ -2501,7 +2432,6 @@ var LibraryGL = {
 #endif
 
   // Uniform Buffer objects
-  glBindBufferBase__proxy: 'async_gl',
   glBindBufferBase__sig: 'viii',
   glBindBufferBase: function(target, index, buffer) {
 #if GL_ASSERTIONS
@@ -2511,7 +2441,6 @@ var LibraryGL = {
     GLctx['bindBufferBase'](target, index, bufferObj);
   },
 
-  glBindBufferRange__proxy: 'async_gl',
   glBindBufferRange__sig: 'viiiii',
   glBindBufferRange: function(target, index, buffer, offset, ptrsize) {
 #if GL_ASSERTIONS
@@ -2521,7 +2450,6 @@ var LibraryGL = {
     GLctx['bindBufferRange'](target, index, bufferObj, offset, ptrsize);
   },
 
-  glGetUniformIndices__proxy: 'main_gl',
   glGetUniformIndices__sig: 'viiii',
   glGetUniformIndices: function(program, uniformCount, uniformNames, uniformIndices) {
 #if GL_ASSERTIONS
@@ -2554,7 +2482,6 @@ var LibraryGL = {
     }
   },
 
-  glGetActiveUniformsiv__proxy: 'main_gl',
   glGetActiveUniformsiv__sig: 'viiiii',
   glGetActiveUniformsiv: function(program, uniformCount, uniformIndices, pname, params) {
 #if GL_ASSERTIONS
@@ -2588,7 +2515,6 @@ var LibraryGL = {
     }
   },
 
-  glGetUniformBlockIndex__proxy: 'main_gl',
   glGetUniformBlockIndex__sig: 'iii',
   glGetUniformBlockIndex: function(program, uniformBlockName) {
 #if GL_ASSERTIONS
@@ -2599,7 +2525,6 @@ var LibraryGL = {
     return GLctx['getUniformBlockIndex'](program, uniformBlockName);
   },
 
-  glGetActiveUniformBlockiv__proxy: 'main_gl',
   glGetActiveUniformBlockiv__sig: 'viiii',
   glGetActiveUniformBlockiv: function(program, uniformBlockIndex, pname, params) {
     if (!params) {
@@ -2634,7 +2559,6 @@ var LibraryGL = {
     }
   },
 
-  glGetActiveUniformBlockName__proxy: 'main_gl',
   glGetActiveUniformBlockName__sig: 'viiiii',
   glGetActiveUniformBlockName: function(program, uniformBlockIndex, bufSize, length, uniformBlockName) {
 #if GL_ASSERTIONS
@@ -2652,7 +2576,6 @@ var LibraryGL = {
     }
   },
 
-  glUniformBlockBinding__proxy: 'async_gl',
   glUniformBlockBinding__sig: 'viii',
   glUniformBlockBinding: function(program, uniformBlockIndex, uniformBlockBinding) {
 #if GL_ASSERTIONS
@@ -2663,7 +2586,6 @@ var LibraryGL = {
     GLctx['uniformBlockBinding'](program, uniformBlockIndex, uniformBlockBinding);
   },
 
-  glClearBufferiv__proxy: 'main_gl',
   glClearBufferiv__sig: 'viii',
   glClearBufferiv: function(buffer, drawbuffer, value) {
 #if GL_ASSERTIONS
@@ -2673,7 +2595,6 @@ var LibraryGL = {
     GLctx['clearBufferiv'](buffer, drawbuffer, HEAP32, value>>2);
   },
 
-  glClearBufferuiv__proxy: 'main_gl',
   glClearBufferuiv__sig: 'viii',
   glClearBufferuiv: function(buffer, drawbuffer, value) {
 #if GL_ASSERTIONS
@@ -2683,7 +2604,6 @@ var LibraryGL = {
     GLctx['clearBufferuiv'](buffer, drawbuffer, HEAPU32, value>>2);
   },
 
-  glClearBufferfv__proxy: 'main_gl',
   glClearBufferfv__sig: 'viii',
   glClearBufferfv: function(buffer, drawbuffer, value) {
 #if GL_ASSERTIONS
@@ -2693,7 +2613,6 @@ var LibraryGL = {
     GLctx['clearBufferfv'](buffer, drawbuffer, HEAPF32, value>>2);
   },
 
-  glFenceSync__proxy: 'main_gl',
   glFenceSync__sig: 'iii',
   glFenceSync: function(condition, flags) {
     var sync = GLctx.fenceSync(condition, flags);
@@ -2707,7 +2626,6 @@ var LibraryGL = {
     }
   },
 
-  glDeleteSync__proxy: 'main_gl',
   glDeleteSync__sig: 'vi',
   glDeleteSync: function(id) {
     if (!id) return;
@@ -2721,7 +2639,6 @@ var LibraryGL = {
     GL.syncs[id] = null;
   },
 
-  glClientWaitSync__proxy: 'main_gl',
   glClientWaitSync__sig: 'iiii',
   glClientWaitSync: function(sync, flags, timeoutLo, timeoutHi) {
     // WebGL2 vs GLES3 differences: in GLES3, the timeout parameter is a uint64, where 0xFFFFFFFFFFFFFFFFULL means GL_TIMEOUT_IGNORED.
@@ -2734,7 +2651,6 @@ var LibraryGL = {
     return GLctx.clientWaitSync(GL.syncs[sync], flags, timeout);
   },
 
-  glWaitSync__proxy: 'main_gl',
   glWaitSync__sig: 'viii',
   glWaitSync: function(sync, flags, timeoutLo, timeoutHi) {
     // See WebGL2 vs GLES3 difference on GL_TIMEOUT_IGNORED above (https://www.khronos.org/registry/webgl/specs/latest/2.0/#5.15)
@@ -2744,7 +2660,6 @@ var LibraryGL = {
     GLctx.waitSync(GL.syncs[sync], flags, timeout);
   },
 
-  glGetSynciv__proxy: 'main_gl',
   glGetSynciv__sig: 'viiiii',
   glGetSynciv: function(sync, pname, bufSize, length, values) {
     if (bufSize < 0) {
@@ -2770,7 +2685,6 @@ var LibraryGL = {
     if (ret !== null && length) {{{ makeSetValue('length', '0', '1', 'i32') }}}; // Report a single value outputted.
   },
 
-  glIsSync__proxy: 'main_gl',
   glIsSync__sig: 'ii',
   glIsSync: function(sync) {
     var sync = GL.syncs[sync];
@@ -2778,7 +2692,6 @@ var LibraryGL = {
     return GLctx.isSync(sync);
   },
 
-  glGetInternalFormativ__proxy: 'main_gl',
   glGetInternalFormativ__sig: 'viiiii',
   glGetInternalFormativ: function(target, internalformat, pname, bufSize, params) {
     if (bufSize < 0) {
@@ -2807,7 +2720,6 @@ var LibraryGL = {
 // ~USE_WEBGL2
 #endif
 
-  glIsBuffer__proxy: 'main_gl',
   glIsBuffer__sig: 'ii',
   glIsBuffer: function(buffer) {
     var b = GL.buffers[buffer];
@@ -2815,7 +2727,6 @@ var LibraryGL = {
     return GLctx.isBuffer(b);
   },
 
-  glGenRenderbuffers__proxy: 'main_gl',
   glGenRenderbuffers__sig: 'vii',
   glGenRenderbuffers: function(n, renderbuffers) {
     for (var i = 0; i < n; i++) {
@@ -2835,7 +2746,6 @@ var LibraryGL = {
     }
   },
 
-  glDeleteRenderbuffers__proxy: 'main_gl',
   glDeleteRenderbuffers__sig: 'vii',
   glDeleteRenderbuffers: function(n, renderbuffers) {
     for (var i = 0; i < n; i++) {
@@ -2848,7 +2758,6 @@ var LibraryGL = {
     }
   },
 
-  glBindRenderbuffer__proxy: 'async_gl',
   glBindRenderbuffer__sig: 'vii',
   glBindRenderbuffer: function(target, renderbuffer) {
 #if GL_ASSERTIONS
@@ -2857,7 +2766,6 @@ var LibraryGL = {
     GLctx.bindRenderbuffer(target, renderbuffer ? GL.renderbuffers[renderbuffer] : null);
   },
 
-  glGetRenderbufferParameteriv__proxy: 'main_gl',
   glGetRenderbufferParameteriv__sig: 'viii',
   glGetRenderbufferParameteriv: function(target, pname, params) {
     if (!params) {
@@ -2872,7 +2780,6 @@ var LibraryGL = {
     {{{ makeSetValue('params', '0', 'GLctx.getRenderbufferParameter(target, pname)', 'i32') }}};
   },
 
-  glIsRenderbuffer__proxy: 'main_gl',
   glIsRenderbuffer__sig: 'ii',
   glIsRenderbuffer: function(renderbuffer) {
     var rb = GL.renderbuffers[renderbuffer];
@@ -2912,14 +2819,12 @@ var LibraryGL = {
     }
   },
 
-  glGetUniformfv__proxy: 'main_gl',
   glGetUniformfv__sig: 'viii',
   glGetUniformfv__deps: ['$emscriptenWebGLGetUniform'],
   glGetUniformfv: function(program, location, params) {
     emscriptenWebGLGetUniform(program, location, params, 'Float');
   },
 
-  glGetUniformiv__proxy: 'main_gl',
   glGetUniformiv__sig: 'viii',
   glGetUniformiv__deps: ['$emscriptenWebGLGetUniform'],
   glGetUniformiv: function(program, location, params) {
@@ -2927,13 +2832,11 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glGetUniformuiv__proxy: 'main_gl',
   glGetUniformuiv__sig: 'viii',
   glGetUniformuiv__deps: ['$emscriptenWebGLGetUniform'],
   glGetUniformuiv: 'glGetUniformiv',
 #endif
 
-  glGetUniformLocation__proxy: 'main_gl',
   glGetUniformLocation__sig: 'iii',
   glGetUniformLocation: function(program, name) {
 #if GL_ASSERTIONS
@@ -2969,7 +2872,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glGetFragDataLocation__proxy: 'main_gl',
   glGetFragDataLocation__sig: 'iii',
   glGetFragDataLocation: function(program, name) {
 #if GL_ASSERTIONS
@@ -3016,7 +2918,6 @@ var LibraryGL = {
     }
   },
 
-  glGetVertexAttribfv__proxy: 'main_gl',
   glGetVertexAttribfv__sig: 'viii',
   glGetVertexAttribfv__deps: ['$emscriptenWebGLGetVertexAttrib'],
   glGetVertexAttribfv: function(index, pname, params) {
@@ -3025,7 +2926,6 @@ var LibraryGL = {
     emscriptenWebGLGetVertexAttrib(index, pname, params, 'Float');
   },
 
-  glGetVertexAttribiv__proxy: 'main_gl',
   glGetVertexAttribiv__sig: 'viii',
   glGetVertexAttribiv__deps: ['$emscriptenWebGLGetVertexAttrib'],
   glGetVertexAttribiv: function(index, pname, params) {
@@ -3035,7 +2935,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glGetVertexAttribIiv__proxy: 'main_gl',
   glGetVertexAttribIiv__sig: 'viii',
   glGetVertexAttribIiv__deps: ['$emscriptenWebGLGetVertexAttrib'],
   glGetVertexAttribIiv: function(index, pname, params) {
@@ -3046,13 +2945,11 @@ var LibraryGL = {
 
   // N.B. This function may only be called if the vertex attribute was specified using the function glVertexAttribI4uiv(),
   // otherwise the results are undefined. (GLES3 spec 6.1.12)
-  glGetVertexAttribIuiv__proxy: 'main_gl',
   glGetVertexAttribIuiv__sig: 'viii',
   glGetVertexAttribIuiv__deps: ['$emscriptenWebGLGetVertexAttrib'],
   glGetVertexAttribIuiv: 'glGetVertexAttribIiv',
 #endif
 
-  glGetVertexAttribPointerv__proxy: 'main_gl',
   glGetVertexAttribPointerv__sig: 'viii',
   glGetVertexAttribPointerv: function(index, pname, pointer) {
     if (!pointer) {
@@ -3072,7 +2969,6 @@ var LibraryGL = {
     {{{ makeSetValue('pointer', '0', 'GLctx.getVertexAttribOffset(index, pname)', 'i32') }}};
   },
 
-  glGetActiveUniform__proxy: 'main_gl',
   glGetActiveUniform__sig: 'viiiiiii',
   glGetActiveUniform: function(program, index, bufSize, length, size, type, name) {
 #if GL_ASSERTIONS
@@ -3093,7 +2989,6 @@ var LibraryGL = {
     if (type) {{{ makeSetValue('type', '0', 'info.type', 'i32') }}};
   },
 
-  glUniform1f__proxy: 'async_gl',
   glUniform1f__sig: 'vif',
   glUniform1f: function(location, v0) {
 #if GL_ASSERTIONS
@@ -3102,7 +2997,6 @@ var LibraryGL = {
     GLctx.uniform1f(GL.uniforms[location], v0);
   },
 
-  glUniform2f__proxy: 'async_gl',
   glUniform2f__sig: 'viff',
   glUniform2f: function(location, v0, v1) {
 #if GL_ASSERTIONS
@@ -3111,7 +3005,6 @@ var LibraryGL = {
     GLctx.uniform2f(GL.uniforms[location], v0, v1);
   },
 
-  glUniform3f__proxy: 'async_gl',
   glUniform3f__sig: 'vifff',
   glUniform3f: function(location, v0, v1, v2) {
 #if GL_ASSERTIONS
@@ -3120,7 +3013,6 @@ var LibraryGL = {
     GLctx.uniform3f(GL.uniforms[location], v0, v1, v2);
   },
 
-  glUniform4f__proxy: 'async_gl',
   glUniform4f__sig: 'viffff',
   glUniform4f: function(location, v0, v1, v2, v3) {
 #if GL_ASSERTIONS
@@ -3129,7 +3021,6 @@ var LibraryGL = {
     GLctx.uniform4f(GL.uniforms[location], v0, v1, v2, v3);
   },
 
-  glUniform1i__proxy: 'async_gl',
   glUniform1i__sig: 'vii',
   glUniform1i: function(location, v0) {
 #if GL_ASSERTIONS
@@ -3138,7 +3029,6 @@ var LibraryGL = {
     GLctx.uniform1i(GL.uniforms[location], v0);
   },
 
-  glUniform2i__proxy: 'async_gl',
   glUniform2i__sig: 'viii',
   glUniform2i: function(location, v0, v1) {
 #if GL_ASSERTIONS
@@ -3147,7 +3037,6 @@ var LibraryGL = {
     GLctx.uniform2i(GL.uniforms[location], v0, v1);
   },
 
-  glUniform3i__proxy: 'async_gl',
   glUniform3i__sig: 'viiii',
   glUniform3i: function(location, v0, v1, v2) {
 #if GL_ASSERTIONS
@@ -3156,7 +3045,6 @@ var LibraryGL = {
     GLctx.uniform3i(GL.uniforms[location], v0, v1, v2);
   },
 
-  glUniform4i__proxy: 'async_gl',
   glUniform4i__sig: 'viiiii',
   glUniform4i: function(location, v0, v1, v2, v3) {
 #if GL_ASSERTIONS
@@ -3165,7 +3053,6 @@ var LibraryGL = {
     GLctx.uniform4i(GL.uniforms[location], v0, v1, v2, v3);
   },
 
-  glUniform1iv__proxy: 'main_gl',
   glUniform1iv__sig: 'viii',
   glUniform1iv: function(location, count, value) {
 #if GL_ASSERTIONS
@@ -3183,7 +3070,6 @@ var LibraryGL = {
     GLctx.uniform1iv(GL.uniforms[location], {{{ makeHEAPView('32', 'value', 'value+count*4') }}});
   },
 
-  glUniform2iv__proxy: 'main_gl',
   glUniform2iv__sig: 'viii',
   glUniform2iv: function(location, count, value) {
 #if GL_ASSERTIONS
@@ -3201,7 +3087,6 @@ var LibraryGL = {
     GLctx.uniform2iv(GL.uniforms[location], {{{ makeHEAPView('32', 'value', 'value+count*8') }}});
   },
 
-  glUniform3iv__proxy: 'main_gl',
   glUniform3iv__sig: 'viii',
   glUniform3iv: function(location, count, value) {
 #if GL_ASSERTIONS
@@ -3219,7 +3104,6 @@ var LibraryGL = {
     GLctx.uniform3iv(GL.uniforms[location], {{{ makeHEAPView('32', 'value', 'value+count*12') }}});
   },
 
-  glUniform4iv__proxy: 'main_gl',
   glUniform4iv__sig: 'viii',
   glUniform4iv: function(location, count, value) {
 #if GL_ASSERTIONS
@@ -3237,7 +3121,6 @@ var LibraryGL = {
     GLctx.uniform4iv(GL.uniforms[location], {{{ makeHEAPView('32', 'value', 'value+count*16') }}});
   },
 
-  glUniform1fv__proxy: 'main_gl',
   glUniform1fv__sig: 'viii',
   glUniform1fv: function(location, count, value) {
 #if GL_ASSERTIONS
@@ -3265,7 +3148,6 @@ var LibraryGL = {
     GLctx.uniform1fv(GL.uniforms[location], view);
   },
 
-  glUniform2fv__proxy: 'main_gl',
   glUniform2fv__sig: 'viii',
   glUniform2fv: function(location, count, value) {
 #if GL_ASSERTIONS
@@ -3294,7 +3176,6 @@ var LibraryGL = {
     GLctx.uniform2fv(GL.uniforms[location], view);
   },
 
-  glUniform3fv__proxy: 'main_gl',
   glUniform3fv__sig: 'viii',
   glUniform3fv: function(location, count, value) {
 #if GL_ASSERTIONS
@@ -3324,7 +3205,6 @@ var LibraryGL = {
     GLctx.uniform3fv(GL.uniforms[location], view);
   },
 
-  glUniform4fv__proxy: 'main_gl',
   glUniform4fv__sig: 'viii',
   glUniform4fv: function(location, count, value) {
 #if GL_ASSERTIONS
@@ -3356,7 +3236,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glUniform1ui__proxy: 'async_gl',
   glUniform1ui__sig: 'vii',
   glUniform1ui: function(location, v0) {
 #if GL_ASSERTIONS
@@ -3365,7 +3244,6 @@ var LibraryGL = {
     GLctx.uniform1ui(GL.uniforms[location], v0);
   },
 
-  glUniform2ui__proxy: 'async_gl',
   glUniform2ui__sig: 'viii',
   glUniform2ui: function(location, v0, v1) {
 #if GL_ASSERTIONS
@@ -3374,7 +3252,6 @@ var LibraryGL = {
     GLctx.uniform2ui(GL.uniforms[location], v0, v1);
   },
 
-  glUniform3ui__proxy: 'async_gl',
   glUniform3ui__sig: 'viiii',
   glUniform3ui: function(location, v0, v1, v2) {
 #if GL_ASSERTIONS
@@ -3383,7 +3260,6 @@ var LibraryGL = {
     GLctx.uniform3ui(GL.uniforms[location], v0, v1, v2);
   },
 
-  glUniform4ui__proxy: 'async_gl',
   glUniform4ui__sig: 'viiiii',
   glUniform4ui: function(location, v0, v1, v2, v3) {
 #if GL_ASSERTIONS
@@ -3392,7 +3268,6 @@ var LibraryGL = {
     GLctx.uniform4ui(GL.uniforms[location], v0, v1, v2, v3);
   },
 
-  glUniform1uiv__proxy: 'main_gl',
   glUniform1uiv__sig: 'viii',
   glUniform1uiv: function(location, count, value) {
 #if GL_ASSERTIONS
@@ -3406,7 +3281,6 @@ var LibraryGL = {
     }
   },
 
-  glUniform2uiv__proxy: 'main_gl',
   glUniform2uiv__sig: 'viii',
   glUniform2uiv: function(location, count, value) {
 #if GL_ASSERTIONS
@@ -3420,7 +3294,6 @@ var LibraryGL = {
     }
   },
 
-  glUniform3uiv__proxy: 'main_gl',
   glUniform3uiv__sig: 'viii',
   glUniform3uiv: function(location, count, value) {
 #if GL_ASSERTIONS
@@ -3434,7 +3307,6 @@ var LibraryGL = {
     }
   },
 
-  glUniform4uiv__proxy: 'main_gl',
   glUniform4uiv__sig: 'viii',
   glUniform4uiv: function(location, count, value) {
 #if GL_ASSERTIONS
@@ -3449,7 +3321,6 @@ var LibraryGL = {
   },
 #endif
 
-  glUniformMatrix2fv__proxy: 'main_gl',
   glUniformMatrix2fv__sig: 'viiii',
   glUniformMatrix2fv: function(location, count, transpose, value) {
 #if GL_ASSERTIONS
@@ -3480,7 +3351,6 @@ var LibraryGL = {
     GLctx.uniformMatrix2fv(GL.uniforms[location], !!transpose, view);
   },
 
-  glUniformMatrix3fv__proxy: 'main_gl',
   glUniformMatrix3fv__sig: 'viiii',
   glUniformMatrix3fv: function(location, count, transpose, value) {
 #if GL_ASSERTIONS
@@ -3516,7 +3386,6 @@ var LibraryGL = {
     GLctx.uniformMatrix3fv(GL.uniforms[location], !!transpose, view);
   },
 
-  glUniformMatrix4fv__proxy: 'main_gl',
   glUniformMatrix4fv__sig: 'viiii',
   glUniformMatrix4fv: function(location, count, transpose, value) {
 #if GL_ASSERTIONS
@@ -3560,7 +3429,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glUniformMatrix2x3fv__proxy: 'main_gl',
   glUniformMatrix2x3fv__sig: 'viiii',
   glUniformMatrix2x3fv: function(location, count, transpose, value) {
 #if GL_ASSERTIONS
@@ -3574,7 +3442,6 @@ var LibraryGL = {
     }
   },
 
-  glUniformMatrix3x2fv__proxy: 'main_gl',
   glUniformMatrix3x2fv__sig: 'viiii',
   glUniformMatrix3x2fv: function(location, count, transpose, value) {
 #if GL_ASSERTIONS
@@ -3588,7 +3455,6 @@ var LibraryGL = {
     }
   },
 
-  glUniformMatrix2x4fv__proxy: 'main_gl',
   glUniformMatrix2x4fv__sig: 'viiii',
   glUniformMatrix2x4fv: function(location, count, transpose, value) {
 #if GL_ASSERTIONS
@@ -3602,7 +3468,6 @@ var LibraryGL = {
     }
   },
 
-  glUniformMatrix4x2fv__proxy: 'main_gl',
   glUniformMatrix4x2fv__sig: 'viiii',
   glUniformMatrix4x2fv: function(location, count, transpose, value) {
 #if GL_ASSERTIONS
@@ -3616,7 +3481,6 @@ var LibraryGL = {
     }
   },
 
-  glUniformMatrix3x4fv__proxy: 'main_gl',
   glUniformMatrix3x4fv__sig: 'viiii',
   glUniformMatrix3x4fv: function(location, count, transpose, value) {
 #if GL_ASSERTIONS
@@ -3630,7 +3494,6 @@ var LibraryGL = {
     }
   },
 
-  glUniformMatrix4x3fv__proxy: 'main_gl',
   glUniformMatrix4x3fv__sig: 'viiii',
   glUniformMatrix4x3fv: function(location, count, transpose, value) {
 #if GL_ASSERTIONS
@@ -3645,7 +3508,6 @@ var LibraryGL = {
   },
 #endif
 
-  glBindBuffer__proxy: 'async_gl',
   glBindBuffer__sig: 'vii',
   glBindBuffer: function(target, buffer) {
 #if GL_ASSERTIONS
@@ -3680,7 +3542,6 @@ var LibraryGL = {
     GLctx.bindBuffer(target, bufferObj);
   },
 
-  glVertexAttrib1fv__proxy: 'main_gl',
   glVertexAttrib1fv__sig: 'vii',
   glVertexAttrib1fv: function(index, v) {
 #if GL_ASSERTIONS
@@ -3691,7 +3552,6 @@ var LibraryGL = {
     GLctx.vertexAttrib1f(index, HEAPF32[v>>2]);
   },
 
-  glVertexAttrib2fv__proxy: 'main_gl',
   glVertexAttrib2fv__sig: 'vii',
   glVertexAttrib2fv: function(index, v) {
 #if GL_ASSERTIONS
@@ -3702,7 +3562,6 @@ var LibraryGL = {
     GLctx.vertexAttrib2f(index, HEAPF32[v>>2], HEAPF32[v+4>>2]);
   },
 
-  glVertexAttrib3fv__proxy: 'main_gl',
   glVertexAttrib3fv__sig: 'vii',
   glVertexAttrib3fv: function(index, v) {
 #if GL_ASSERTIONS
@@ -3713,7 +3572,6 @@ var LibraryGL = {
     GLctx.vertexAttrib3f(index, HEAPF32[v>>2], HEAPF32[v+4>>2], HEAPF32[v+8>>2]);
   },
 
-  glVertexAttrib4fv__proxy: 'main_gl',
   glVertexAttrib4fv__sig: 'vii',
   glVertexAttrib4fv: function(index, v) {
 #if GL_ASSERTIONS
@@ -3725,7 +3583,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glVertexAttribI4iv__proxy: 'main_gl',
   glVertexAttribI4iv__sig: 'vii',
   glVertexAttribI4iv: function(index, v) {
 #if GL_ASSERTIONS
@@ -3735,7 +3592,6 @@ var LibraryGL = {
     GLctx.vertexAttribI4i(index, HEAP32[v>>2], HEAP32[v+4>>2], HEAP32[v+8>>2], HEAP32[v+12>>2]);
   },
 
-  glVertexAttribI4uiv__proxy: 'main_gl',
   glVertexAttribI4uiv__sig: 'vii',
   glVertexAttribI4uiv: function(index, v) {
 #if GL_ASSERTIONS
@@ -3746,13 +3602,11 @@ var LibraryGL = {
   },
 #endif
 
-  glGetAttribLocation__proxy: 'main_gl',
   glGetAttribLocation__sig: 'iii',
   glGetAttribLocation: function(program, name) {
     return GLctx.getAttribLocation(GL.programs[program], Pointer_stringify(name));
   },
 
-  glGetActiveAttrib__proxy: 'main_gl',
   glGetActiveAttrib__sig: 'viiiiiii',
   glGetActiveAttrib: function(program, index, bufSize, length, size, type, name) {
 #if GL_ASSERTIONS
@@ -3773,7 +3627,6 @@ var LibraryGL = {
     if (type) {{{ makeSetValue('type', '0', 'info.type', 'i32') }}};
   },
 
-  glCreateShader__proxy: 'main_gl',
   glCreateShader__sig: 'ii',
   glCreateShader: function(shaderType) {
     var id = GL.getNewId(GL.shaders);
@@ -3781,7 +3634,6 @@ var LibraryGL = {
     return id;
   },
 
-  glDeleteShader__proxy: 'main_gl',
   glDeleteShader__sig: 'vi',
   glDeleteShader: function(id) {
     if (!id) return;
@@ -3794,7 +3646,6 @@ var LibraryGL = {
     GL.shaders[id] = null;
   },
 
-  glGetAttachedShaders__proxy: 'main_gl',
   glGetAttachedShaders__sig: 'viiii',
   glGetAttachedShaders: function(program, maxCount, count, shaders) {
 #if GL_ASSERTIONS
@@ -3815,7 +3666,6 @@ var LibraryGL = {
     }
   },
 
-  glShaderSource__proxy: 'main_gl',
   glShaderSource__sig: 'viiii',
   glShaderSource: function(shader, count, string, length) {
 #if GL_ASSERTIONS
@@ -3868,7 +3718,6 @@ var LibraryGL = {
     GLctx.shaderSource(GL.shaders[shader], source);
   },
 
-  glGetShaderSource__proxy: 'main_gl',
   glGetShaderSource__sig: 'viiii',
   glGetShaderSource: function(shader, bufSize, length, source) {
 #if GL_ASSERTIONS
@@ -3884,7 +3733,6 @@ var LibraryGL = {
     }
   },
 
-  glCompileShader__proxy: 'async_gl',
   glCompileShader__sig: 'vi',
   glCompileShader: function(shader) {
 #if GL_ASSERTIONS
@@ -3897,7 +3745,6 @@ var LibraryGL = {
 #endif
   },
 
-  glGetShaderInfoLog__proxy: 'main_gl',
   glGetShaderInfoLog__sig: 'viiii',
   glGetShaderInfoLog: function(shader, maxLength, length, infoLog) {
 #if GL_ASSERTIONS
@@ -3913,7 +3760,6 @@ var LibraryGL = {
     }
   },
 
-  glGetShaderiv__proxy: 'main_gl',
   glGetShaderiv__sig: 'viii',
   glGetShaderiv : function(shader, pname, p) {
     if (!p) {
@@ -3941,7 +3787,6 @@ var LibraryGL = {
     }
   },
 
-  glGetProgramiv__proxy: 'main_gl',
   glGetProgramiv__sig: 'viii',
   glGetProgramiv : function(program, pname, p) {
     if (!p) {
@@ -4007,7 +3852,6 @@ var LibraryGL = {
     }
   },
 
-  glIsShader__proxy: 'main_gl',
   glIsShader__sig: 'ii',
   glIsShader: function(shader) {
     var s = GL.shaders[shader];
@@ -4015,7 +3859,6 @@ var LibraryGL = {
     return GLctx.isShader(s);
   },
 
-  glCreateProgram__proxy: 'main_gl',
   glCreateProgram__sig: 'i',
   glCreateProgram: function() {
     var id = GL.getNewId(GL.programs);
@@ -4025,7 +3868,6 @@ var LibraryGL = {
     return id;
   },
 
-  glDeleteProgram__proxy: 'main_gl',
   glDeleteProgram__sig: 'vi',
   glDeleteProgram: function(id) {
     if (!id) return;
@@ -4040,7 +3882,6 @@ var LibraryGL = {
     GL.programInfos[id] = null;
   },
 
-  glAttachShader__proxy: 'async_gl',
   glAttachShader__sig: 'vii',
   glAttachShader: function(program, shader) {
 #if GL_ASSERTIONS
@@ -4051,7 +3892,6 @@ var LibraryGL = {
                             GL.shaders[shader]);
   },
 
-  glDetachShader__proxy: 'async_gl',
   glDetachShader__sig: 'vii',
   glDetachShader: function(program, shader) {
 #if GL_ASSERTIONS
@@ -4062,7 +3902,6 @@ var LibraryGL = {
                             GL.shaders[shader]);
   },
 
-  glGetShaderPrecisionFormat__proxy: 'main_gl',
   glGetShaderPrecisionFormat__sig: 'viiii',
   glGetShaderPrecisionFormat: function(shaderType, precisionType, range, precision) {
     var result = GLctx.getShaderPrecisionFormat(shaderType, precisionType);
@@ -4071,7 +3910,6 @@ var LibraryGL = {
     {{{ makeSetValue('precision', '0', 'result.precision', 'i32') }}};
   },
 
-  glLinkProgram__proxy: 'async_gl',
   glLinkProgram__sig: 'vi',
   glLinkProgram: function(program) {
 #if GL_ASSERTIONS
@@ -4086,7 +3924,6 @@ var LibraryGL = {
     GL.populateUniformTable(program);
   },
 
-  glGetProgramInfoLog__proxy: 'main_gl',
   glGetProgramInfoLog__sig: 'viiii',
   glGetProgramInfoLog: function(program, maxLength, length, infoLog) {
 #if GL_ASSERTIONS
@@ -4103,7 +3940,6 @@ var LibraryGL = {
     }
   },
 
-  glUseProgram__proxy: 'async_gl',
   glUseProgram__sig: 'vi',
   glUseProgram: function(program) {
 #if GL_ASSERTIONS
@@ -4112,7 +3948,6 @@ var LibraryGL = {
     GLctx.useProgram(program ? GL.programs[program] : null);
   },
 
-  glValidateProgram__proxy: 'async_gl',
   glValidateProgram__sig: 'vi',
   glValidateProgram: function(program) {
 #if GL_ASSERTIONS
@@ -4121,7 +3956,6 @@ var LibraryGL = {
     GLctx.validateProgram(GL.programs[program]);
   },
 
-  glIsProgram__proxy: 'main_gl',
   glIsProgram__sig: 'ii',
   glIsProgram: function(program) {
     var program = GL.programs[program];
@@ -4130,7 +3964,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glProgramParameteri__proxy: 'async_gl',
   glProgramParameteri__sig: 'viii',
   glProgramParameteri: function(program, pname, value) {
     GL.recordError(0x0500/*GL_INVALID_ENUM*/);
@@ -4139,7 +3972,6 @@ var LibraryGL = {
 #endif
   },
 
-  glGetProgramBinary__proxy: 'main_gl',
   glGetProgramBinary__sig: 'viiiii',
   glGetProgramBinary: function(program, bufSize, length, binaryFormat, binary) {
     GL.recordError(0x0502/*GL_INVALID_OPERATION*/);
@@ -4148,7 +3980,6 @@ var LibraryGL = {
 #endif
   },
 
-  glProgramBinary__proxy: 'main_gl',
   glProgramBinary__sig: 'viiii',
   glProgramBinary: function(program, binaryFormat, binary, length) {
     GL.recordError(0x0500/*GL_INVALID_ENUM*/);
@@ -4158,7 +3989,6 @@ var LibraryGL = {
   },
 #endif
 
-  glBindAttribLocation__proxy: 'main_gl',
   glBindAttribLocation__sig: 'viii',
   glBindAttribLocation: function(program, index, name) {
 #if GL_ASSERTIONS
@@ -4168,7 +3998,6 @@ var LibraryGL = {
     GLctx.bindAttribLocation(GL.programs[program], index, name);
   },
 
-  glBindFramebuffer__proxy: 'async_gl',
   glBindFramebuffer__sig: 'vii',
   glBindFramebuffer: function(target, framebuffer) {
 #if GL_ASSERTIONS
@@ -4186,7 +4015,6 @@ var LibraryGL = {
 
   },
 
-  glGenFramebuffers__proxy: 'main_gl',
   glGenFramebuffers__sig: 'vii',
   glGenFramebuffers: function(n, ids) {
     for (var i = 0; i < n; ++i) {
@@ -4206,7 +4034,6 @@ var LibraryGL = {
     }
   },
 
-  glDeleteFramebuffers__proxy: 'main_gl',
   glDeleteFramebuffers__sig: 'vii',
   glDeleteFramebuffers: function(n, framebuffers) {
     for (var i = 0; i < n; ++i) {
@@ -4219,7 +4046,6 @@ var LibraryGL = {
     }
   },
 
-  glFramebufferRenderbuffer__proxy: 'async_gl',
   glFramebufferRenderbuffer__sig: 'viiii',
   glFramebufferRenderbuffer: function(target, attachment, renderbuffertarget, renderbuffer) {
 #if GL_ASSERTIONS
@@ -4229,7 +4055,6 @@ var LibraryGL = {
                                        GL.renderbuffers[renderbuffer]);
   },
 
-  glFramebufferTexture2D__proxy: 'async_gl',
   glFramebufferTexture2D__sig: 'viiiii',
   glFramebufferTexture2D: function(target, attachment, textarget, texture, level) {
 #if GL_ASSERTIONS
@@ -4240,7 +4065,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glFramebufferTextureLayer__proxy: 'async_gl',
   glFramebufferTextureLayer__sig: 'viiiii',
   glFramebufferTextureLayer: function(target, attachment, texture, level, layer) {
 #if GL_ASSERTIONS
@@ -4250,14 +4074,12 @@ var LibraryGL = {
   },
 #endif
 
-  glGetFramebufferAttachmentParameteriv__proxy: 'main_gl',
   glGetFramebufferAttachmentParameteriv__sig: 'viiii',
   glGetFramebufferAttachmentParameteriv: function(target, attachment, pname, params) {
     var result = GLctx.getFramebufferAttachmentParameter(target, attachment, pname);
     {{{ makeSetValue('params', '0', 'result', 'i32') }}};
   },
 
-  glIsFramebuffer__proxy: 'main_gl',
   glIsFramebuffer__sig: 'ii',
   glIsFramebuffer: function(framebuffer) {
     var fb = GL.framebuffers[framebuffer];
@@ -4268,7 +4090,6 @@ var LibraryGL = {
 #if LEGACY_GL_EMULATION
   glGenVertexArrays__deps: ['emulGlGenVertexArrays'],
 #endif
-  glGenVertexArrays__proxy: 'main_gl',
   glGenVertexArrays__sig: 'vii',
   glGenVertexArrays: function (n, arrays) {
 #if LEGACY_GL_EMULATION
@@ -4299,7 +4120,6 @@ var LibraryGL = {
 #if LEGACY_GL_EMULATION
   glDeleteVertexArrays__deps: ['emulGlDeleteVertexArrays'],
 #endif
-  glDeleteVertexArrays__proxy: 'main_gl',
   glDeleteVertexArrays__sig: 'vii',
   glDeleteVertexArrays: function(n, vaos) {
 #if LEGACY_GL_EMULATION
@@ -4319,7 +4139,6 @@ var LibraryGL = {
 #if LEGACY_GL_EMULATION
   glBindVertexArray__deps: ['emulGlBindVertexArray'],
 #endif
-  glBindVertexArray__proxy: 'async_gl',
   glBindVertexArray__sig: 'vi',
   glBindVertexArray: function(vao) {
 #if LEGACY_GL_EMULATION
@@ -4339,7 +4158,6 @@ var LibraryGL = {
 #if LEGACY_GL_EMULATION
   glIsVertexArray__deps: ['emulGlIsVertexArray'],
 #endif
-  glIsVertexArray__proxy: 'main_gl',
   glIsVertexArray__sig: 'ii',
   glIsVertexArray: function(array) {
 #if LEGACY_GL_EMULATION
@@ -4908,12 +4726,10 @@ var LibraryGL = {
     },
   },
 
-  glGetShaderPrecisionFormat__proxy: 'main_gl',
   glGetShaderPrecisionFormat__sig: 'v',
   glGetShaderPrecisionFormat: function() { throw 'glGetShaderPrecisionFormat: TODO' },
 
   glDeleteObject__deps: ['glDeleteProgram', 'glDeleteShader'],
-  glDeleteObject__proxy: 'main_gl',
   glDeleteObject__sig: 'vi',
   glDeleteObject: function(id) {
     if (GL.programs[id]) {
@@ -4926,7 +4742,6 @@ var LibraryGL = {
   },
   glDeleteObjectARB: 'glDeleteObject',
 
-  glGetObjectParameteriv__proxy: 'main_gl',
   glGetObjectParameteriv__sig: 'viii',
   glGetObjectParameteriv__deps: ['glGetProgramiv', 'glGetShaderiv'],
   glGetObjectParameteriv: function(id, type, result) {
@@ -4958,7 +4773,6 @@ var LibraryGL = {
   glGetObjectParameterivARB: 'glGetObjectParameteriv',
 
   glGetInfoLog__deps: ['glGetProgramInfoLog', 'glGetShaderInfoLog'],
-  glGetInfoLog__proxy: 'main_gl',
   glGetInfoLog__sig: 'viiii',
   glGetInfoLog: function(id, maxLength, length, infoLog) {
     if (GL.programs[id]) {
@@ -4971,7 +4785,6 @@ var LibraryGL = {
   },
   glGetInfoLogARB: 'glGetInfoLog',
 
-  glBindProgram__proxy: 'async_gl',
   glBindProgram__sig: 'vii',
   glBindProgram: function(type, id) {
 #if ASSERTIONS
@@ -7341,7 +7154,6 @@ var LibraryGL = {
   // Additional non-GLES rendering calls
 
   glDrawRangeElements__deps: ['glDrawElements'],
-  glDrawRangeElements__proxy: 'main_gl',
   glDrawRangeElements__sig: 'viiiiii',
   glDrawRangeElements: function(mode, start, end, count, type, indices) {
     _glDrawElements(mode, count, type, indices, start, end);
@@ -7425,7 +7237,6 @@ var LibraryGL = {
 #endif
   },
 
-  glClientActiveTexture__proxy: 'async_gl',
   glClientActiveTexture__sig: 'vi',
   glClientActiveTexture: function(texture) {
     GLImmediate.clientActiveTexture = texture - 0x84C0; // GL_TEXTURE0
@@ -7433,7 +7244,6 @@ var LibraryGL = {
 
   // Vertex array object (VAO) support. TODO: when the WebGL extension is popular, use that and remove this code and GL.vaos
   emulGlGenVertexArrays__deps: ['$GLEmulation'],
-  emulGlGenVertexArrays__proxy: 'main_gl',
   emulGlGenVertexArrays__sig: 'vii',
   emulGlGenVertexArrays: function(n, vaos) {
     for (var i = 0; i < n; i++) {
@@ -7449,7 +7259,6 @@ var LibraryGL = {
       {{{ makeSetValue('vaos', 'i*4', 'id', 'i32') }}};
     }
   },
-  emulGlDeleteVertexArrays__proxy: 'main_gl',
   emulGlDeleteVertexArrays__sig: 'vii',
   emulGlDeleteVertexArrays: function(n, vaos) {
     for (var i = 0; i < n; i++) {
@@ -7458,7 +7267,6 @@ var LibraryGL = {
       if (GLEmulation.currentVao && GLEmulation.currentVao.id == id) GLEmulation.currentVao = null;
     }
   },
-  emulGlIsVertexArray__proxy: 'main_gl',
   emulGlIsVertexArray__sig: 'vi',
   emulGlIsVertexArray: function(array) {
     var vao = GLEmulation.vaos[array];
@@ -7466,7 +7274,6 @@ var LibraryGL = {
     return 1;
   },
   emulGlBindVertexArray__deps: ['glBindBuffer', 'glEnableVertexAttribArray', 'glVertexAttribPointer', 'glEnableClientState'],
-  emulGlBindVertexArray__proxy: 'main_gl',
   emulGlBindVertexArray__sig: 'vi',
   emulGlBindVertexArray: function(vao) {
     // undo vao-related things, wipe the slate clean, both for vao of 0 or an actual vao
@@ -7761,7 +7568,6 @@ var LibraryGL = {
 
   // GLES2 emulation
 
-  glVertexAttribPointer__proxy: 'async_gl',
   glVertexAttribPointer__sig: 'viiiiii',
   glVertexAttribPointer: function(index, size, type, normalized, stride, ptr) {
 #if FULL_ES2
@@ -7787,7 +7593,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glVertexAttribIPointer__proxy: 'async_gl',
   glVertexAttribIPointer__sig: 'viiiii',
   glVertexAttribIPointer: function(index, size, type, stride, ptr) {
 #if FULL_ES3
@@ -7814,7 +7619,6 @@ var LibraryGL = {
 // ~USE_WEBGL2
 #endif
 
-  glEnableVertexAttribArray__proxy: 'async_gl',
   glEnableVertexAttribArray__sig: 'vi',
   glEnableVertexAttribArray: function(index) {
 #if FULL_ES2
@@ -7827,7 +7631,6 @@ var LibraryGL = {
     GLctx.enableVertexAttribArray(index);
   },
 
-  glDisableVertexAttribArray__proxy: 'async_gl',
   glDisableVertexAttribArray__sig: 'vi',
   glDisableVertexAttribArray: function(index) {
 #if FULL_ES2
@@ -7841,9 +7644,7 @@ var LibraryGL = {
   },
 
 #if FULL_ES2
-  glDrawArrays__proxy: 'main_gl',
 #else
-  glDrawArrays__proxy: 'async_gl',
 #endif
   glDrawArrays__sig: 'viii',
   glDrawArrays: function(mode, first, count) {
@@ -7860,9 +7661,7 @@ var LibraryGL = {
   },
 
 #if FULL_ES2
-  glDrawElements__proxy: 'main_gl',
 #else
-  glDrawElements__proxy: 'async_gl',
 #endif
   glDrawElements__sig: 'viiii',
   glDrawElements: function(mode, count, type, indices) {
@@ -7895,7 +7694,6 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
-  glDrawRangeElements__proxy: 'async_gl',
   glDrawRangeElements__sig: 'viiiiii',
   glDrawRangeElements__deps: ['glDrawElements'],
   glDrawRangeElements: function(mode, start, end, count, type, indices) {
@@ -7905,7 +7703,6 @@ var LibraryGL = {
   },
 #endif
 
-  glShaderBinary__proxy: 'main_gl',
   glShaderBinary__sig: 'v',
   glShaderBinary: function() {
     GL.recordError(0x0500/*GL_INVALID_ENUM*/);
@@ -7914,13 +7711,11 @@ var LibraryGL = {
 #endif
   },
 
-//  glReleaseShaderCompiler__proxy: 'main_gl',
 //  glReleaseShaderCompiler__sig: 'v',
   glReleaseShaderCompiler: function() {
     // NOP (as allowed by GLES 2.0 spec)
   },
 
-  glGetError__proxy: 'main_gl',
   glGetError__sig: 'i',
   glGetError: function() {
     // First return any GL error generated by the emscripten library_gl.js interop layer.
@@ -7935,7 +7730,6 @@ var LibraryGL = {
 
   // ANGLE_instanced_arrays WebGL extension related functions (in core in WebGL 2)
 
-  glVertexAttribDivisor__proxy: 'async_gl',
   glVertexAttribDivisor__sig: 'vii',
   glVertexAttribDivisor: function(index, divisor) {
 #if GL_ASSERTIONS
@@ -7944,7 +7738,6 @@ var LibraryGL = {
     GLctx['vertexAttribDivisor'](index, divisor);
   },
 
-  glDrawArraysInstanced__proxy: 'async_gl',
   glDrawArraysInstanced__sig: 'viiii',
   glDrawArraysInstanced: function(mode, first, count, primcount) {
 #if GL_ASSERTIONS
@@ -7953,7 +7746,6 @@ var LibraryGL = {
     GLctx['drawArraysInstanced'](mode, first, count, primcount);
   },
 
-  glDrawElementsInstanced__proxy: 'async_gl',
   glDrawElementsInstanced__sig: 'viiiii',
   glDrawElementsInstanced: function(mode, count, type, indices, primcount) {
 #if GL_ASSERTIONS
@@ -7978,7 +7770,6 @@ var LibraryGL = {
   glDrawElementsInstancedANGLE: 'glDrawElementsInstanced',
 
 
-  glDrawBuffers__proxy: 'main_gl',
   glDrawBuffers__sig: 'vii',
   glDrawBuffers: function(n, bufs) {
 #if GL_ASSERTIONS
@@ -8002,19 +7793,16 @@ var LibraryGL = {
 
   // passthrough functions with GLboolean parameters
 
-  glColorMask__proxy: 'async_gl',
   glColorMask__sig: 'viiii',
   glColorMask: function(red, green, blue, alpha) {
     GLctx.colorMask(!!red, !!green, !!blue, !!alpha);
   },
 
-  glDepthMask__proxy: 'async_gl',
   glDepthMask__sig: 'vi',
   glDepthMask: function(flag) {
     GLctx.depthMask(!!flag);
   },
 
-  glSampleCoverage__proxy: 'async_gl',
   glSampleCoverage__sig: 'vii',
   glSampleCoverage: function(value, invert) {
     GLctx.sampleCoverage(value, !!invert);
@@ -8022,98 +7810,52 @@ var LibraryGL = {
 
   // signatures of simple pass-through functions, see later
 
-  glActiveTexture__proxy: 'async_gl',
   glActiveTexture__sig: 'vi',
-  glCheckFramebufferStatus__proxy: 'async_gl',
   glCheckFramebufferStatus__sig: 'ii',
-  glRenderbufferStorage__proxy: 'main_gl',
   glRenderbufferStorage__sig: 'viiii',
-  glClearStencil__proxy: 'async_gl',
   glClearStencil__sig: 'vi',
-  glStencilFunc__proxy: 'async_gl',
   glStencilFunc__sig: 'viii',
-  glLineWidth__proxy: 'async_gl',
   glLineWidth__sig: 'vi',
-  glBlendEquation__proxy: 'async_gl',
   glBlendEquation__sig: 'vi',
-  glBlendEquationSeparate__proxy: 'async_gl',
   glBlendEquationSeparate__sig: 'vii',
-  glVertexAttrib1f__proxy: 'async_gl',
   glVertexAttrib1f__sig: 'vii',
-  glVertexAttrib2f__proxy: 'async_gl',
   glVertexAttrib2f__sig: 'viii',
-  glVertexAttrib3f__proxy: 'async_gl',
   glVertexAttrib3f__sig: 'viiii',
-  glVertexAttrib4f__proxy: 'async_gl',
   glVertexAttrib4f__sig: 'viiiii',
-  glCullFace__proxy: 'async_gl',
   glCullFace__sig: 'vi',
-  glBlendFunc__proxy: 'async_gl',
   glBlendFunc__sig: 'vii',
-  glBlendFuncSeparate__proxy: 'async_gl',
   glBlendFuncSeparate__sig: 'viiii',
-  glBlendColor__proxy: 'async_gl',
   glBlendColor__sig: 'vffff',
-  glPolygonOffset__proxy: 'async_gl',
   glPolygonOffset__sig: 'vii',
-  glStencilOp__proxy: 'async_gl',
   glStencilOp__sig: 'viii',
-  glStencilOpSeparate__proxy: 'async_gl',
   glStencilOpSeparate__sig: 'viiii',
-  glGenerateMipmap__proxy: 'async_gl',
   glGenerateMipmap__sig: 'vi',
-  glHint__proxy: 'async_gl',
   glHint__sig: 'vii',
-  glViewport__proxy: 'async_gl',
   glViewport__sig: 'viiii',
-  glDepthFunc__proxy: 'async_gl',
   glDepthFunc__sig: 'vi',
-  glStencilMask__proxy: 'async_gl',
   glStencilMask__sig: 'vi',
-  glStencilMaskSeparate__proxy: 'async_gl',
   glStencilMaskSeparate__sig: 'vii',
-  glClearDepthf__proxy: 'async_gl',
   glClearDepthf__sig: 'vi',
-  glFinish__proxy: 'main_gl',
   glFinish__sig: 'v',
-  glFlush__proxy: 'main_gl',
   glFlush__sig: 'v',
-  glClearColor__proxy: 'async_gl',
   glClearColor__sig: 'viiii',
-  glIsEnabled__proxy: 'main_gl',
   glIsEnabled__sig: 'ii',
-  glFrontFace__proxy: 'async_gl',
   glFrontFace__sig: 'vi',
 #if USE_WEBGL2
-  glVertexAttribI4i__proxy: 'async_gl',
   glVertexAttribI4i__sig: 'viiiii',
-  glVertexAttribI4ui__proxy: 'async_gl',
   glVertexAttribI4ui__sig: 'viiiii',
-  glCopyBufferSubData__proxy: 'async_gl',
   glCopyBufferSubData__sig: 'viiiii',
-  glTexStorage2D__proxy: 'async_gl',
   glTexStorage2D__sig: 'viiiii',
-  glTexStorage3D__proxy: 'async_gl',
   glTexStorage3D__sig: 'viiiiii',
-  glBeginTransformFeedback__proxy: 'async_gl',
   glBeginTransformFeedback__sig: 'vi',
-  glEndTransformFeedback__proxy: 'async_gl',
   glEndTransformFeedback__sig: 'v',
-  glPauseTransformFeedback__proxy: 'async_gl',
   glPauseTransformFeedback__sig: 'v',
-  glResumeTransformFeedback__proxy: 'async_gl',
   glResumeTransformFeedback__sig: 'v',
-  glBlitFramebuffer__proxy: 'async_gl',
   glBlitFramebuffer__sig: 'viiiiiiiiii',
-  glReadBuffer__proxy: 'async_gl',
   glReadBuffer__sig: 'vi',
-  glEndQuery__proxy: 'async_gl',
   glEndQuery__sig: 'vi',
-  glRenderbufferStorageMultisample__proxy: 'async_gl',
   glRenderbufferStorageMultisample__sig: 'viiiii',
-  glCopyTexSubImage3D__proxy: 'async_gl',
   glCopyTexSubImage3D__sig: 'viiiiiiiii',
-  glClearBufferfi__proxy: 'async_gl',
   glClearBufferfi__sig: 'viifi',
 #endif
 };
@@ -8170,7 +7912,6 @@ glFuncs.forEach(function(data) {
     assert(!(cName in LibraryGL), "Cannot reimplement the existing function " + cName);
     LibraryGL[cName] = eval(stub.replace('NAME', name));
     if (!LibraryGL[cName + '__sig']) LibraryGL[cName + '__sig'] = sig;
-    LibraryGL[cName + '__proxy'] = (LibraryGL[cName + '__sig'][0] === 'v') ? 'async_gl' : 'main_gl';
   });
 });
 
