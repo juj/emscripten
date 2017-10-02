@@ -253,10 +253,13 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
       ['-Oz', '-I' + libcxxabi_include])
 
   # gl
-  def create_gl(libname): # libname is ignored, this is just one .o file
-    o = in_temp('gl.o')
-    check_call([shared.PYTHON, shared.EMCC, shared.path_from_root('system', 'lib', 'gl.c'), '-o', o])
-    return o
+  def create_gl(libname):
+    src_dir = shared.path_from_root('system', 'lib', 'gl')
+    files = []
+    for dirpath, dirnames, filenames in os.walk(src_dir):
+      filenames = filter(lambda f: f.endswith('.c'), filenames)
+      files += map(lambda f: os.path.join(src_dir, f), filenames)
+    return build_libc(libname, files, ['-Oz'])
 
   def create_html5(libname):
     src_dir = shared.path_from_root('system', 'lib', 'html5')
