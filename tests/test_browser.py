@@ -3743,5 +3743,6 @@ window.close = function() {
     ''')
     self.run_browser('a.html', '...', '/report_result?0')
 
+  # Tests the functionality of the emscripten_thread_sleep() function.
   def test_emscripten_thread_sleep(self):
     self.btest(path_from_root('tests', 'pthread', 'emscripten_thread_sleep.c'), expected='1', args=['-s', 'USE_PTHREADS=1'])
