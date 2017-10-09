@@ -3778,5 +3778,6 @@ window.close = function() {
     Popen([PYTHON, EMCC, 'page.c', '-s', 'WASM=1', '-s', 'ALLOW_MEMORY_GROWTH=1', '--preload-file', 'test.txt', '-o', 'page.html']).communicate()
     self.run_browser('page.html', 'hello from file', '/report_result?15')
 
+  # Tests the functionality of the emscripten_thread_sleep() function.
   def test_emscripten_thread_sleep(self):
     self.btest(path_from_root('tests', 'pthread', 'emscripten_thread_sleep.c'), expected='1', args=['-s', 'USE_PTHREADS=1'])
