@@ -2224,17 +2224,17 @@ var LibraryJSEvents = {
     var contextHandle = GL.createContext(canvas, contextAttributes);
     return contextHandle;
   },
-
+/*
   emscripten_webgl_make_context_current_main_thread__proxy: 'main',
   emscripten_webgl_make_context_current_main_thread__sig: 'ii',
   emscripten_webgl_make_context_current_main_thread: function(contextHandle) {
     var success = GL.makeContextCurrent(contextHandle);
     return success ? {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}} : {{{ cDefine('EMSCRIPTEN_RESULT_INVALID_PARAM') }}};
   },
-
+*/
 #if USE_PTHREADS
   // Runs on the calling thread, proxies manually.
-  emscripten_webgl_do_make_context_current__deps: ['emscripten_webgl_make_context_current_main_thread'],
+//  emscripten_webgl_do_make_context_current__deps: ['emscripten_webgl_make_context_current_main_thread'],
   emscripten_webgl_do_make_context_current: function(contextHandle) {
     var success = GL.makeContextCurrent(contextHandle);
     if (success) {
@@ -2252,9 +2252,9 @@ var LibraryJSEvents = {
   emscripten_webgl_make_context_current: 'emscripten_webgl_make_context_current_main_thread',
 #endif
 
-  emscripten_webgl_get_current_context__proxy: 'main_gl',
-  emscripten_webgl_get_current_context__sig: 'i',
-  emscripten_webgl_get_current_context: function() {
+//  emscripten_webgl_do_get_current_context__proxy: 'main_gl',
+  emscripten_webgl_do_get_current_context__sig: 'i',
+  emscripten_webgl_do_get_current_context: function() {
     return GL.currentContext ? GL.currentContext.handle : 0;
   },
 
