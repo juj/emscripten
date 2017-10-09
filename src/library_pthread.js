@@ -240,6 +240,7 @@ var LibraryPThread = {
       if (typeof GL !== 'undefined') {
         for (var i in data.offscreenCanvases) {
           GL.offscreenCanvases[i] = data.offscreenCanvases[i];
+        }
         if (!Module['canvas'] && data.moduleCanvasId && GL.offscreenCanvases[data.moduleCanvasId]) {
           Module['canvas'] = GL.offscreenCanvases[data.moduleCanvasId].offscreenCanvas;
           Module['canvas'].id = data.moduleCanvasId;
