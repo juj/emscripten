@@ -56,7 +56,7 @@ LibraryManager.library = {
   // ==========================================================================
 
   utime__deps: ['$FS', '__setErrNo', '$ERRNO_CODES'],
-  utime__proxy: 'main',
+  utime__proxy: 'sync',
   utime__sig: 'iii',
   utime: function(path, times) {
     // int utime(const char *path, const struct utimbuf *times);
@@ -81,7 +81,7 @@ LibraryManager.library = {
   },
 
   utimes__deps: ['$FS', '__setErrNo', '$ERRNO_CODES'],
-  utimes__proxy: 'main',
+  utimes__proxy: 'sync',
   utimes__sig: 'iii',
   utimes: function(path, times) {
     var time;
@@ -114,7 +114,7 @@ LibraryManager.library = {
   },
 
   chroot__deps: ['__setErrNo', '$ERRNO_CODES'],
-  chroot__proxy: 'main',
+  chroot__proxy: 'sync',
   chroot__sig: 'ii',
   chroot: function(path) {
     // int chroot(const char *path);
@@ -124,7 +124,7 @@ LibraryManager.library = {
   },
 
   fpathconf__deps: ['__setErrNo', '$ERRNO_CODES'],
-  fpathconf__proxy: 'main',
+  fpathconf__proxy: 'sync',
   fpathconf__sig: 'iii',
   fpathconf: function(fildes, name) {
     // long fpathconf(int fildes, int name);
@@ -167,7 +167,7 @@ LibraryManager.library = {
   pathconf: 'fpathconf',
 
   confstr__deps: ['__setErrNo', '$ERRNO_CODES', '$ENV'],
-  confstr__proxy: 'main',
+  confstr__proxy: 'sync',
   confstr__sig: 'iiii',
   confstr: function(name, buf, len) {
     // size_t confstr(int name, char *buf, size_t len);
@@ -276,7 +276,7 @@ LibraryManager.library = {
   },
 
   sysconf__deps: ['__setErrNo', '$ERRNO_CODES'],
-  sysconf__proxy: 'main',
+  sysconf__proxy: 'sync',
   sysconf__sig: 'ii',
   sysconf: function(name) {
     // long sysconf(int name);
@@ -593,7 +593,7 @@ LibraryManager.library = {
     _exit(-1234);
   },
 
-  atexit__proxy: 'main',
+  atexit__proxy: 'sync',
   atexit__sig: 'ii',
   atexit: function(func, arg) {
     __ATEXIT__.unshift({ func: func, arg: arg });
@@ -677,7 +677,7 @@ LibraryManager.library = {
 #endif
   $ENV: {},
   getenv__deps: ['$ENV'],
-  getenv__proxy: 'main',
+  getenv__proxy: 'sync',
   getenv__sig: 'ii',
   getenv: function(name) {
     // char *getenv(const char *name);
@@ -691,7 +691,7 @@ LibraryManager.library = {
     return _getenv.ret;
   },
   clearenv__deps: ['$ENV', '__buildEnvironment'],
-  clearenv__proxy: 'main',
+  clearenv__proxy: 'sync',
   clearenv__sig: 'i',
   clearenv: function() {
     // int clearenv (void);
@@ -701,7 +701,7 @@ LibraryManager.library = {
     return 0;
   },
   setenv__deps: ['$ENV', '__buildEnvironment', '$ERRNO_CODES', '__setErrNo'],
-  setenv__proxy: 'main',
+  setenv__proxy: 'sync',
   setenv__sig: 'iiii',
   setenv: function(envname, envval, overwrite) {
     // int setenv(const char *envname, const char *envval, int overwrite);
@@ -722,7 +722,7 @@ LibraryManager.library = {
     return 0;
   },
   unsetenv__deps: ['$ENV', '__buildEnvironment', '$ERRNO_CODES', '__setErrNo'],
-  unsetenv__proxy: 'main',
+  unsetenv__proxy: 'sync',
   unsetenv__sig: 'ii',
   unsetenv: function(name) {
     // int unsetenv(const char *name);
@@ -743,7 +743,7 @@ LibraryManager.library = {
     return 0;
   },
   putenv__deps: ['$ENV', '__buildEnvironment', '$ERRNO_CODES', '__setErrNo'],
-  putenv__proxy: 'main',
+  putenv__proxy: 'sync',
   putenv__sig: 'ii',
   putenv: function(string) {
     // int putenv(char *string);
@@ -1641,7 +1641,7 @@ LibraryManager.library = {
   },
   // void* dlopen(const char* filename, int flag);
   dlopen__deps: ['$DLFCN', '$FS', '$ENV'],
-  dlopen__proxy: 'main',
+  dlopen__proxy: 'sync',
   dlopen__sig: 'iii',
   dlopen: function(filename, flag) {
 #if MAIN_MODULE == 0
@@ -1763,7 +1763,7 @@ LibraryManager.library = {
   },
   // int dlclose(void* handle);
   dlclose__deps: ['$DLFCN'],
-  dlclose__proxy: 'main',
+  dlclose__proxy: 'sync',
   dlclose__sig: 'ii',
   dlclose: function(handle) {
     // int dlclose(void *handle);
@@ -1785,7 +1785,7 @@ LibraryManager.library = {
   },
   // void* dlsym(void* handle, const char* symbol);
   dlsym__deps: ['$DLFCN'],
-  dlsym__proxy: 'main',
+  dlsym__proxy: 'sync',
   dlsym__sig: 'iii',
   dlsym: function(handle, symbol) {
     // void *dlsym(void *restrict handle, const char *restrict name);
@@ -1818,7 +1818,7 @@ LibraryManager.library = {
   },
   // char* dlerror(void);
   dlerror__deps: ['$DLFCN'],
-  dlerror__proxy: 'main',
+  dlerror__proxy: 'sync',
   dlerror__sig: 'i',
   dlerror: function() {
     // char *dlerror(void);
@@ -1834,7 +1834,7 @@ LibraryManager.library = {
     }
   },
 
-  dladdr__proxy: 'main',
+  dladdr__proxy: 'sync',
   dladdr__sig: 'iii',
   dladdr: function(addr, info) {
     // report all function pointers as coming from this program itself XXX not really correct in any way
@@ -2070,7 +2070,7 @@ LibraryManager.library = {
   timezone: '{{{ makeStaticAlloc(1) }}}',
 #endif
   tzset__deps: ['tzname', 'daylight', 'timezone'],
-  tzset__proxy: 'main',
+  tzset__proxy: 'sync',
   tzset__sig: 'v',
   tzset: function() {
     // TODO: Use (malleable) environment variables instead of system settings.
@@ -3505,7 +3505,7 @@ LibraryManager.library = {
 
   // note: lots of leaking here!
   gethostbyaddr__deps: ['$DNS', 'gethostbyname', '_inet_ntop4_raw'],
-  gethostbyaddr__proxy: 'main',
+  gethostbyaddr__proxy: 'sync',
   gethostbyaddr__sig: 'iiii',
   gethostbyaddr: function (addr, addrlen, type) {
     if (type !== {{{ cDefine('AF_INET') }}}) {
@@ -3524,7 +3524,7 @@ LibraryManager.library = {
   },
 
   gethostbyname__deps: ['$DNS', '_inet_pton4_raw'],
-  gethostbyname__proxy: 'main',
+  gethostbyname__proxy: 'sync',
   gethostbyname__sig: 'ii',
   gethostbyname: function(name) {
     name = Pointer_stringify(name);
@@ -3549,7 +3549,7 @@ LibraryManager.library = {
   },
 
   gethostbyname_r__deps: ['gethostbyname'],
-  gethostbyname_r__proxy: 'main',
+  gethostbyname_r__proxy: 'sync',
   gethostbyname_r__sig: 'iiiiiii',
   gethostbyname_r: function(name, ret, buf, buflen, out, err) {
     var data = _gethostbyname(name);
@@ -3561,7 +3561,7 @@ LibraryManager.library = {
   },
 
   getaddrinfo__deps: ['$Sockets', '$DNS', '_inet_pton4_raw', '_inet_ntop4_raw', '_inet_pton6_raw', '_inet_ntop6_raw', '_write_sockaddr'],
-  getaddrinfo__proxy: 'main',
+  getaddrinfo__proxy: 'sync',
   getaddrinfo__sig: 'iiiii',
   getaddrinfo: function(node, service, hint, out) {
     // Note getaddrinfo currently only returns a single addrinfo with ai_next defaulting to NULL. When NULL
