@@ -2111,6 +2111,13 @@ var LibraryJSEvents = {
     {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 0, 'i32') }}};
   },
 
+#if !USE_PTHREADS
+  emscripten_webgl_create_context: 'emscripten_webgl_do_create_context',
+  emscripten_webgl_make_context_current: 'emscripten_webgl_do_make_context_current',
+  emscripten_webgl_get_current_context: 'emscripten_webgl_do_get_current_context',
+  emscripten_webgl_commit_frame: 'emscripten_webgl_do_commit_frame',
+#endif
+
   emscripten_webgl_do_create_context__deps: ['$GL'],
   // This function performs proxying manually, depending on the style of context that is to be created.
   emscripten_webgl_do_create_context: function(target, attributes) {

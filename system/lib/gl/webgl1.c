@@ -1,4 +1,7 @@
 #include "webgl1.h"
+
+#ifdef __EMSCRIPTEN_PTHREADS__
+
 #include <emscripten/threading.h>
 
 extern EMSCRIPTEN_WEBGL_CONTEXT_HANDLE emscripten_webgl_do_create_context(const char *target, const EmscriptenWebGLContextAttributes *attributes);
@@ -201,3 +204,5 @@ ASYNC_GL_FUNCTION_5(EM_FUNC_SIG_VIFFFF, void, glVertexAttrib4f, GLuint, GLfloat,
 VOID_SYNC_GL_FUNCTION_2(EM_FUNC_SIG_VII, void, glVertexAttrib4fv, GLuint, const GLfloat *);
 VOID_SYNC_GL_FUNCTION_6(EM_FUNC_SIG_VIIIIII, void, glVertexAttribPointer, GLuint, GLint, GLenum, GLboolean, GLsizei, const void *); // TODO: THIS CAN BE ASYNC WHEN FULL_ES2=0
 ASYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glViewport, GLint, GLint, GLsizei, GLsizei);
+
+#endif // ~__EMSCRIPTEN_PTHREADS__
