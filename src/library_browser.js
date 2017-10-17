@@ -733,7 +733,7 @@ var LibraryBrowser = {
   },
 
   emscripten_async_wget__deps: ['$PATH'],
-  emscripten_async_wget__proxy: 'main',
+  emscripten_async_wget__proxy: 'sync',
   emscripten_async_wget__sig: 'viiii',
   emscripten_async_wget: function(url, file, onload, onerror) {
     Module['noExitRuntime'] = true;
@@ -772,7 +772,7 @@ var LibraryBrowser = {
     );
   },
 
-  emscripten_async_wget_data__proxy: 'main',
+  emscripten_async_wget_data__proxy: 'sync',
   emscripten_async_wget_data__sig: 'viiii',
   emscripten_async_wget_data: function(url, arg, onload, onerror) {
     Browser.asyncLoad(Pointer_stringify(url), function(byteArray) {
@@ -785,7 +785,7 @@ var LibraryBrowser = {
     }, true /* no need for run dependency, this is async but will not do any prepare etc. step */ );
   },
 
-  emscripten_async_wget2__proxy: 'main',
+  emscripten_async_wget2__proxy: 'sync',
   emscripten_async_wget2__sig: 'iiiiiiiii',
   emscripten_async_wget2: function(url, file, request, param, arg, onload, onerror, onprogress) {
     Module['noExitRuntime'] = true;
@@ -866,7 +866,7 @@ var LibraryBrowser = {
     return handle;
   },
 
-  emscripten_async_wget2_data__proxy: 'main',
+  emscripten_async_wget2_data__proxy: 'sync',
   emscripten_async_wget2_data__sig: 'iiiiiiiii',
   emscripten_async_wget2_data: function(url, request, param, arg, free, onload, onerror, onprogress) {
     var _url = Pointer_stringify(url);
@@ -930,7 +930,7 @@ var LibraryBrowser = {
     return handle;
   },
 
-  emscripten_async_wget2_abort__proxy: 'main',
+  emscripten_async_wget2_abort__proxy: 'sync',
   emscripten_async_wget2_abort__sig: 'vi',
   emscripten_async_wget2_abort: function(handle) {
     var http = Browser.wgetRequests[handle];
@@ -940,7 +940,7 @@ var LibraryBrowser = {
   },
 
   emscripten_run_preload_plugins__deps: ['$PATH'],
-  emscripten_run_preload_plugins__proxy: 'main',
+  emscripten_run_preload_plugins__proxy: 'sync',
   emscripten_run_preload_plugins__sig: 'iiii',
   emscripten_run_preload_plugins: function(file, onload, onerror) {
     Module['noExitRuntime'] = true;
@@ -963,7 +963,7 @@ var LibraryBrowser = {
     return 0;
   },
 
-  emscripten_run_preload_plugins_data__proxy: 'main',
+  emscripten_run_preload_plugins_data__proxy: 'sync',
   emscripten_run_preload_plugins_data__sig: 'viiiiii',
   emscripten_run_preload_plugins_data: function(data, size, suffix, arg, onload, onerror) {
     Module['noExitRuntime'] = true;
@@ -1279,20 +1279,20 @@ var LibraryBrowser = {
     throw 'SimulateInfiniteLoop';
   },
 
-  emscripten_force_exit__proxy: 'main',
+  emscripten_force_exit__proxy: 'sync',
   emscripten_force_exit__sig: 'vi',
   emscripten_force_exit: function(status) {
     Module['noExitRuntime'] = false;
     Module['exit'](status);
   },
 
-  emscripten_get_device_pixel_ratio__proxy: 'main',
+  emscripten_get_device_pixel_ratio__proxy: 'sync',
   emscripten_get_device_pixel_ratio__sig: 'd',
   emscripten_get_device_pixel_ratio: function() {
     return window.devicePixelRatio || 1.0;
   },
 
-  emscripten_hide_mouse__proxy: 'main',
+  emscripten_hide_mouse__proxy: 'sync',
   emscripten_hide_mouse__sig: 'v',
   emscripten_hide_mouse: function() {
     var styleSheet = document.styleSheets[0];
@@ -1306,13 +1306,13 @@ var LibraryBrowser = {
     styleSheet.insertRule('canvas.emscripten { border: 1px solid black; cursor: none; }', 0);
   },
 
-  emscripten_set_canvas_size__proxy: 'main',
+  emscripten_set_canvas_size__proxy: 'sync',
   emscripten_set_canvas_size__sig: 'vii',
   emscripten_set_canvas_size: function(width, height) {
     Browser.setCanvasSize(width, height);
   },
   
-  emscripten_get_canvas_size__proxy: 'main',
+  emscripten_get_canvas_size__proxy: 'sync',
   emscripten_get_canvas_size__sig: 'viii',
   emscripten_get_canvas_size: function(width, height, isFullscreen) {
     var canvas = Module['canvas'];
@@ -1322,7 +1322,7 @@ var LibraryBrowser = {
   },
 
   // To avoid creating worker parent->child chains, always proxies to execute on the main thread.
-  emscripten_create_worker__proxy: 'main',
+  emscripten_create_worker__proxy: 'sync',
   emscripten_create_worker__sig: 'ii',
   emscripten_create_worker: function(url) {
     url = Pointer_stringify(url);
@@ -1364,7 +1364,7 @@ var LibraryBrowser = {
     return id;
   },
 
-  emscripten_destroy_worker__proxy: 'main',
+  emscripten_destroy_worker__proxy: 'sync',
   emscripten_destroy_worker__sig: 'vi',
   emscripten_destroy_worker: function(id) {
     var info = Browser.workers[id];
@@ -1373,7 +1373,7 @@ var LibraryBrowser = {
     Browser.workers[id] = null;
   },
 
-  emscripten_call_worker__proxy: 'main',
+  emscripten_call_worker__proxy: 'sync',
   emscripten_call_worker__sig: 'viiiiii',
   emscripten_call_worker: function(id, funcName, data, size, callback, arg) {
     Module['noExitRuntime'] = true; // should we only do this if there is a callback?
@@ -1401,7 +1401,7 @@ var LibraryBrowser = {
     }
   },
 
-  emscripten_worker_respond_provisionally__proxy: 'main',
+  emscripten_worker_respond_provisionally__proxy: 'sync',
   emscripten_worker_respond_provisionally__sig: 'vii',
   emscripten_worker_respond_provisionally: function(data, size) {
     if (workerResponded) throw 'already responded with final response!';
@@ -1417,7 +1417,7 @@ var LibraryBrowser = {
     }
   },
 
-  emscripten_worker_respond__proxy: 'main',
+  emscripten_worker_respond__proxy: 'sync',
   emscripten_worker_respond__sig: 'vii',
   emscripten_worker_respond: function(data, size) {
     if (workerResponded) throw 'already responded with final response!';
@@ -1434,7 +1434,7 @@ var LibraryBrowser = {
     }
   },
 
-  emscripten_get_worker_queue_size__proxy: 'main',
+  emscripten_get_worker_queue_size__proxy: 'sync',
   emscripten_get_worker_queue_size__sig: 'i',
   emscripten_get_worker_queue_size: function(id) {
     var info = Browser.workers[id];
@@ -1443,7 +1443,7 @@ var LibraryBrowser = {
   },
 
   emscripten_get_preloaded_image_data__deps: ['$PATH'],
-  emscripten_get_preloaded_image_data__proxy: 'main',
+  emscripten_get_preloaded_image_data__proxy: 'sync',
   emscripten_get_preloaded_image_data__sig: 'iiii',
   emscripten_get_preloaded_image_data: function(path, w, h) {
     if (typeof path === "number") {
@@ -1469,7 +1469,7 @@ var LibraryBrowser = {
   },
 
   emscripten_get_preloaded_image_data_from_FILE__deps: ['emscripten_get_preloaded_image_data'],
-  emscripten_get_preloaded_image_data_from_FILE__proxy: 'main',
+  emscripten_get_preloaded_image_data_from_FILE__proxy: 'sync',
   emscripten_get_preloaded_image_data_from_FILE__sig: 'iiii',
   emscripten_get_preloaded_image_data_from_FILE: function(file, w, h) {
     var fd = Module['_fileno'](file);

@@ -1220,91 +1220,91 @@ var LibraryJSEvents = {
     },
   },
 
-  emscripten_set_keypress_callback_on_thread__proxy: 'main',
+  emscripten_set_keypress_callback_on_thread__proxy: 'sync',
   emscripten_set_keypress_callback_on_thread__sig: 'iiiiii',
   emscripten_set_keypress_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_KEYPRESS') }}}, "keypress", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_keydown_callback_on_thread__proxy: 'main',
+  emscripten_set_keydown_callback_on_thread__proxy: 'sync',
   emscripten_set_keydown_callback_on_thread__sig: 'iiiiii',
   emscripten_set_keydown_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_KEYDOWN') }}}, "keydown", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_keyup_callback_on_thread__proxy: 'main',
+  emscripten_set_keyup_callback_on_thread__proxy: 'sync',
   emscripten_set_keyup_callback_on_thread__sig: 'iiiiii',
   emscripten_set_keyup_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_KEYUP') }}}, "keyup", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_click_callback_on_thread__proxy: 'main',
+  emscripten_set_click_callback_on_thread__proxy: 'sync',
   emscripten_set_click_callback_on_thread__sig: 'iiiiii',
   emscripten_set_click_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_CLICK') }}}, "click", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_mousedown_callback_on_thread__proxy: 'main',
+  emscripten_set_mousedown_callback_on_thread__proxy: 'sync',
   emscripten_set_mousedown_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mousedown_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEDOWN') }}}, "mousedown", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_mouseup_callback_on_thread__proxy: 'main',
+  emscripten_set_mouseup_callback_on_thread__proxy: 'sync',
   emscripten_set_mouseup_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mouseup_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEUP') }}}, "mouseup", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_dblclick_callback_on_thread__proxy: 'main',
+  emscripten_set_dblclick_callback_on_thread__proxy: 'sync',
   emscripten_set_dblclick_callback_on_thread__sig: 'iiiiii',
   emscripten_set_dblclick_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_DBLCLICK') }}}, "dblclick", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_mousemove_callback_on_thread__proxy: 'main',
+  emscripten_set_mousemove_callback_on_thread__proxy: 'sync',
   emscripten_set_mousemove_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mousemove_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEMOVE') }}}, "mousemove", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_mouseenter_callback_on_thread__proxy: 'main',
+  emscripten_set_mouseenter_callback_on_thread__proxy: 'sync',
   emscripten_set_mouseenter_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mouseenter_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEENTER') }}}, "mouseenter", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_mouseleave_callback_on_thread__proxy: 'main',
+  emscripten_set_mouseleave_callback_on_thread__proxy: 'sync',
   emscripten_set_mouseleave_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mouseleave_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSELEAVE') }}}, "mouseleave", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_mouseover_callback_on_thread__proxy: 'main',
+  emscripten_set_mouseover_callback_on_thread__proxy: 'sync',
   emscripten_set_mouseover_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mouseover_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEOVER') }}}, "mouseover", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_mouseout_callback_on_thread__proxy: 'main',
+  emscripten_set_mouseout_callback_on_thread__proxy: 'sync',
   emscripten_set_mouseout_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mouseout_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEOUT') }}}, "mouseout", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_get_mouse_status__proxy: 'main',
+  emscripten_get_mouse_status__proxy: 'sync',
   emscripten_get_mouse_status__sig: 'ii',
   emscripten_get_mouse_status: function(mouseState) {
     if (!JSEvents.mouseEvent) return {{{ cDefine('EMSCRIPTEN_RESULT_NO_DATA') }}};
@@ -1315,7 +1315,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_wheel_callback_on_thread__proxy: 'main',
+  emscripten_set_wheel_callback_on_thread__proxy: 'sync',
   emscripten_set_wheel_callback_on_thread__sig: 'iiiiii',
   emscripten_set_wheel_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     target = JSEvents.findEventTarget(target);
@@ -1330,56 +1330,56 @@ var LibraryJSEvents = {
     }
   },
 
-  emscripten_set_resize_callback_on_thread__proxy: 'main',
+  emscripten_set_resize_callback_on_thread__proxy: 'sync',
   emscripten_set_resize_callback_on_thread__sig: 'iiiiii',
   emscripten_set_resize_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerUiEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_RESIZE') }}}, "resize", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_scroll_callback_on_thread__proxy: 'main',
+  emscripten_set_scroll_callback_on_thread__proxy: 'sync',
   emscripten_set_scroll_callback_on_thread__sig: 'iiiiii',
   emscripten_set_scroll_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerUiEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_SCROLL') }}}, "scroll", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_blur_callback_on_thread__proxy: 'main',
+  emscripten_set_blur_callback_on_thread__proxy: 'sync',
   emscripten_set_blur_callback_on_thread__sig: 'iiiiii',
   emscripten_set_blur_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BLUR') }}}, "blur", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_focus_callback_on_thread__proxy: 'main',
+  emscripten_set_focus_callback_on_thread__proxy: 'sync',
   emscripten_set_focus_callback_on_thread__sig: 'iiiiii',
   emscripten_set_focus_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FOCUS') }}}, "focus", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_focusin_callback_on_thread__proxy: 'main',
+  emscripten_set_focusin_callback_on_thread__proxy: 'sync',
   emscripten_set_focusin_callback_on_thread__sig: 'iiiiii',
   emscripten_set_focusin_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FOCUSIN') }}}, "focusin", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_focusout_callback_on_thread__proxy: 'main',
+  emscripten_set_focusout_callback_on_thread__proxy: 'sync',
   emscripten_set_focusout_callback_on_thread__sig: 'iiiiii',
   emscripten_set_focusout_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FOCUSOUT') }}}, "focusout", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_deviceorientation_callback_on_thread__proxy: 'main',
+  emscripten_set_deviceorientation_callback_on_thread__proxy: 'sync',
   emscripten_set_deviceorientation_callback_on_thread__sig: 'iiiii',
   emscripten_set_deviceorientation_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerDeviceOrientationEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_DEVICEORIENTATION') }}}, "deviceorientation", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_get_deviceorientation_status__proxy: 'main',
+  emscripten_get_deviceorientation_status__proxy: 'sync',
   emscripten_get_deviceorientation_status__sig: 'ii',
   emscripten_get_deviceorientation_status: function(orientationState) {
     if (!JSEvents.deviceOrientationEvent) return {{{ cDefine('EMSCRIPTEN_RESULT_NO_DATA') }}};
@@ -1390,14 +1390,14 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_devicemotion_callback_on_thread__proxy: 'main',
+  emscripten_set_devicemotion_callback_on_thread__proxy: 'sync',
   emscripten_set_devicemotion_callback_on_thread__sig: 'iiiii',
   emscripten_set_devicemotion_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerDeviceMotionEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_DEVICEMOTION') }}}, "devicemotion", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_get_devicemotion_status__proxy: 'main',
+  emscripten_get_devicemotion_status__proxy: 'sync',
   emscripten_get_devicemotion_status__sig: 'ii',
   emscripten_get_devicemotion_status: function(motionState) {
     if (!JSEvents.deviceMotionEvent) return {{{ cDefine('EMSCRIPTEN_RESULT_NO_DATA') }}};
@@ -1408,7 +1408,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_orientationchange_callback_on_thread__proxy: 'main',
+  emscripten_set_orientationchange_callback_on_thread__proxy: 'sync',
   emscripten_set_orientationchange_callback_on_thread__sig: 'iiiii',
   emscripten_set_orientationchange_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
     if (!window.screen || !window.screen.addEventListener) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
@@ -1416,7 +1416,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
-  emscripten_get_orientation_status__proxy: 'main',
+  emscripten_get_orientation_status__proxy: 'sync',
   emscripten_get_orientation_status__sig: 'ii',
   emscripten_get_orientation_status: function(orientationChangeEvent) {
     if (!JSEvents.screenOrientation() && typeof window.orientation === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
@@ -1424,7 +1424,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_lock_orientation__proxy: 'main',
+  emscripten_lock_orientation__proxy: 'sync',
   emscripten_lock_orientation__sig: 'ii',
   emscripten_lock_orientation: function(allowedOrientations) {
     var orientations = [];
@@ -1451,7 +1451,7 @@ var LibraryJSEvents = {
     }
   },
   
-  emscripten_unlock_orientation__proxy: 'main',
+  emscripten_unlock_orientation__proxy: 'sync',
   emscripten_unlock_orientation__sig: 'i',
   emscripten_unlock_orientation: function() {
     if (window.screen.unlockOrientation) {
@@ -1468,7 +1468,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_fullscreenchange_callback_on_thread__proxy: 'main',
+  emscripten_set_fullscreenchange_callback_on_thread__proxy: 'sync',
   emscripten_set_fullscreenchange_callback_on_thread__sig: 'iiiiii',
   emscripten_set_fullscreenchange_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     if (typeof JSEvents.fullscreenEnabled() === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
@@ -1484,7 +1484,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_get_fullscreen_status__proxy: 'main',
+  emscripten_get_fullscreen_status__proxy: 'sync',
   emscripten_get_fullscreen_status__sig: 'ii',
   emscripten_get_fullscreen_status: function(fullscreenStatus) {
     if (typeof JSEvents.fullscreenEnabled() === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
@@ -1709,7 +1709,7 @@ var LibraryJSEvents = {
   },
 
   emscripten_request_fullscreen__deps: ['_emscripten_do_request_fullscreen'],
-  emscripten_request_fullscreen__proxy: 'main',
+  emscripten_request_fullscreen__proxy: 'sync',
   emscripten_request_fullscreen__sig: 'iii',
   emscripten_request_fullscreen: function(target, deferUntilInEventHandler) {
     var strategy = {};
@@ -1724,7 +1724,7 @@ var LibraryJSEvents = {
   },
 
   emscripten_request_fullscreen_strategy__deps: ['_emscripten_do_request_fullscreen', '_currentFullscreenStrategy', '_registerRestoreOldStyle'],
-  emscripten_request_fullscreen_strategy__proxy: 'main',
+  emscripten_request_fullscreen_strategy__proxy: 'sync',
   emscripten_request_fullscreen_strategy__sig: 'iiii',
   emscripten_request_fullscreen_strategy: function(target, deferUntilInEventHandler, fullscreenStrategy) {
     var strategy = {};
@@ -1743,7 +1743,7 @@ var LibraryJSEvents = {
   },
 
   emscripten_enter_soft_fullscreen__deps: ['_setLetterbox', '_hideEverythingExceptGivenElement', '_restoreOldWindowedStyle', '_registerRestoreOldStyle', '_restoreHiddenElements', '_currentFullscreenStrategy', '_softFullscreenResizeWebGLRenderTarget'],
-  emscripten_enter_soft_fullscreen__proxy: 'main',
+  emscripten_enter_soft_fullscreen__proxy: 'sync',
   emscripten_enter_soft_fullscreen__sig: 'iii',
   emscripten_enter_soft_fullscreen: function(target, fullscreenStrategy) {
     if (!target) target = '#canvas';
@@ -1799,7 +1799,7 @@ var LibraryJSEvents = {
   },
 
   emscripten_exit_soft_fullscreen__deps: ['_restoreOldWindowedStyle'],
-  emscripten_exit_soft_fullscreen__proxy: 'main',
+  emscripten_exit_soft_fullscreen__proxy: 'sync',
   emscripten_exit_soft_fullscreen__sig: 'i',
   emscripten_exit_soft_fullscreen: function() {
     if (__restoreOldWindowedStyle) __restoreOldWindowedStyle();
@@ -1809,7 +1809,7 @@ var LibraryJSEvents = {
   },
 
   emscripten_exit_fullscreen__deps: ['_currentFullscreenStrategy'],
-  emscripten_exit_fullscreen__proxy: 'main',
+  emscripten_exit_fullscreen__proxy: 'sync',
   emscripten_exit_fullscreen__sig: 'i',
   emscripten_exit_fullscreen: function() {
     if (typeof JSEvents.fullscreenEnabled() === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
@@ -1839,7 +1839,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_pointerlockchange_callback_on_thread__proxy: 'main',
+  emscripten_set_pointerlockchange_callback_on_thread__proxy: 'sync',
   emscripten_set_pointerlockchange_callback_on_thread__sig: 'iiiiii',
   emscripten_set_pointerlockchange_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     // TODO: Currently not supported in pthreads or in --proxy-to-worker mode. (In pthreads mode, document object is not defined)
@@ -1858,7 +1858,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_pointerlockerror_callback_on_thread__proxy: 'main',
+  emscripten_set_pointerlockerror_callback_on_thread__proxy: 'sync',
   emscripten_set_pointerlockerror_callback_on_thread__sig: 'iiiiii',
   emscripten_set_pointerlockerror_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     // TODO: Currently not supported in pthreads or in --proxy-to-worker mode. (In pthreads mode, document object is not defined)
@@ -1877,7 +1877,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_get_pointerlock_status__proxy: 'main',
+  emscripten_get_pointerlock_status__proxy: 'sync',
   emscripten_get_pointerlock_status__sig: 'ii',
   emscripten_get_pointerlock_status: function(pointerlockStatus) {
     if (pointerlockStatus) JSEvents.fillPointerlockChangeEventData(pointerlockStatus);
@@ -1887,7 +1887,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_request_pointerlock__proxy: 'main',
+  emscripten_request_pointerlock__proxy: 'sync',
   emscripten_request_pointerlock__sig: 'iii',
   emscripten_request_pointerlock: function(target, deferUntilInEventHandler) {
     if (!target) target = '#canvas';
@@ -1912,7 +1912,7 @@ var LibraryJSEvents = {
     return JSEvents.requestPointerLock(target);
   },
 
-  emscripten_exit_pointerlock__proxy: 'main',
+  emscripten_exit_pointerlock__proxy: 'sync',
   emscripten_exit_pointerlock__sig: 'i',
   emscripten_exit_pointerlock: function() {
     // Make sure no queued up calls will fire after this.
@@ -1932,7 +1932,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
-  emscripten_vibrate__proxy: 'main',
+  emscripten_vibrate__proxy: 'sync',
   emscripten_vibrate__sig: 'ii',
   emscripten_vibrate: function(msecs) {
     if (!navigator.vibrate) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};    
@@ -1940,7 +1940,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
-  emscripten_vibrate_pattern__proxy: 'main',
+  emscripten_vibrate_pattern__proxy: 'sync',
   emscripten_vibrate_pattern__sig: 'iii',
   emscripten_vibrate_pattern: function(msecsArray, numEntries) {
     if (!navigator.vibrate) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
@@ -1954,14 +1954,14 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_visibilitychange_callback_on_thread__proxy: 'main',
+  emscripten_set_visibilitychange_callback_on_thread__proxy: 'sync',
   emscripten_set_visibilitychange_callback_on_thread__sig: 'iiiii',
   emscripten_set_visibilitychange_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerVisibilityChangeEventCallback(document, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_VISIBILITYCHANGE') }}}, "visibilitychange", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_get_visibility_status__proxy: 'main',
+  emscripten_get_visibility_status__proxy: 'sync',
   emscripten_get_visibility_status__sig: 'ii',
   emscripten_get_visibility_status: function(visibilityStatus) {
     if (typeof document.visibilityState === 'undefined' && typeof document.hidden === 'undefined') {
@@ -1971,35 +1971,35 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
-  emscripten_set_touchstart_callback_on_thread__proxy: 'main',
+  emscripten_set_touchstart_callback_on_thread__proxy: 'sync',
   emscripten_set_touchstart_callback_on_thread__sig: 'iiiiii',
   emscripten_set_touchstart_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHSTART') }}}, "touchstart", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
-  emscripten_set_touchend_callback_on_thread__proxy: 'main',
+  emscripten_set_touchend_callback_on_thread__proxy: 'sync',
   emscripten_set_touchend_callback_on_thread__sig: 'iiiiii',
   emscripten_set_touchend_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHEND') }}}, "touchend", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
-  emscripten_set_touchmove_callback_on_thread__proxy: 'main',
+  emscripten_set_touchmove_callback_on_thread__proxy: 'sync',
   emscripten_set_touchmove_callback_on_thread__sig: 'iiiiii',
   emscripten_set_touchmove_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHMOVE') }}}, "touchmove", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
-  emscripten_set_touchcancel_callback_on_thread__proxy: 'main',
+  emscripten_set_touchcancel_callback_on_thread__proxy: 'sync',
   emscripten_set_touchcancel_callback_on_thread__sig: 'iiiiii',
   emscripten_set_touchcancel_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHCANCEL') }}}, "touchcancel", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
-  emscripten_set_gamepadconnected_callback_on_thread__proxy: 'main',
+  emscripten_set_gamepadconnected_callback_on_thread__proxy: 'sync',
   emscripten_set_gamepadconnected_callback_on_thread__sig: 'iiiii',
   emscripten_set_gamepadconnected_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
     if (!navigator.getGamepads && !navigator.webkitGetGamepads) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
@@ -2007,7 +2007,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
-  emscripten_set_gamepaddisconnected_callback_on_thread__proxy: 'main',
+  emscripten_set_gamepaddisconnected_callback_on_thread__proxy: 'sync',
   emscripten_set_gamepaddisconnected_callback_on_thread__sig: 'iiiii',
   emscripten_set_gamepaddisconnected_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
     if (!navigator.getGamepads && !navigator.webkitGetGamepads) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
@@ -2027,7 +2027,7 @@ var LibraryJSEvents = {
   },
 
   emscripten_get_num_gamepads__deps: ['_emscripten_sample_gamepad_data'],
-  emscripten_get_num_gamepads__proxy: 'main',
+  emscripten_get_num_gamepads__proxy: 'sync',
   emscripten_get_num_gamepads__sig: 'i',
   emscripten_get_num_gamepads: function() {
     // Polling gamepads generates garbage, so don't do it when we know there are no gamepads connected.
@@ -2039,7 +2039,7 @@ var LibraryJSEvents = {
   },
   
   emscripten_get_gamepad_status__deps: ['_emscripten_sample_gamepad_data'],
-  emscripten_get_gamepad_status__proxy: 'main',
+  emscripten_get_gamepad_status__proxy: 'sync',
   emscripten_get_gamepad_status__sig: 'iii',
   emscripten_get_gamepad_status: function(index, gamepadState) {
     __emscripten_sample_gamepad_data();
@@ -2058,7 +2058,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
-  emscripten_set_beforeunload_callback_on_thread__proxy: 'main',
+  emscripten_set_beforeunload_callback_on_thread__proxy: 'sync',
   emscripten_set_beforeunload_callback_on_thread__sig: 'iii',
   emscripten_set_beforeunload_callback_on_thread: function(userData, callbackfunc, targetThread) {
     if (typeof window.onbeforeunload === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
@@ -2069,7 +2069,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
-  emscripten_set_batterychargingchange_callback_on_thread__proxy: 'main',
+  emscripten_set_batterychargingchange_callback_on_thread__proxy: 'sync',
   emscripten_set_batterychargingchange_callback_on_thread__sig: 'iii',
   emscripten_set_batterychargingchange_callback_on_thread: function(userData, callbackfunc) {
     if (!JSEvents.battery()) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}}; 
@@ -2077,7 +2077,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_batterylevelchange_callback_on_thread__proxy: 'main',
+  emscripten_set_batterylevelchange_callback_on_thread__proxy: 'sync',
   emscripten_set_batterylevelchange_callback_on_thread__sig: 'iii',
   emscripten_set_batterylevelchange_callback_on_thread: function(userData, callbackfunc) {
     if (!JSEvents.battery()) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}}; 
@@ -2085,7 +2085,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
-  emscripten_get_battery_status__proxy: 'main',
+  emscripten_get_battery_status__proxy: 'sync',
   emscripten_get_battery_status__sig: 'ii',
   emscripten_get_battery_status: function(batteryState) {
     if (!JSEvents.battery()) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}}; 
@@ -2113,7 +2113,6 @@ var LibraryJSEvents = {
 
 #if !USE_PTHREADS
   emscripten_webgl_create_context: 'emscripten_webgl_do_create_context',
-  emscripten_webgl_make_context_current: 'emscripten_webgl_do_make_context_current',
   emscripten_webgl_get_current_context: 'emscripten_webgl_do_get_current_context',
   emscripten_webgl_commit_frame: 'emscripten_webgl_do_commit_frame',
 #endif
@@ -2232,7 +2231,7 @@ var LibraryJSEvents = {
     return contextHandle;
   },
 /*
-  emscripten_webgl_make_context_current_main_thread__proxy: 'main',
+  emscripten_webgl_make_context_current_main_thread__proxy: 'sync',
   emscripten_webgl_make_context_current_main_thread__sig: 'ii',
   emscripten_webgl_make_context_current_main_thread: function(contextHandle) {
     var success = GL.makeContextCurrent(contextHandle);
@@ -2256,7 +2255,10 @@ var LibraryJSEvents = {
     return success ? {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}} : {{{ cDefine('EMSCRIPTEN_RESULT_INVALID_PARAM') }}};
   },
 #else
-  emscripten_webgl_make_context_current: 'emscripten_webgl_make_context_current_main_thread',
+  emscripten_webgl_make_context_current: function(contextHandle) {
+    var success = GL.makeContextCurrent(contextHandle);
+    return success ? {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}} : {{{ cDefine('EMSCRIPTEN_RESULT_INVALID_PARAM') }}};
+  },
 #endif
 
 //  emscripten_webgl_do_get_current_context__proxy: 'main_gl',
@@ -2277,7 +2279,7 @@ var LibraryJSEvents = {
   },
 
 #if USE_PTHREADS
-  emscripten_webgl_get_drawing_buffer_size_main_thread__proxy: 'main',
+  emscripten_webgl_get_drawing_buffer_size_main_thread__proxy: 'sync',
   emscripten_webgl_get_drawing_buffer_size_main_thread__sig: 'iiii',
   emscripten_webgl_get_drawing_buffer_size_main_thread__deps: ['emscripten_webgl_get_drawing_buffer_size_calling_thread'],
   emscripten_webgl_get_drawing_buffer_size_main_thread: function(contextHandle, width, height) { return _emscripten_webgl_get_drawing_buffer_size_calling_thread(contextHandle, width, height); },
@@ -2331,7 +2333,7 @@ var LibraryJSEvents = {
   },
 
 #if USE_PTHREADS
-  emscripten_webgl_destroy_context_main_thread__proxy: 'main',
+  emscripten_webgl_destroy_context_main_thread__proxy: 'sync',
   emscripten_webgl_destroy_context_main_thread__sig: 'vi',
   emscripten_webgl_destroy_context_main_thread__deps: ['emscripten_webgl_destroy_context_calling_thread'],
   emscripten_webgl_destroy_context_main_thread: function(contextHandle) { return _emscripten_webgl_destroy_context_calling_thread(contextHandle); },
@@ -2354,7 +2356,7 @@ var LibraryJSEvents = {
   },
 
 #if USE_PTHREADS
-  emscripten_webgl_enable_extension_main_thread__proxy: 'main',
+  emscripten_webgl_enable_extension_main_thread__proxy: 'sync',
   emscripten_webgl_enable_extension_main_thread__sig: 'iii',
   emscripten_webgl_enable_extension_main_thread__deps: ['emscripten_webgl_enable_extension_calling_thread'],
   emscripten_webgl_enable_extension_main_thread: function(contextHandle) { return _emscripten_webgl_enable_extension_calling_thread(contextHandle); },
@@ -2368,21 +2370,21 @@ var LibraryJSEvents = {
   emscripten_webgl_enable_extension: 'emscripten_webgl_enable_extension_calling_thread',
 #endif
 
-  emscripten_set_webglcontextlost_callback_on_thread__proxy: 'main',
+  emscripten_set_webglcontextlost_callback_on_thread__proxy: 'sync',
   emscripten_set_webglcontextlost_callback_on_thread__sig: 'iiiiii',
   emscripten_set_webglcontextlost_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerWebGlEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_WEBGLCONTEXTLOST') }}}, "webglcontextlost", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_webglcontextrestored_callback_on_thread__proxy: 'main',
+  emscripten_set_webglcontextrestored_callback_on_thread__proxy: 'sync',
   emscripten_set_webglcontextrestored_callback_on_thread__sig: 'iiiiii',
   emscripten_set_webglcontextrestored_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
     JSEvents.registerWebGlEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_WEBGLCONTEXTRESTORED') }}}, "webglcontextrestored", targetThread);
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_is_webgl_context_lost__proxy: 'main',
+  emscripten_is_webgl_context_lost__proxy: 'sync',
   emscripten_is_webgl_context_lost__sig: 'ii',
   emscripten_is_webgl_context_lost: function(target) {
     // TODO: In the future if multiple GL contexts are supported, use the 'target' parameter to find the canvas to query.
@@ -2458,7 +2460,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_canvas_element_size_main_thread__proxy: 'main',
+  emscripten_set_canvas_element_size_main_thread__proxy: 'sync',
   emscripten_set_canvas_element_size_main_thread__sig: 'iiii',
   emscripten_set_canvas_element_size_main_thread__deps: ['emscripten_set_canvas_element_size_calling_thread'],
   emscripten_set_canvas_element_size_main_thread: function(target, width, height) { return _emscripten_set_canvas_element_size_calling_thread(target, width, height); },
@@ -2520,7 +2522,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_get_canvas_element_size_main_thread__proxy: 'main',
+  emscripten_get_canvas_element_size_main_thread__proxy: 'sync',
   emscripten_get_canvas_element_size_main_thread__sig: 'iiii',
   emscripten_get_canvas_element_size_main_thread__deps: ['emscripten_get_canvas_element_size_calling_thread'],
   emscripten_get_canvas_element_size_main_thread: function(target, width, height) { return _emscripten_get_canvas_element_size_calling_thread(target, width, height); },
@@ -2553,7 +2555,7 @@ var LibraryJSEvents = {
     return size;
   }, 
 
-  emscripten_set_element_css_size__proxy: 'main',
+  emscripten_set_element_css_size__proxy: 'sync',
   emscripten_set_element_css_size__sig: 'iiii',
   emscripten_set_element_css_size: function(target, width, height) {
     if (target) target = JSEvents.findEventTarget(target);
@@ -2566,7 +2568,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_get_element_css_size__proxy: 'main',
+  emscripten_get_element_css_size__proxy: 'sync',
   emscripten_get_element_css_size__sig: 'iiii',
   emscripten_get_element_css_size: function(target, width, height) {
     if (target) target = JSEvents.findEventTarget(target);
