@@ -447,10 +447,12 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
 
   if shared.Settings.USE_PTHREADS:
     system_libs += [('libc-mt',       'bc', create_libc,       libc_symbols,     [],       False),
+                    ('gl-mt',         'bc', create_gl,         gl_symbols,       ['libc'], False),
                     ('pthreads',      'bc', create_pthreads,   pthreads_symbols, ['libc'], False)]
     force.add('pthreads')
   else:
-    system_libs += [('libc', 'bc', create_libc, libc_symbols, [], False)]
+    system_libs += [('libc', 'bc', create_libc, libc_symbols, [], False),
+                    ('gl',   'bc', create_gl,   gl_symbols,   ['libc'], False)]
 
   force.add(dlmalloc_name())
 
