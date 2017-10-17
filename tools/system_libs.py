@@ -430,7 +430,6 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
 
   system_libs = [('libcxx',        'a',  create_libcxx,      libcxx_symbols,      ['libcxxabi'], True),
                  ('libcxxabi',     'bc', create_libcxxabi,   libcxxabi_symbols,   ['libc'],      False),
-                 ('gl',            'bc', create_gl,          gl_symbols,          ['libc'],      False),
                  ('html5',         'bc', create_html5,       html5_symbols,       ['html5'],     False),
                  ('compiler-rt',   'a',  create_compiler_rt, compiler_rt_symbols, ['libc'],      False),
                  ('egl',           'bc', create_egl,         egl_symbols,         ['libc'],      False),
@@ -438,10 +437,12 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
 
   if shared.Settings.USE_PTHREADS:
     system_libs += [('libc-mt',       'bc', create_libc,       libc_symbols,     [],       False),
+                    ('gl-mt',         'bc', create_gl,         gl_symbols,       ['libc'], False),
                     ('pthreads',      'bc', create_pthreads,   pthreads_symbols, ['libc'], False)]
     force.add('pthreads')
   else:
-    system_libs += [('libc', 'bc', create_libc, libc_symbols, [], False)]
+    system_libs += [('libc', 'bc', create_libc, libc_symbols, [], False),
+                    ('gl',   'bc', create_gl,   gl_symbols,   ['libc'], False)]
 
   force.add(dlmalloc_name())
 
