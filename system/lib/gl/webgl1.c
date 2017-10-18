@@ -1,6 +1,8 @@
 #include "webgl1.h"
 
 #include <emscripten.h>
+#include <string.h>
+#include <stdlib.h>
 
 #ifdef __EMSCRIPTEN_PTHREADS__
 
@@ -165,7 +167,12 @@ ASYNC_GL_FUNCTION_2(EM_FUNC_SIG_VII, void, glDetachShader, GLuint, GLuint);
 ASYNC_GL_FUNCTION_1(EM_FUNC_SIG_VI, void, glDisable, GLenum);
 ASYNC_GL_FUNCTION_1(EM_FUNC_SIG_VI, void, glDisableVertexAttribArray, GLuint);
 ASYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glDrawArrays, GLenum, GLint, GLsizei);
-VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glDrawElements, GLenum, GLsizei, GLenum, const void *); // TODO: THIS IS ASYNC IF FULL_ES2=0
+// TODO: The following #define FULL_ES2 does not yet exist, we'll need to compile this file twice, for FULL_ES2 mode and without
+#if FULL_ES2
+VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glDrawElements, GLenum, GLsizei, GLenum, const void *);
+#else
+ASYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glDrawElements, GLenum, GLsizei, GLenum, const void *);
+#endif
 ASYNC_GL_FUNCTION_1(EM_FUNC_SIG_VI, void, glEnable, GLenum);
 ASYNC_GL_FUNCTION_1(EM_FUNC_SIG_VI, void, glEnableVertexAttribArray, GLuint);
 VOID_SYNC_GL_FUNCTION_0(EM_FUNC_SIG_V, void, glFinish);
@@ -253,7 +260,22 @@ ASYNC_GL_FUNCTION_5(EM_FUNC_SIG_VIIIII, void, glUniform4i, GLint, GLint, GLint, 
 VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform4iv, GLint, GLsizei, const GLint *);
 VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glUniformMatrix2fv, GLint, GLsizei, GLboolean, const GLfloat *);
 VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glUniformMatrix3fv, GLint, GLsizei, GLboolean, const GLfloat *);
-VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glUniformMatrix4fv, GLint, GLsizei, GLboolean, const GLfloat *);
+//VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glUniformMatrix4fv, GLint, GLsizei, GLboolean, const GLfloat *);
+void glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glUniformMatrix4fv(location, count, transpose, value);
+  else
+  {
+    size_t sz = 4*4*sizeof(GLfloat)*count;
+    GLfloat *copiedValue = malloc(sz);
+    memcpy(copiedValue, value, sz);
+    void *context = pthread_getspecific(currentActiveWebGLContext);
+    void *owningThread = *(void**)(context + 4);
+    emscripten_async_queue_on_thread(owningThread, EM_FUNC_SIG_VIIII, &emscripten_glUniformMatrix4fv, copiedValue, location, count, transpose, copiedValue);
+//    emscripten_async_run_in_main_runtime_thread(EM_FUNC_SIG_VIIII, &emscripten_glUniformMatrix4fv, location, count, transpose, value);
+  }
+}
 ASYNC_GL_FUNCTION_1(EM_FUNC_SIG_VI, void, glUseProgram, GLuint);
 ASYNC_GL_FUNCTION_1(EM_FUNC_SIG_VI, void, glValidateProgram, GLuint);
 ASYNC_GL_FUNCTION_2(EM_FUNC_SIG_VIF, void, glVertexAttrib1f, GLuint, GLfloat);
@@ -264,7 +286,13 @@ ASYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIFFF, void, glVertexAttrib3f, GLuint, GLfloat, 
 VOID_SYNC_GL_FUNCTION_2(EM_FUNC_SIG_VII, void, glVertexAttrib3fv, GLuint, const GLfloat *);
 ASYNC_GL_FUNCTION_5(EM_FUNC_SIG_VIFFFF, void, glVertexAttrib4f, GLuint, GLfloat, GLfloat, GLfloat, GLfloat);
 VOID_SYNC_GL_FUNCTION_2(EM_FUNC_SIG_VII, void, glVertexAttrib4fv, GLuint, const GLfloat *);
-VOID_SYNC_GL_FUNCTION_6(EM_FUNC_SIG_VIIIIII, void, glVertexAttribPointer, GLuint, GLint, GLenum, GLboolean, GLsizei, const void *); // TODO: THIS CAN BE ASYNC WHEN FULL_ES2=0
+
+// TODO: The following #define FULL_ES2 does not yet exist, we'll need to compile this file twice, for FULL_ES2 mode and without
+#if FULL_ES2
+VOID_SYNC_GL_FUNCTION_6(EM_FUNC_SIG_VIIIIII, void, glVertexAttribPointer, GLuint, GLint, GLenum, GLboolean, GLsizei, const void *);
+#else
+ASYNC_GL_FUNCTION_6(EM_FUNC_SIG_VIIIIII, void, glVertexAttribPointer, GLuint, GLint, GLenum, GLboolean, GLsizei, const void *);
+#endif
 ASYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glViewport, GLint, GLint, GLsizei, GLsizei);
 
 #endif // ~__EMSCRIPTEN_PTHREADS__
