@@ -458,6 +458,8 @@ extern EM_BOOL emscripten_is_webgl_context_lost(const char *target);
 
 extern EMSCRIPTEN_RESULT emscripten_webgl_commit_frame(void);
 
+extern EM_BOOL emscripten_supports_offscreencanvas(void);
+
 extern EMSCRIPTEN_RESULT emscripten_set_canvas_element_size(const char *target, int width, int height);
 extern EMSCRIPTEN_RESULT emscripten_get_canvas_element_size(const char *target, int *width, int *height);
 
