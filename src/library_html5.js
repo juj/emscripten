@@ -2295,6 +2295,10 @@ var LibraryJSEvents = {
 
   emscripten_webgl_do_commit_frame__sig: 'i',
   emscripten_webgl_do_commit_frame: function() {
+#if TRACE_WEBGL_CALLS
+    var threadId = (typeof _pthread_self !== 'undefined') ? _pthread_self : function() { return 1; };
+    console.error('[Thread ' + threadId() + ', GL ctx: ' + GL.currentContext.handle + ']: emscripten_webgl_do_commit_frame()');
+#endif
     if (!GL.currentContext || !GL.currentContext.GLctx) {
 #if GL_DEBUG
       console.error('emscripten_webgl_commit_frame() failed: no GL context set current via emscripten_webgl_make_context_current()!');
@@ -2354,6 +2358,16 @@ var LibraryJSEvents = {
     var ext = context.GLctx.getExtension(extString);
     return ext ? 1 : 0;
   },
+
+#if OFFSCREENCANVAS_SUPPORT
+  emscripten_supports_offscreencanvas: function() {
+    return typeof OffscreenCanvas !== 'undefined';
+  },
+#else
+  emscripten_supports_offscreencanvas: function() {
+    return 0;
+  },
+#endif
 
 #if USE_PTHREADS
   emscripten_webgl_enable_extension_main_thread__proxy: 'sync',
