@@ -262,7 +262,9 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
     for dirpath, dirnames, filenames in os.walk(src_dir):
       filenames = filter(lambda f: f.endswith('.c'), filenames)
       files += map(lambda f: os.path.join(src_dir, f), filenames)
-    return build_libc(libname, files, ['-Oz'])
+    flags = ['-Oz']
+    if '-mt' in libname: flags += ['-s', 'USE_PTHREADS=1']
+    return build_libc(libname, files, flags)
 
   # al
   def create_al(libname): # libname is ignored, this is just one .o file
@@ -439,7 +441,6 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
 
   system_libs = [('libcxx',        'a',  create_libcxx,      libcxx_symbols,      ['libcxxabi'], True),
                  ('libcxxabi',     'bc', create_libcxxabi,   libcxxabi_symbols,   ['libc'],      False),
-                 ('gl',            'bc', create_gl,          gl_symbols,          ['libc'],      False),
                  ('al',            'bc', create_al,          al_symbols,          ['libc'],      False),
                  ('html5',         'bc', create_html5,       html5_symbols,       ['html5'],     False),
                  ('compiler-rt',   'a',  create_compiler_rt, compiler_rt_symbols, ['libc'],      False),
