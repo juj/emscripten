@@ -1,6 +1,7 @@
 #include <EGL/egl.h>
 #include <emscripten/emscripten.h>
 #include <emscripten/html5.h>
+#include <emscripten/threading.h>
 
 // TODO: These should be thread local
 static EGLint eglError = EGL_SUCCESS;
@@ -490,6 +491,11 @@ EGLAPI EGLContext EGLAPIENTRY eglCreateContext(EGLDisplay dpy, EGLConfig config,
   attr.explicitSwapControl = ((EGLint)config & EM_EGL_EXPLICIT_SWAP_CONTROL_BIT) ? 1 : 0;
   attr.proxyContextToMainThread = ((EGLint)config & EM_EGL_PROXY_TO_MAIN_THREAD_BIT) ? 1 : 0;
   attr.renderViaOffscreenBackBuffer = ((EGLint)config & EM_EGL_RENDER_VIA_OFFSCREEN_BACK_BUFFER_BIT) ? 1 : 0;
+  if (!emscripten_supports_offscreencanvas() && !emscripten_is_main_browser_thread())
+  {
+    attr.proxyContextToMainThread = EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS;
+    attr.renderViaOffscreenBackBuffer = EM_TRUE;
+  }
   windowID = emscripten_webgl_create_context(0, &attr);
   eglError = windowID ? EGL_SUCCESS : EGL_BAD_MATCH;
   if (EGL_SUCCESS)
