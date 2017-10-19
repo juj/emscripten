@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include "webgl1.h"
+#include "webgl2.h"
 
 extern EMSCRIPTEN_WEBGL_CONTEXT_HANDLE emscripten_webgl_do_create_context(const char *target, const EmscriptenWebGLContextAttributes *attributes);
 extern EMSCRIPTEN_RESULT emscripten_webgl_do_make_context_current(EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context);
@@ -92,6 +93,13 @@ EMSCRIPTEN_RESULT EMSCRIPTEN_KEEPALIVE emscripten_webgl_commit_frame(void)
     return (EMSCRIPTEN_RESULT)emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_I, &emscripten_webgl_do_commit_frame);
 }
 
+static void *memdup(const void *ptr, size_t sz)
+{
+  void *dup = malloc(sz);
+  memcpy(dup, ptr, sz);
+  return dup;
+}
+
 ASYNC_GL_FUNCTION_1(EM_FUNC_SIG_VI, void, glActiveTexture, GLenum);
 ASYNC_GL_FUNCTION_2(EM_FUNC_SIG_VII, void, glAttachShader, GLuint, GLuint);
 VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glBindAttribLocation, GLuint, GLuint, const GLchar*);
@@ -104,8 +112,44 @@ ASYNC_GL_FUNCTION_1(EM_FUNC_SIG_VI, void, glBlendEquation, GLenum);
 ASYNC_GL_FUNCTION_2(EM_FUNC_SIG_VII, void, glBlendEquationSeparate, GLenum, GLenum);
 ASYNC_GL_FUNCTION_2(EM_FUNC_SIG_VII, void, glBlendFunc, GLenum, GLenum);
 ASYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glBlendFuncSeparate, GLenum, GLenum, GLenum, GLenum);
-VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glBufferData, GLenum, GLsizeiptr, const void *, GLenum);
-VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glBufferSubData, GLenum, GLintptr, GLsizeiptr, const void *);
+//VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glBufferData, GLenum, GLsizeiptr, const void *, GLenum);
+void glBufferData(GLenum target, GLsizeiptr size, const void *data, GLenum usage)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glBufferData(target, size, data, usage);
+  else
+  {
+    if (size < 256*1024) // run small buffer sizes asynchronously by copying
+    {
+      void *ptr = memdup(data, size);
+      emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIIII, &emscripten_glBufferData, ptr, target, size, ptr, usage);
+    }
+    else // larger ones run synchronously
+    {
+      emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VIIII, &emscripten_glBufferData, target, size, data, usage);
+    }
+  }
+}
+
+//VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glBufferSubData, GLenum, GLintptr, GLsizeiptr, const void *);
+void glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, const void *data)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glBufferSubData(target, offset, size, data);
+  else
+  {
+    if (size < 256*1024) // run small buffer sizes asynchronously by copying
+    {
+      void *ptr = memdup(data, size);
+      emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIIII, &emscripten_glBufferSubData, ptr, target, offset, size, ptr);
+    }
+    else // larger ones run synchronously
+    {
+      emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VIIII, &emscripten_glBufferSubData, target, offset, size, data);
+    }
+  }
+}
+
 RET_SYNC_GL_FUNCTION_1(EM_FUNC_SIG_II, GLenum, glCheckFramebufferStatus, GLenum);
 ASYNC_GL_FUNCTION_1(EM_FUNC_SIG_VI, void, glClear, GLbitfield);
 ASYNC_GL_FUNCTION_4(EM_FUNC_SIG_VFFFF, void, glClearColor, GLfloat, GLfloat, GLfloat, GLfloat);
@@ -202,30 +246,198 @@ ASYNC_GL_FUNCTION_1(EM_FUNC_SIG_VI, void, glStencilMask, GLuint);
 ASYNC_GL_FUNCTION_2(EM_FUNC_SIG_VII, void, glStencilMaskSeparate, GLenum, GLuint);
 ASYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glStencilOp, GLenum, GLenum, GLenum);
 ASYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glStencilOpSeparate, GLenum, GLenum, GLenum, GLenum);
-VOID_SYNC_GL_FUNCTION_9(EM_FUNC_SIG_VIIIIIIIII, void, glTexImage2D, GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, const void *);
+
+static ssize_t ImageSize(int width, int height, GLenum format, GLenum type)
+{
+  int numChannels;
+  switch(format)
+  {
+    case GL_ALPHA: case GL_LUMINANCE: case GL_DEPTH_COMPONENT: case GL_RED: case GL_RED_INTEGER: numChannels = 1; break;
+    case GL_RG: case GL_RG_INTEGER: numChannels = 2; break;
+    case GL_RGB: case 0x8C40/*GL_SRGB_EXT*/: case GL_RGB_INTEGER: numChannels = 3; break;
+    case GL_RGBA: case 0x8C42/*GL_SRGB_ALPHA_EXT*/: case GL_RGBA_INTEGER: numChannels = 4; break;
+    default: return -1;
+  }
+  int sizePerPixel;
+  switch(type)
+  {
+    case GL_UNSIGNED_BYTE: case GL_BYTE: sizePerPixel = numChannels; break;
+    case GL_UNSIGNED_SHORT: case 0x8D61/*GL_HALF_FLOAT_OES*/: case GL_HALF_FLOAT: case GL_SHORT: case GL_UNSIGNED_SHORT_5_6_5: case GL_UNSIGNED_SHORT_4_4_4_4: case GL_UNSIGNED_SHORT_5_5_5_1: sizePerPixel = numChannels*2; break;
+    case GL_UNSIGNED_INT: case GL_FLOAT: case GL_INT: case GL_UNSIGNED_INT_5_9_9_9_REV: case GL_UNSIGNED_INT_2_10_10_10_REV: case GL_UNSIGNED_INT_10F_11F_11F_REV: case GL_UNSIGNED_INT_24_8: sizePerPixel = numChannels*4; break;
+    default: return -1;
+  }
+  return width*height*sizePerPixel;
+}
+
+//VOID_SYNC_GL_FUNCTION_9(EM_FUNC_SIG_VIIIIIIIII, void, glTexImage2D, GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, const void *);
+void glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void *pixels)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
+  else
+  {
+    ssize_t sz = ImageSize(width, height, format, type);
+    if (!pixels || (sz >= 0 && sz < 256*1024)) // run small buffer sizes asynchronously by copying
+    {
+      void *ptr = pixels ? memdup(pixels, sz) : 0;
+      emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIIIIIIIII, &emscripten_glTexImage2D, ptr, target, level, internalformat, width, height, border, format, type, ptr);
+    }
+    else // larger ones run synchronously
+    {
+      emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VIIIIIIIII, &emscripten_glTexImage2D, target, level, internalformat, width, height, border, format, type, pixels);
+    }
+  }
+}
+
 ASYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIIF, void, glTexParameterf, GLenum, GLenum, GLfloat);
 VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glTexParameterfv, GLenum, GLenum, const GLfloat *);
-VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glTexParameteri, GLenum, GLenum, GLint);
+ASYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glTexParameteri, GLenum, GLenum, GLint);
 VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glTexParameteriv, GLenum, GLenum, const GLint *);
-VOID_SYNC_GL_FUNCTION_9(EM_FUNC_SIG_VIIIIIIIII, void, glTexSubImage2D, GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, const void *);
+//VOID_SYNC_GL_FUNCTION_9(EM_FUNC_SIG_VIIIIIIIII, void, glTexSubImage2D, GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, const void *);
+void glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
+  else
+  {
+    ssize_t sz = ImageSize(width, height, format, type);
+    if (!pixels || (sz >= 0 && sz < 256*1024)) // run small buffer sizes asynchronously by copying
+    {
+      void *ptr = pixels ? memdup(pixels, sz) : 0;
+      emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIIIIIIIII, &emscripten_glTexSubImage2D, ptr, target, level, xoffset, yoffset, width, height, format, type, ptr);
+    }
+    else // larger ones run synchronously
+    {
+      emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VIIIIIIIII, &emscripten_glTexSubImage2D, target, level, xoffset, yoffset, width, height, format, type, pixels);
+    }
+  }
+}
+
 ASYNC_GL_FUNCTION_2(EM_FUNC_SIG_VIF, void, glUniform1f, GLint, GLfloat);
-VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform1fv, GLint, GLsizei, const GLfloat *);
+//VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform1fv, GLint, GLsizei, const GLfloat *);
+void glUniform1fv(GLint location, GLsizei count, const GLfloat *value)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glUniform1fv(location, count, value);
+  else
+  {
+    void *ptr = memdup(value, sizeof(GLfloat)*count);
+    emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIII, &emscripten_glUniform1fv, ptr, location, count, (GLfloat*)ptr);
+  }
+}
+
 ASYNC_GL_FUNCTION_2(EM_FUNC_SIG_VII, void, glUniform1i, GLint, GLint);
-VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform1iv, GLint, GLsizei, const GLint *);
+//VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform1iv, GLint, GLsizei, const GLint *);
+void glUniform1iv(GLint location, GLsizei count, const GLint *value)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glUniform1iv(location, count, value);
+  else
+  {
+    void *ptr = memdup(value, sizeof(GLint)*count);
+    emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIII, &emscripten_glUniform1iv, ptr, location, count, (GLint*)ptr);
+  }
+}
 ASYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIFF, void, glUniform2f, GLint, GLfloat, GLfloat);
-VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform2fv, GLint, GLsizei, const GLfloat *);
+//VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform2fv, GLint, GLsizei, const GLfloat *);
+void glUniform2fv(GLint location, GLsizei count, const GLfloat *value)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glUniform2fv(location, count, value);
+  else
+  {
+    void *ptr = memdup(value, 2*sizeof(GLfloat)*count);
+    emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIII, &emscripten_glUniform2fv, ptr, location, count, (GLfloat*)ptr);
+  }
+}
+
 ASYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform2i, GLint, GLint, GLint);
-VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform2iv, GLint, GLsizei, const GLint *);
+//VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform2iv, GLint, GLsizei, const GLint *);
+void glUniform2iv(GLint location, GLsizei count, const GLint *value)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glUniform2iv(location, count, value);
+  else
+  {
+    void *ptr = memdup(value, 2*sizeof(GLint)*count);
+    emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIII, &emscripten_glUniform2iv, ptr, location, count, (GLint*)ptr);
+  }
+}
 ASYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIFFF, void, glUniform3f, GLint, GLfloat, GLfloat, GLfloat);
-VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform3fv, GLint, GLsizei, const GLfloat *);
+//VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform3fv, GLint, GLsizei, const GLfloat *);
+void glUniform3fv(GLint location, GLsizei count, const GLfloat *value)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glUniform3fv(location, count, value);
+  else
+  {
+    void *ptr = memdup(value, 3*sizeof(GLfloat)*count);
+    emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIII, &emscripten_glUniform3fv, ptr, location, count, (GLfloat*)ptr);
+  }
+}
+
 ASYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glUniform3i, GLint, GLint, GLint, GLint);
-VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform3iv, GLint, GLsizei, const GLint *);
+//VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform3iv, GLint, GLsizei, const GLint *);
+void glUniform3iv(GLint location, GLsizei count, const GLint *value)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glUniform3iv(location, count, value);
+  else
+  {
+    void *ptr = memdup(value, 3*sizeof(GLint)*count);
+    emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIII, &emscripten_glUniform3iv, ptr, location, count, (GLint*)ptr);
+  }
+}
 ASYNC_GL_FUNCTION_5(EM_FUNC_SIG_VIFFFF, void, glUniform4f, GLint, GLfloat, GLfloat, GLfloat, GLfloat);
-VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform4fv, GLint, GLsizei, const GLfloat *);
+//VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform4fv, GLint, GLsizei, const GLfloat *);
+void glUniform4fv(GLint location, GLsizei count, const GLfloat *value)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glUniform4fv(location, count, value);
+  else
+  {
+    void *ptr = memdup(value, 4*sizeof(GLfloat)*count);
+    emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIII, &emscripten_glUniform4fv, ptr, location, count, (GLfloat*)ptr);
+  }
+}
+
 ASYNC_GL_FUNCTION_5(EM_FUNC_SIG_VIIIII, void, glUniform4i, GLint, GLint, GLint, GLint, GLint);
-VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform4iv, GLint, GLsizei, const GLint *);
-VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glUniformMatrix2fv, GLint, GLsizei, GLboolean, const GLfloat *);
-VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glUniformMatrix3fv, GLint, GLsizei, GLboolean, const GLfloat *);
+//VOID_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glUniform4iv, GLint, GLsizei, const GLint *);
+void glUniform4iv(GLint location, GLsizei count, const GLint *value)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glUniform4iv(location, count, value);
+  else
+  {
+    void *ptr = memdup(value, 4*sizeof(GLint)*count);
+    emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIII, &emscripten_glUniform4iv, ptr, location, count, (GLint*)ptr);
+  }
+}
+
+//VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glUniformMatrix2fv, GLint, GLsizei, GLboolean, const GLfloat *);
+void glUniformMatrix2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glUniformMatrix2fv(location, count, transpose, value);
+  else
+  {
+    void *ptr = memdup(value, 2*2*sizeof(GLfloat)*count);
+    emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIIII, &emscripten_glUniformMatrix2fv, ptr, location, count, transpose, (GLfloat*)ptr);
+  }
+}
+
+//VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glUniformMatrix3fv, GLint, GLsizei, GLboolean, const GLfloat *);
+void glUniformMatrix3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+{
+  if (pthread_getspecific(currentThreadOwnsItsWebGLContext))
+    emscripten_glUniformMatrix3fv(location, count, transpose, value);
+  else
+  {
+    void *ptr = memdup(value, 3*3*sizeof(GLfloat)*count);
+    emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIIII, &emscripten_glUniformMatrix3fv, ptr, location, count, transpose, (GLfloat*)ptr);
+  }
+}
+
 //VOID_SYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glUniformMatrix4fv, GLint, GLsizei, GLboolean, const GLfloat *);
 void glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
 {
@@ -233,13 +445,8 @@ void glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, cons
     emscripten_glUniformMatrix4fv(location, count, transpose, value);
   else
   {
-    size_t sz = 4*4*sizeof(GLfloat)*count;
-    GLfloat *copiedValue = malloc(sz);
-    memcpy(copiedValue, value, sz);
-    void *context = pthread_getspecific(currentActiveWebGLContext);
-    void *owningThread = *(void**)(context + 4);
-    emscripten_async_queue_on_thread(owningThread, EM_FUNC_SIG_VIIII, &emscripten_glUniformMatrix4fv, copiedValue, location, count, transpose, copiedValue);
-//    emscripten_async_run_in_main_runtime_thread(EM_FUNC_SIG_VIIII, &emscripten_glUniformMatrix4fv, location, count, transpose, value);
+    void *ptr = memdup(value, 4*4*sizeof(GLfloat)*count);
+    emscripten_async_queue_on_thread(*(void**)(pthread_getspecific(currentActiveWebGLContext) + 4), EM_FUNC_SIG_VIIII, &emscripten_glUniformMatrix4fv, ptr, location, count, transpose, (GLfloat*)ptr);
   }
 }
 ASYNC_GL_FUNCTION_1(EM_FUNC_SIG_VI, void, glUseProgram, GLuint);
