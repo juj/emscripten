@@ -766,6 +766,8 @@ var IN_TEST_HARNESS = 0; // If true, the current build is performed for the Emsc
 
 var USE_PTHREADS = 0; // If true, enables support for pthreads.
 
+var PTHREADS_DEBUG = 0;
+
 var PTHREAD_POOL_SIZE = 0; // Specifies the number of web workers that are preallocated before runtime is initialized. If 0, workers are created on demand.
 
 // Specifies the value returned by the function emscripten_num_logical_cores()
