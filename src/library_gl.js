@@ -2426,13 +2426,11 @@ var LibraryGL = {
     emscriptenWebGLGetIndexed(target, index, data, 'Integer');
   },
 
-#if USE_WEBGL2
   glGetInteger64i_v__sig: 'viii',
   glGetInteger64i_v__deps: ['$emscriptenWebGLGetIndexed'],
   glGetInteger64i_v: function(target, index, data) {
     emscriptenWebGLGetIndexed(target, index, data, 'Integer64');
   },
-#endif
 
   // Uniform Buffer objects
   glBindBufferBase__sig: 'viii',
