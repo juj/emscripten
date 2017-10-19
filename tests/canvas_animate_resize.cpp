@@ -11,8 +11,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-//#define TEST_TRANSFER_CANVAS_TO_PTHREAD
-//  - If set, transfer the main canvas element to pthread as an OffscreenCanvas. If unset, resort to proxying WebGL
 //#define TEST_EXPLICIT_CONTEXT_SWAP
 //  - If set, test WebGL context creation .explicitSwapControl=true and call emscripten_webgl_commit_frame() to swap. Otherwise utilize implicit swapping.
 //#define TEST_EMSCRIPTEN_SET_MAIN_LOOP
@@ -29,14 +27,6 @@
 #endif
 
 #define NUM_FRAMES_TO_RENDER 100
-
-#if TEST_TRANSFER_CANVAS_TO_PTHREAD
-// Test using OffscreenCanvas API
-#define EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES "#canvas"
-#else
-// Test -s PROXY_TO_PTHREAD=1 with WebGL proxying to main thread
-#define EMSCRIPTEN_PTHREAD_TRANSFERRED_CANVASES ""
-#endif
 
 GLuint vb;
 int program;
@@ -139,7 +129,7 @@ int main()
   printf("Created context with handle %u\n", (unsigned int)ctx);
   if (!ctx)
   {
-    THREAD_LOCAL_EM_ASM({
+    EM_ASM({
       if (typeof OffscreenCanvas === 'undefined') {
         xhr = new XMLHttpRequest();
         xhr.open('GET', 'http://localhost:8888/report_result?skipped:%20OffscreenCanvas%20is%20not%20supported!');
