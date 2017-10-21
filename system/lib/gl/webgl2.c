@@ -126,5 +126,11 @@ GL_APICALL void GL_APIENTRY glDrawElementsInstancedNV(GLenum mode, GLsizei count
 GL_APICALL void GL_APIENTRY glDrawElementsInstancedEXT(GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount) { glDrawElementsInstanced(mode, count, type, indices, instancecount); }
 GL_APICALL void GL_APIENTRY glDrawElementsInstancedARB(GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount) { glDrawElementsInstanced(mode, count, type, indices, instancecount); }
 GL_APICALL void GL_APIENTRY glDrawElementsInstancedANGLE(GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount) { glDrawElementsInstanced(mode, count, type, indices, instancecount); }
+GL_APICALL void GL_APIENTRY glBindVertexArrayOES(GLuint array) { glBindVertexArray(array); }
+GL_APICALL void GL_APIENTRY glDeleteVertexArraysOES(GLsizei n, const GLuint *arrays) { glDeleteVertexArrays(n, arrays); }
+GL_APICALL void GL_APIENTRY glGenVertexArraysOES(GLsizei n, GLuint *arrays) { glGenVertexArrays(n, arrays); }
+GL_APICALL GLboolean GL_APIENTRY glIsVertexArrayOES(GLuint array) { return glIsVertexArray(array); }
+GL_APICALL void GL_APIENTRY glDrawBuffersEXT(GLsizei n, const GLenum *bufs) { glDrawBuffers(n, bufs); }
+GL_APICALL void GL_APIENTRY glDrawBuffersWEBGL(GLsizei n, const GLenum *bufs) { glDrawBuffers(n, bufs); }
 
 #endif // ~__EMSCRIPTEN_PTHREADS__
