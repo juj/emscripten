@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include "webgl1.h"
+#include "webgl1_ext.h"
 #include "webgl2.h"
 
 extern EMSCRIPTEN_WEBGL_CONTEXT_HANDLE emscripten_webgl_do_create_context(const char *target, const EmscriptenWebGLContextAttributes *attributes);
@@ -467,5 +468,17 @@ VOID_SYNC_GL_FUNCTION_6(EM_FUNC_SIG_VIIIIII, void, glVertexAttribPointer, GLuint
 ASYNC_GL_FUNCTION_6(EM_FUNC_SIG_VIIIIII, void, glVertexAttribPointer, GLuint, GLint, GLenum, GLboolean, GLsizei, const void *);
 #endif
 ASYNC_GL_FUNCTION_4(EM_FUNC_SIG_VIIII, void, glViewport, GLint, GLint, GLsizei, GLsizei);
+
+VOID_SYNC_GL_FUNCTION_2(EM_FUNC_SIG_VII, void, glGenQueriesEXT, GLsizei, GLuint *);
+VOID_SYNC_GL_FUNCTION_2(EM_FUNC_SIG_VII, void, glDeleteQueriesEXT, GLsizei, const GLuint *);
+RET_SYNC_GL_FUNCTION_1(EM_FUNC_SIG_II, GLboolean, glIsQueryEXT, GLuint);
+ASYNC_GL_FUNCTION_2(EM_FUNC_SIG_VII, void, glBeginQueryEXT, GLenum, GLuint);
+ASYNC_GL_FUNCTION_1(EM_FUNC_SIG_VI, void, glEndQueryEXT, GLenum);
+ASYNC_GL_FUNCTION_2(EM_FUNC_SIG_VII, void, glQueryCounterEXT, GLuint, GLenum);
+RET_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glGetQueryivEXT, GLenum, GLenum, GLint *);
+RET_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glGetQueryObjectivEXT, GLenum, GLenum, GLint *);
+RET_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glGetQueryObjectuivEXT, GLenum, GLenum, GLuint *);
+RET_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glGetQueryObjecti64vEXT, GLenum, GLenum, GLint64 *);
+RET_SYNC_GL_FUNCTION_3(EM_FUNC_SIG_VIII, void, glGetQueryObjectui64vEXT, GLenum, GLenum, GLuint64 *);
 
 #endif // ~__EMSCRIPTEN_PTHREADS__
