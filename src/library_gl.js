@@ -7497,6 +7497,7 @@ var LibraryGL = {
   glGenVertexArraysOES: 'glGenVertexArrays',
   glDeleteVertexArraysOES: 'glDeleteVertexArrays',
   glBindVertexArrayOES: 'glBindVertexArray',
+  glIsVertexArrayOES: 'glIsVertexArray',
 
   // GLU
 
@@ -7791,6 +7792,7 @@ var LibraryGL = {
   // OpenGL ES 2.0 draw buffer extensions compatibility
 
   glDrawBuffersEXT: 'glDrawBuffers',
+  glDrawBuffersWEBGL: 'glDrawBuffers',
 
   // passthrough functions with GLboolean parameters
 
