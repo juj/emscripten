@@ -703,11 +703,11 @@ static void print_stream(void *bytes, int numBytes, bool stdout)
 			buffer[i] = 0;
 			if (stdout)
 			{
-				EM_ASM_INT( { Module['print'](Pointer_stringify($0)) }, buffer+new_buffer_start);
+				EM_ASM( { Module['print'](Pointer_stringify($0)) }, buffer+new_buffer_start);
 			}
 			else
 			{
-				EM_ASM_INT( { Module['printErr'](Pointer_stringify($0)) }, buffer+new_buffer_start);
+				EM_ASM( { Module['printErr'](Pointer_stringify($0)) }, buffer+new_buffer_start);
 			}
 			new_buffer_start = i+1;
 		}
@@ -716,14 +716,9 @@ static void print_stream(void *bytes, int numBytes, bool stdout)
 	memmove(buffer, buffer + new_buffer_start, new_buffer_size);
 	buffer_end = new_buffer_size;
 */
-	if (stdout)
-	{
-		EM_ASM_INT( { Module['writeOut'](1, $0, $1) }, bytes, numBytes);
-	}
-	else
-	{
-		EM_ASM_INT( { Module['writeOut'](2, $0, $1) }, bytes, numBytes);
-	}
+	int fd = stdout ? 1 : 2;
+
+	MAIN_THREAD_EM_ASM({ Module['writeOut']($0, $1, $2) }, fd, bytes, numBytes);
 }
 
 long __syscall3(int which, ...) // read
