@@ -323,7 +323,7 @@ static inode *create_directory_hierarchy_for_file(inode *root, const char *path_
 		path_to_file += strcpy_inodename(node->name, path_to_file) + 1;
 		link_inode(node, root);
 //		EM_ASM(Module['print']('create_directory_hierarchy_for_file: created directory ' + Pointer_stringify($0) + ' under parent ' + Pointer_stringify($1) + '.'), 
-			node->name, node->parent->name);
+//			node->name, node->parent->name);
 		root = node;
 	}
 	return root;
@@ -770,7 +770,7 @@ emscripten_asmfs_open_t emscripten_asmfs_get_file_open_behavior()
 static long open(const char *pathname, int flags, int mode)
 {
 //	EM_ASM(Module['printErr']('open(pathname="' + Pointer_stringify($0) + '", flags=0x' + ($1).toString(16) + ', mode=0' + ($2).toString(8) + ')'),
-		pathname, flags, mode);
+//		pathname, flags, mode);
 
 	int accessMode = (flags & O_ACCMODE);
 
@@ -1357,7 +1357,7 @@ long __syscall140(int which, ...) // llseek
 	unsigned int whence = va_arg(vl, unsigned int);
 	va_end(vl);
 //	EM_ASM(Module['printErr']('llseek(fd=' + $0 + ', offset_high=' + $1 + ', offset_low=' + $2 + ', result=0x' + ($3).toString(16) + ', whence=' + $4 + ')'),
-		fd, offset_high, offset_low, result, whence);
+//		fd, offset_high, offset_low, result, whence);
 
 	FileDescriptor *desc = (FileDescriptor*)fd;
 	if (!desc || desc->magic != EM_FILEDESCRIPTOR_MAGIC) RETURN_ERRNO(EBADF, "fd isn't a valid open file descriptor");
