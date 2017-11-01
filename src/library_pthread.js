@@ -338,7 +338,11 @@ var LibraryPThread = {
           } else if (d.cmd === 'alert') {
             alert('Thread ' + d.threadId + ': ' + d.text);
           } else if (d.cmd === 'exit') {
-            // currently no-op
+            // Thread is exiting, no-op here
+          } else if (d.cmd === 'exitProcess') {
+            // A pthread has requested to exit the whole application process (runtime).
+            Module['noExitRuntime'] = false;
+            exit(d.returnCode);
           } else if (d.cmd === 'cancelDone') {
             PThread.freeThreadData(worker.pthread);
             worker.pthread = undefined; // Detach the worker from the pthread object, and return it to the worker pool as an unused worker.
@@ -1086,7 +1090,9 @@ var LibraryPThread = {
   },
 
   __call_main: function(argc, argv) {
-    return _main(argc, argv);
+    var returnCode = _main(argc, argv);
+    if (!Module['noExitRuntime']) postMessage({ cmd: 'exitProcess', returnCode: returnCode });
+    return returnCode;
   },
 
   emscripten_conditional_set_current_thread_status_js: function(expectedStatus, newStatus) {
