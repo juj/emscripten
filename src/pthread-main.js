@@ -32,9 +32,9 @@ var Module = {};
 this.addEventListener('error', function(e) {
   if (e.message.indexOf('SimulateInfiniteLoop') != -1) return e.preventDefault();
 
-  var errorSource = ' in ' + e.filename + ':' + e.lineno + ':' + e.colno;
-  console.error('Pthread ' + selfThreadId + ' uncaught exception' + (e.filename || e.lineno || e.colno ? errorSource : '') + ': ' + e.message + '. Error object:');
-  console.error(e.error);
+    var errorSource = ' in ' + e.filename + ':' + e.lineno + ':' + e.colno;
+    console.error('Pthread ' + selfThreadId + ' uncaught exception' + (e.filename || e.lineno || e.colno ? errorSource : '') + ': ' + e.message + '. Error object:');
+    console.error(e.error);
 });
 
 function threadPrint() {
@@ -64,96 +64,98 @@ Module['instantiateWasm'] = function(info, receiveInstance) {
 
 this.onmessage = function(e) {
   try {
-    if (e.data.cmd === 'load') { // Preload command that is called once per worker to parse and load the Emscripten code.
-      // Initialize the thread-local field(s):
-      tempDoublePtr = e.data.tempDoublePtr;
+  if (e.data.cmd === 'load') { // Preload command that is called once per worker to parse and load the Emscripten code.
+    // Initialize the thread-local field(s):
+    tempDoublePtr = e.data.tempDoublePtr;
 
-      // Initialize the global "process"-wide fields:
-      Module['TOTAL_MEMORY'] = TOTAL_MEMORY = e.data.TOTAL_MEMORY;
-      STATICTOP = e.data.STATICTOP;
-      DYNAMIC_BASE = e.data.DYNAMIC_BASE;
-      DYNAMICTOP_PTR = e.data.DYNAMICTOP_PTR;
+    // Initialize the global "process"-wide fields:
+    Module['TOTAL_MEMORY'] = TOTAL_MEMORY = e.data.TOTAL_MEMORY;
+    STATICTOP = e.data.STATICTOP;
+    DYNAMIC_BASE = e.data.DYNAMIC_BASE;
+    DYNAMICTOP_PTR = e.data.DYNAMICTOP_PTR;
 
 
-      if (e.data.wasmModule) {
-        // Module and memory were sent from main thread
-        Module['wasmModule'] = e.data.wasmModule;
-        Module['wasmMemory'] = e.data.wasmMemory;
-        buffer = Module['wasmMemory'].buffer;
-      } else {
-        buffer = e.data.buffer;
-      }
+    if (e.data.wasmModule) {
+      // Module and memory were sent from main thread
+      Module['wasmModule'] = e.data.wasmModule;
+      Module['wasmMemory'] = e.data.wasmMemory;
+      buffer = Module['wasmMemory'].buffer;
+    } else {
+      buffer = e.data.buffer;
+    }
 
-      PthreadWorkerInit = e.data.PthreadWorkerInit;
-      if (typeof e.data.urlOrBlob === 'string') {
-        importScripts(e.data.urlOrBlob);
-      } else {
-        var objectUrl = URL.createObjectURL(e.data.urlOrBlob);
-        importScripts(objectUrl);
-        URL.revokeObjectURL(objectUrl);
-      }
+    PthreadWorkerInit = e.data.PthreadWorkerInit;
+    if (typeof e.data.urlOrBlob === 'string') {
+      importScripts(e.data.urlOrBlob);
+    } else {
+      var objectUrl = URL.createObjectURL(e.data.urlOrBlob);
+      importScripts(objectUrl);
+      URL.revokeObjectURL(objectUrl);
+    }
 //#if !ASMFS
       if (typeof FS !== 'undefined' && typeof FS.createStandardStreams === 'function') FS.createStandardStreams();
 //#endif
-      postMessage({ cmd: 'loaded' });
-    } else if (e.data.cmd === 'objectTransfer') {
-      PThread.receiveObjectTransfer(e.data);
-    } else if (e.data.cmd === 'run') { // This worker was idle, and now should start executing its pthread entry point.
-      threadInfoStruct = e.data.threadInfoStruct;
-      __register_pthread_ptr(threadInfoStruct, /*isMainBrowserThread=*/0, /*isMainRuntimeThread=*/0); // Pass the thread address inside the asm.js scope to store it for fast access that avoids the need for a FFI out.
+    postMessage({ cmd: 'loaded' });
+  } else if (e.data.cmd === 'objectTransfer') {
+    PThread.receiveObjectTransfer(e.data);
+  } else if (e.data.cmd === 'run') { // This worker was idle, and now should start executing its pthread entry point.
+    threadInfoStruct = e.data.threadInfoStruct;
+    __register_pthread_ptr(threadInfoStruct, /*isMainBrowserThread=*/0, /*isMainRuntimeThread=*/0); // Pass the thread address inside the asm.js scope to store it for fast access that avoids the need for a FFI out.
       assert(threadInfoStruct);
-      selfThreadId = e.data.selfThreadId;
-      parentThreadId = e.data.parentThreadId;
-      assert(selfThreadId);
-      assert(parentThreadId);
-      // TODO: Emscripten runtime has these variables twice(!), once outside the asm.js module, and a second time inside the asm.js module.
-      //       Review why that is? Can those get out of sync?
-      STACK_BASE = STACKTOP = e.data.stackBase;
-      STACK_MAX = STACK_BASE + e.data.stackSize;
-      assert(STACK_BASE != 0);
-      assert(STACK_MAX > STACK_BASE);
-      Runtime.establishStackSpace(e.data.stackBase, e.data.stackBase + e.data.stackSize);
-      var result = 0;
+    selfThreadId = e.data.selfThreadId;
+    parentThreadId = e.data.parentThreadId;
+    assert(selfThreadId);
+    assert(parentThreadId);
+    // TODO: Emscripten runtime has these variables twice(!), once outside the asm.js module, and a second time inside the asm.js module.
+    //       Review why that is? Can those get out of sync?
+    STACK_BASE = STACKTOP = e.data.stackBase;
+    STACK_MAX = STACK_BASE + e.data.stackSize;
+    assert(STACK_BASE != 0);
+    assert(STACK_MAX > STACK_BASE);
+    Runtime.establishStackSpace(e.data.stackBase, e.data.stackBase + e.data.stackSize);
+    var result = 0;
 //#if STACK_OVERFLOW_CHECK
-      if (typeof writeStackCookie === 'function') writeStackCookie();
+    if (typeof writeStackCookie === 'function') writeStackCookie();
 //#endif
 
-      PThread.receiveObjectTransfer(e.data);
+    PThread.receiveObjectTransfer(e.data);
 
-      PThread.setThreadStatus(_pthread_self(), 1/*EM_THREAD_STATUS_RUNNING*/);
+    PThread.setThreadStatus(_pthread_self(), 1/*EM_THREAD_STATUS_RUNNING*/);
 
-      try {
-        // HACK: Some code in the wild has instead signatures of form 'void *ThreadMain()', which seems to be ok in native code.
-        // To emulate supporting both in test suites, use the following form. This is brittle!
-        if (typeof Module['asm']['dynCall_ii'] !== 'undefined') {
-          result = Module['asm'].dynCall_ii(e.data.start_routine, e.data.arg); // pthread entry points are always of signature 'void *ThreadMain(void *arg)'
-        } else {
-          result = Module['asm'].dynCall_i(e.data.start_routine); // as a hack, try signature 'i' as fallback.
-        }
+    try {
+      // pthread entry points are always of signature 'void *ThreadMain(void *arg)'
+      // Native codebases sometimes spawn threads with other thread entry point signatures,
+      // such as void ThreadMain(void *arg), void *ThreadMain(), or void ThreadMain().
+      // That is not acceptable per C/C++ specification, but x86 compiler ABI extensions
+      // enable that to work. If you find the following line to crash, either change the signature
+      // to "proper" void *ThreadMain(void *arg) form, or try linking with the Emscripten linker
+      // flag -s EMULATE_FUNCTION_POINTER_CASTS=1 to add in emulation for this x86 ABI extension.
+      result = Module['asm'].dynCall_ii(e.data.start_routine, e.data.arg);
+
 //#if STACK_OVERFLOW_CHECK
-        if (typeof checkStackCookie === 'function') checkStackCookie();
+      if (typeof checkStackCookie === 'function') checkStackCookie();
 //#endif
 
-      } catch(e) {
-        if (e === 'Canceled!') {
-          PThread.threadCancel();
-          return;
+    } catch(e) {
+      if (e === 'Canceled!') {
+        PThread.threadCancel();
+        return;
       } else if (e === 'SimulateInfiniteLoop') {
         return;
-        } else {
+      } else {
         Atomics.store(HEAPU32, (threadInfoStruct + 4 /*{{{ C_STRUCTS.pthread.threadExitCode }}}*/ ) >> 2, (e instanceof ExitStatus) ? e.status : -2 /*A custom entry specific to Emscripten denoting that the thread crashed.*/);
-          Atomics.store(HEAPU32, (threadInfoStruct + 0 /*{{{ C_STRUCTS.pthread.threadStatus }}}*/ ) >> 2, 1); // Mark the thread as no longer running.
+        Atomics.store(HEAPU32, (threadInfoStruct + 0 /*{{{ C_STRUCTS.pthread.threadStatus }}}*/ ) >> 2, 1); // Mark the thread as no longer running.
         _emscripten_futex_wake(threadInfoStruct + 0 /*{{{ C_STRUCTS.pthread.threadStatus }}}*/, 0x7FFFFFFF/*INT_MAX*/); // Wake all threads waiting on this thread to finish.
         if (!(e instanceof ExitStatus)) throw e;
-        }
       }
-      // The thread might have finished without calling pthread_exit(). If so, then perform the exit operation ourselves.
-      // (This is a no-op if explicit pthread_exit() had been called prior.)
+    }
+    // The thread might have finished without calling pthread_exit(). If so, then perform the exit operation ourselves.
+    // (This is a no-op if explicit pthread_exit() had been called prior.)
       if (!Module['noExitRuntime']) PThread.threadExit(result);
       else console.log('pthread noExitRuntime: not quitting.');
-    } else if (e.data.cmd === 'cancel') { // Main thread is asking for a pthread_cancel() on this thread.
-      if (threadInfoStruct && PThread.thisThreadCancelState == 0/*PTHREAD_CANCEL_ENABLE*/) {
-        PThread.threadCancel();
+  } else if (e.data.cmd === 'cancel') { // Main thread is asking for a pthread_cancel() on this thread.
+    if (threadInfoStruct && PThread.thisThreadCancelState == 0/*PTHREAD_CANCEL_ENABLE*/) {
+      PThread.threadCancel();
       }
   } else if (e.data.target === 'setimmediate') {
     // no-op
@@ -161,10 +163,10 @@ this.onmessage = function(e) {
     if (threadInfoStruct) { // If this thread is actually running?
       _emscripten_current_thread_process_queued_calls();
     }
-    } else {
-      Module['printErr']('pthread-main.js received unknown command ' + e.data.cmd);
-      console.error(e.data);
-    }
+  } else {
+    Module['printErr']('pthread-main.js received unknown command ' + e.data.cmd);
+    console.error(e.data);
+  }
   } catch(e) {
     console.error('pthread-main.js onmessage() captured an uncaught exception: ' + e);
     console.error(e.stack);
