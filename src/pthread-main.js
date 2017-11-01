@@ -123,13 +123,15 @@ this.onmessage = function(e) {
     PThread.setThreadStatus(_pthread_self(), 1/*EM_THREAD_STATUS_RUNNING*/);
 
     try {
-      // HACK: Some code in the wild has instead signatures of form 'void *ThreadMain()', which seems to be ok in native code.
-      // To emulate supporting both in test suites, use the following form. This is brittle!
-      if (typeof Module['asm']['dynCall_ii'] !== 'undefined') {
-        result = Module['asm'].dynCall_ii(e.data.start_routine, e.data.arg); // pthread entry points are always of signature 'void *ThreadMain(void *arg)'
-      } else {
-        result = Module['asm'].dynCall_i(e.data.start_routine); // as a hack, try signature 'i' as fallback.
-      }
+      // pthread entry points are always of signature 'void *ThreadMain(void *arg)'
+      // Native codebases sometimes spawn threads with other thread entry point signatures,
+      // such as void ThreadMain(void *arg), void *ThreadMain(), or void ThreadMain().
+      // That is not acceptable per C/C++ specification, but x86 compiler ABI extensions
+      // enable that to work. If you find the following line to crash, either change the signature
+      // to "proper" void *ThreadMain(void *arg) form, or try linking with the Emscripten linker
+      // flag -s EMULATE_FUNCTION_POINTER_CASTS=1 to add in emulation for this x86 ABI extension.
+      result = Module['asm'].dynCall_ii(e.data.start_routine, e.data.arg);
+
 //#if STACK_OVERFLOW_CHECK
       if (typeof checkStackCookie === 'function') checkStackCookie();
 //#endif
