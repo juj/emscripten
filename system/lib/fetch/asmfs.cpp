@@ -1406,7 +1406,7 @@ void EMSCRIPTEN_KEEPALIVE writeStdin(char *buf, int numBytes)
 	stdinBufferUsed += numBytes;
 	pthread_mutex_unlock(&stdinMutex);
 //	EM_ASM_INT({ Module['printErr']('stdinBufferUsed='+$0+', waking up all threads.') }, stdinBufferUsed);
-	emscripten_futex_wake(&stdinBufferUsed, 0x7FFFFFFFLL);
+	emscripten_futex_wake(&stdinBufferUsed, 0x7FFFFFFF);
 }
 
 static int readStdin(char *dst, int numBytes)
