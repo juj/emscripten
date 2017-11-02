@@ -1,15 +1,15 @@
 from __future__ import print_function
-from toolchain_profiler import ToolchainProfiler
-import shutil, time, os, sys, base64, json, tempfile, copy, shlex, atexit, subprocess, hashlib, cPickle, re, errno
+from .toolchain_profiler import ToolchainProfiler
+import shutil, time, os, sys, base64, json, tempfile, copy, shlex, atexit, subprocess, hashlib, pickle, re, errno
 from subprocess import Popen, PIPE, STDOUT
 from tempfile import mkstemp
 from distutils.spawn import find_executable
-import jsrun, cache, tempfiles
-import response_file
+from . import jsrun, cache, tempfiles
+from . import response_file
 import logging, platform, multiprocessing
 
 # Temp file utilities
-from tempfiles import try_delete
+from .tempfiles import try_delete
 
 # On Windows python suffers from a particularly nasty bug if python is spawning new processes while python itself is spawned from some other non-console process.
 # Use a custom replacement for Popen on Windows to avoid the "WindowsError: [Error 6] The handle is invalid" errors when emcc is driven through cmake or mingw32-make.
@@ -46,7 +46,7 @@ class WindowsPopen(object):
       # Call the process with fixed streams.
       self.process = subprocess.Popen(args, bufsize, executable, self.stdin_, self.stdout_, self.stderr_, preexec_fn, close_fds, shell, cwd, env, universal_newlines, startupinfo, creationflags)
       self.pid = self.process.pid
-    except Exception, e:
+    except Exception as e:
       logging.error('\nsubprocess.Popen(args=%s) failed! Exception %s\n' % (' '.join(args), str(e)))
       raise e
 
@@ -262,7 +262,7 @@ This command will now exit. When you are done editing those paths, re-run it.
 try:
   config_text = open(CONFIG_FILE, 'r').read() if CONFIG_FILE else EM_CONFIG
   exec(config_text)
-except Exception, e:
+except Exception as e:
   logging.error('Error in evaluating %s (at %s): %s, text: %s' % (EM_CONFIG, CONFIG_FILE, str(e), config_text))
   sys.exit(1)
 
@@ -278,7 +278,7 @@ def listify(x):
 
 def fix_js_engine(old, new):
   global JS_ENGINES
-  JS_ENGINES = map(lambda x: new if x == old else x, JS_ENGINES)
+  JS_ENGINES = [new if x == old else x for x in JS_ENGINES]
   return new
 
 try:
@@ -346,7 +346,7 @@ def check_clang_version():
 def check_llvm_version():
   try:
     check_clang_version()
-  except Exception, e:
+  except Exception as e:
     logging.critical('Could not verify LLVM version: %s' % str(e))
 
 # look for emscripten-version.txt files under or alongside the llvm source dir
@@ -371,7 +371,7 @@ def get_llc_targets():
     llc_version_info = Popen([LLVM_COMPILER, '--version'], stdout=PIPE).communicate()[0]
     pre, targets = llc_version_info.split('Registered Targets:')
     return targets
-  except Exception, e:
+  except Exception as e:
     return '(no targets could be identified: ' + str(e) + ')'
 
 def has_asm_js_target(targets):
@@ -427,7 +427,7 @@ def check_fastcomp():
           logging.error('Make sure to rebuild llvm and clang after updating repos')
 
     return True
-  except Exception, e:
+  except Exception as e:
     logging.warning('could not check fastcomp: %s' % str(e))
     return True
 
@@ -442,7 +442,7 @@ def check_node_version():
       return True
     logging.warning('node version appears too old (seeing "%s", expected "%s")' % (actual, 'v' + ('.'.join(map(str, EXPECTED_NODE_VERSION)))))
     return False
-  except Exception, e:
+  except Exception as e:
     logging.warning('cannot check node version: %s',  e)
     return False
 
@@ -484,17 +484,17 @@ def get_emscripten_version(path):
 try:
   EMSCRIPTEN_VERSION = get_emscripten_version(path_from_root('emscripten-version.txt'))
   try:
-    parts = map(int, EMSCRIPTEN_VERSION.split('.'))
+    parts = list(map(int, EMSCRIPTEN_VERSION.split('.')))
     EMSCRIPTEN_VERSION_MAJOR = parts[0]
     EMSCRIPTEN_VERSION_MINOR = parts[1]
     EMSCRIPTEN_VERSION_TINY = parts[2]
-  except Exception, e:
+  except Exception as e:
     logging.warning('emscripten version ' + EMSCRIPTEN_VERSION + ' lacks standard parts')
     EMSCRIPTEN_VERSION_MAJOR = 0
     EMSCRIPTEN_VERSION_MINOR = 0
     EMSCRIPTEN_VERSION_TINY = 0
     raise e
-except Exception, e:
+except Exception as e:
   logging.error('cannot find emscripten version ' + str(e))
   EMSCRIPTEN_VERSION = 'unknown'
 
@@ -525,7 +525,7 @@ def check_sanity(force=False):
               reason = 'system change: %s vs %s' % (generate_sanity(), sanity_data)
             else:
               if not force: return # all is well
-        except Exception, e:
+        except Exception as e:
           reason = 'unknown: ' + str(e)
     if reason:
       logging.warning('(Emscripten: %s, clearing cache)' % reason)
@@ -581,7 +581,7 @@ def check_sanity(force=False):
       f.write(generate_sanity())
       f.close()
 
-  except Exception, e:
+  except Exception as e:
     # Any error here is not worth failing on
     print('WARNING: sanity check failed to run', e)
   finally:
@@ -756,7 +756,7 @@ FILE_PACKAGER = path_from_root('tools', 'file_packager.py')
 def safe_ensure_dirs(dirname):
   try:
     os.makedirs(dirname)
-  except os.error, e:
+  except os.error as e:
     # Ignore error for already existing dirname
     if e.errno != errno.EEXIST:
       raise e
@@ -852,7 +852,7 @@ class Configuration(object):
       try:
         self.EMSCRIPTEN_TEMP_DIR = self.CANONICAL_TEMP_DIR
         safe_ensure_dirs(self.EMSCRIPTEN_TEMP_DIR)
-      except Exception, e:
+      except Exception as e:
         logging.error(str(e) + 'Could not create canonical temp dir. Check definition of TEMP_DIR in ' + hint_config_file_location())
 
   def get_temp_files(self):
@@ -883,7 +883,7 @@ try:
 except:
   try:
     JS_ENGINES = [JS_ENGINE]
-  except Exception, e:
+  except Exception as e:
     print('ERROR: %s does not seem to have JS_ENGINES or JS_ENGINE set up' % EM_CONFIG)
     raise
 
@@ -946,7 +946,7 @@ def check_vanilla():
         logging.debug('regenerating vanilla check since other llvm')
         temp_cache.get('is_vanilla', get_vanilla_file, extension='.txt', force=True)
         is_vanilla = check_vanilla()
-    except Exception, e:
+    except Exception as e:
       logging.debug('failed to use vanilla file, will re-check: ' + str(e))
       is_vanilla = check_vanilla()
     temp_cache = None
@@ -1119,7 +1119,7 @@ def unique_ordered(values): # return a list of unique values in an input list, w
     if value in seen: return False
     seen.add(value)
     return True
-  return filter(check, values)
+  return list(filter(check, values))
 
 def expand_response(data):
   if type(data) == str and data[0] == '@':
@@ -1176,7 +1176,7 @@ class Settings2(type):
     @classmethod
     def serialize(self):
       ret = []
-      for key, value in self.attrs.iteritems():
+      for key, value in self.attrs.items():
         if key == key.upper(): # this is a hack. all of our settings are ALL_CAPS, python internals are not
           jsoned = json.dumps(value, sort_keys=True)
           ret += ['-s', key + '=' + jsoned]
@@ -1206,7 +1206,7 @@ class Settings2(type):
       if attr not in self.attrs:
         import difflib
         logging.warning('''Assigning a non-existent settings attribute "%s"''' % attr)
-        suggestions = ', '.join(difflib.get_close_matches(attr, self.attrs.keys()))
+        suggestions = ', '.join(difflib.get_close_matches(attr, list(self.attrs.keys())))
         if suggestions:
           logging.warning(''' - did you mean one of %s?''' % suggestions)
         logging.warning(''' - perhaps a typo in emcc's  -s X=Y  notation?''')
@@ -1251,7 +1251,7 @@ def extract_archive_contents(f):
     temp_dir = tempfile.mkdtemp('_archive_contents', 'emscripten_temp_')
     safe_ensure_dirs(temp_dir)
     os.chdir(temp_dir)
-    contents = filter(lambda x: len(x) > 0, Popen([LLVM_AR, 't', f], stdout=PIPE).communicate()[0].split('\n'))
+    contents = [x for x in Popen([LLVM_AR, 't', f], stdout=PIPE).communicate()[0].split('\n') if len(x) > 0]
     warn_if_duplicate_entries(contents, f)
     if len(contents) == 0:
       logging.debug('Archive %s appears to be empty (recommendation: link an .so instead of .a)' % f)
@@ -1269,8 +1269,8 @@ def extract_archive_contents(f):
         safe_ensure_dirs(dirname)
     proc = Popen([LLVM_AR, 'xo', f], stdout=PIPE, stderr=PIPE)
     stdout, stderr = proc.communicate() # if absolute paths, files will appear there. otherwise, in this directory
-    contents = map(os.path.abspath, contents)
-    nonexisting_contents = filter(lambda x: not os.path.exists(x), contents)
+    contents = list(map(os.path.abspath, contents))
+    nonexisting_contents = [x for x in contents if not os.path.exists(x)]
     if len(nonexisting_contents) != 0:
       raise Exception('llvm-ar failed to extract file(s) ' + str(nonexisting_contents) + ' from archive file ' + f + '! Error:' + str(stdout) + str(stderr))
 
@@ -1279,7 +1279,7 @@ def extract_archive_contents(f):
       'dir': temp_dir,
       'files': contents
     }
-  except Exception, e:
+  except Exception as e:
     print('extract archive contents('+str(f)+') failed with error: ' + str(e), file=sys.stderr)
   finally:
     os.chdir(cwd)
@@ -1365,7 +1365,7 @@ class Building(object):
             Building.multiprocessing_pool.terminate()
             Building.multiprocessing_pool.join()
             Building.multiprocessing_pool = None
-          except OSError, e:
+          except OSError as e:
             # Mute the "WindowsError: [Error 5] Access is denied" errors, raise all others through
             if not (sys.platform.startswith('win') and isinstance(e, WindowsError) and e.winerror == 5): raise
         atexit.register(close_multiprocessing_pool)
@@ -1486,7 +1486,7 @@ class Building(object):
     env = env.copy()
     if not WINDOWS: return env
     path = env['PATH'].split(';')
-    path = filter(lambda p: not os.path.exists(os.path.join(p, 'sh.exe')), path)
+    path = [p for p in path if not os.path.exists(os.path.join(p, 'sh.exe'))]
     env['PATH'] = ';'.join(path)
     return env
 
@@ -1533,7 +1533,7 @@ class Building(object):
       if EM_BUILD_VERBOSE_LEVEL >= 3: print('configure: ' + str(args), file=sys.stderr)
       process = Popen(args, stdout=None if EM_BUILD_VERBOSE_LEVEL >= 2 else stdout, stderr=None if EM_BUILD_VERBOSE_LEVEL >= 1 else stderr, env=env)
       process.communicate()
-    except Exception, e:
+    except Exception as e:
       logging.error('Exception thrown when invoking Popen in configure with args: "%s"!' % ' '.join(args))
       raise
     if 'EMMAKEN_JUST_CONFIGURE' in env: del env['EMMAKEN_JUST_CONFIGURE']
@@ -1565,7 +1565,7 @@ class Building(object):
       if EM_BUILD_VERBOSE_LEVEL >= 3: print('make: ' + str(args), file=sys.stderr)
       process = Popen(args, stdout=None if EM_BUILD_VERBOSE_LEVEL >= 2 else stdout, stderr=None if EM_BUILD_VERBOSE_LEVEL >= 1 else stderr, env=env, shell=WINDOWS)
       process.communicate()
-    except Exception, e:
+    except Exception as e:
       logging.error('Exception thrown when invoking Popen in make with args: "%s"!' % ' '.join(args))
       raise
     if process.returncode is not 0:
@@ -1597,20 +1597,20 @@ class Building(object):
     except:
       old_dir = None
     os.chdir(project_dir)
-    generated_libs = map(lambda lib: os.path.join(project_dir, lib), generated_libs)
+    generated_libs = [os.path.join(project_dir, lib) for lib in generated_libs]
     #for lib in generated_libs:
     #  try:
     #    os.unlink(lib) # make sure compilation completed successfully
     #  except:
     #    pass
     env = Building.get_building_env(native, True)
-    for k, v in env_init.iteritems():
+    for k, v in env_init.items():
       env[k] = v
     if configure: # Useful in debugging sometimes to comment this out (and the lines below up to and including the |link| call)
       try:
         Building.configure(configure + configure_args, env=env, stdout=open(os.path.join(project_dir, 'configure_'), 'w') if EM_BUILD_VERBOSE_LEVEL < 2 else None,
                                                                 stderr=open(os.path.join(project_dir, 'configure_err'), 'w') if EM_BUILD_VERBOSE_LEVEL < 1 else None)
-      except subprocess.CalledProcessError, e:
+      except subprocess.CalledProcessError as e:
         pass # Ignore exit code != 0
     def open_make_out(i, mode='r'):
       return open(os.path.join(project_dir, 'make_' + str(i)), mode)
@@ -1627,7 +1627,7 @@ class Building(object):
           try:
             Building.make(make + make_args, stdout=make_out if EM_BUILD_VERBOSE_LEVEL < 2 else None,
                                             stderr=make_err if EM_BUILD_VERBOSE_LEVEL < 1 else None, env=env)
-          except subprocess.CalledProcessError, e:
+          except subprocess.CalledProcessError as e:
             pass # Ignore exit code != 0
       try:
         if cache is not None:
@@ -1636,7 +1636,7 @@ class Building(object):
             basename = os.path.basename(f)
             cache[cache_name].append((basename, open(f, 'rb').read()))
         break
-      except Exception, e:
+      except Exception as e:
         if i > 0:
           if EM_BUILD_VERBOSE_LEVEL == 0:
             # Due to the ugly hack above our best guess is to output the first run
@@ -1770,7 +1770,7 @@ class Building(object):
       logging.debug('done running loop of archive %s' % (f))
       return added_any_objects
 
-    Building.read_link_inputs(filter(lambda x: not x.startswith('-'), files))
+    Building.read_link_inputs([x for x in files if not x.startswith('-')])
 
     current_archive_group = None
     for f in files:
@@ -1937,7 +1937,7 @@ class Building(object):
     for line in output.split('\n'):
       if len(line) == 0: continue
       if ':' in line: continue # e.g.  filename.o:  , saying which file it's from
-      parts = filter(lambda seg: len(seg) > 0, line.split(' '))
+      parts = [seg for seg in line.split(' ') if len(seg) > 0]
       # pnacl-nm will print zero offsets for bitcode, and newer llvm-nm will print present symbols as  -------- T name
       if len(parts) == 3 and parts[0] in ["00000000", "--------"]:
         parts.pop(0)
@@ -2049,14 +2049,14 @@ class Building(object):
 
     exps = expand_response(Settings.EXPORTED_FUNCTIONS)
     internalize_public_api = '-internalize-public-api-'
-    internalize_list = ','.join(map(lambda exp: exp[1:], exps))
+    internalize_list = ','.join([exp[1:] for exp in exps])
 
     # EXPORTED_FUNCTIONS can potentially be very large.
     # 8k is a bit of an arbitrary limit, but a reasonable one
     # for max command line size before we use a response file
     if len(internalize_list) > 8192:
       logging.debug('using response file for EXPORTED_FUNCTIONS in internalize')
-      finalized_exports = '\n'.join(map(lambda exp: exp[1:], exps))
+      finalized_exports = '\n'.join([exp[1:] for exp in exps])
       internalize_list_file = configuration.get_temp_files().get(suffix='.response').name
       internalize_list_fh = open(internalize_list_file, 'w')
       internalize_list_fh.write(finalized_exports)
@@ -2123,13 +2123,13 @@ class Building(object):
 
   @staticmethod
   def eliminate_duplicate_funcs(filename):
-    import duplicate_function_eliminator
+    from . import duplicate_function_eliminator
     duplicate_function_eliminator.eliminate_duplicate_funcs(filename)
 
   @staticmethod
   def calculate_reachable_functions(infile, initial_list, can_reach=True):
     with ToolchainProfiler.profile_block('calculate_reachable_functions'):
-      import asm_module
+      from . import asm_module
       temp = configuration.get_temp_files().get('.js').name
       Building.js_optimizer(infile, ['dumpCallGraph'], output_filename=temp, just_concat=True)
       asm = asm_module.AsmModule(temp)
@@ -2143,14 +2143,14 @@ class Building(object):
           targets = curr[2]
           can_call[func] = set(targets)
       # function tables too - treat a function all as a function that can call anything in it, which is effectively what it is
-      for name, funcs in asm.tables.iteritems():
-        can_call[name] = set(map(lambda x: x.strip(), funcs[1:-1].split(',')))
+      for name, funcs in asm.tables.items():
+        can_call[name] = set([x.strip() for x in funcs[1:-1].split(',')])
       #print can_call
       # Note: We ignore calls in from outside the asm module, so you could do emterpreted => outside => emterpreted, and we would
       #       miss the first one there. But this is acceptable to do, because we can't save such a stack anyhow, due to the outside!
       #print 'can call', can_call, '\n!!!\n', asm.tables, '!'
       reachable_from = {}
-      for func, targets in can_call.iteritems():
+      for func, targets in can_call.items():
         for target in targets:
           if target not in reachable_from:
             reachable_from[target] = set()
@@ -2170,7 +2170,7 @@ class Building(object):
       else:
         # find all functions that are reachable from the initial list, including it
         # all tables are assumed reachable, as they can be called from dyncall from outside
-        for name, funcs in asm.tables.iteritems():
+        for name, funcs in asm.tables.items():
           to_check.append(name)
         while len(to_check) > 0:
           curr = to_check.pop()
@@ -2226,31 +2226,31 @@ class Building(object):
     try:
       if Building._is_ar_cache.get(filename):
         return Building._is_ar_cache[filename]
-      b = open(filename, 'rb').read(8)
-      sigcheck = b[0] == '!' and b[1] == '<' and \
-                 b[2] == 'a' and b[3] == 'r' and \
-                 b[4] == 'c' and b[5] == 'h' and \
-                 b[6] == '>' and ord(b[7]) == 10
+      b = bytearray(open(filename, 'rb').read(8))
+      sigcheck = b[0] == ord('!') and b[1] == ord('<') and \
+                 b[2] == ord('a') and b[3] == ord('r') and \
+                 b[4] == ord('c') and b[5] == ord('h') and \
+                 b[6] == ord('>') and b[7] == 10
       Building._is_ar_cache[filename] = sigcheck
       return sigcheck
-    except Exception, e:
+    except Exception as e:
       logging.debug('Building.is_ar failed to test whether file \'%s\' is a llvm archive file! Failed on exception: %s' % (filename, e))
       return False
 
   @staticmethod
   def is_bitcode(filename):
     # look for magic signature
-    b = open(filename, 'rb').read(4)
+    b = bytearray(open(filename, 'rb').read(4))
     if len(b) < 4: return False
-    if b[0] == 'B' and b[1] == 'C':
+    if b[0] == ord('B') and b[1] == ord('C'):
       return True
     # look for ar signature
     elif Building.is_ar(filename):
       return True
     # on OS X, there is a 20-byte prefix
-    elif ord(b[0]) == 222 and ord(b[1]) == 192 and ord(b[2]) == 23 and ord(b[3]) == 11:
-      b = open(filename, 'rb').read(24)
-      return b[20] == 'B' and b[21] == 'C'
+    elif b[0] == 222 and b[1] == 192 and b[2] == 23 and b[3] == 11:
+      b = bytearray(open(filename, 'rb').read(24))
+      return b[20] == ord('B') and b[21] == ord('C')
 
     return False
 
@@ -2260,7 +2260,7 @@ class Building(object):
     with ToolchainProfiler.profile_block('gen_struct_info'):
       Cache.ensure()
 
-      import gen_struct_info
+      from . import gen_struct_info
       gen_struct_info.main(['-qo', info_path, path_from_root('src/struct_info.json')])
 
   @staticmethod
@@ -2281,6 +2281,7 @@ class Building(object):
       'glut': 'library_glut.js',
       'm': '',
       'openal': 'library_openal.js',
+      'rt': '',
       'pthread': '',
       'X11': 'library_xlib.js',
       'SDL': 'library_sdl.js',
@@ -2313,7 +2314,7 @@ class Building(object):
     if 'LZ4=1' in link_settings: system_js_libraries += ['library_lz4.js']
     if 'USE_SDL=1' in link_settings: system_js_libraries += ['library_sdl.js']
     if 'USE_SDL=2' in link_settings: system_js_libraries += ['library_glut.js', 'library_gl.js']
-    return map(lambda x: path_from_root('src', x), system_js_libraries)
+    return [path_from_root('src', x) for x in system_js_libraries]
 
 # compatibility with existing emcc, etc. scripts
 Cache = cache.Cache(debug=DEBUG_CACHE)
@@ -2650,4 +2651,4 @@ def make_fetch_worker(source_file, output_file):
   open(output_file, 'w').write(fetch_worker_src)
 
 
-import js_optimizer
+from . import js_optimizer

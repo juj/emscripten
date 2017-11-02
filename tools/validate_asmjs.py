@@ -13,7 +13,10 @@
 
 from __future__ import print_function
 import subprocess, sys, re, tempfile, os, time
-import shared
+
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from tools import shared
 
 # Given a .js file, returns True/False depending on if that file is valid asm.js
 def validate_asmjs_jsfile(filename, muteOutput):
@@ -23,7 +26,7 @@ def validate_asmjs_jsfile(filename, muteOutput):
     return False
   try:
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-  except Exception, e:
+  except Exception as e:
     print('Executing command ' + str(cmd) + ' failed due to an exception: ' + str(e) + '!', file=sys.stderr)
     return False
   (stdout, stderr) = process.communicate()

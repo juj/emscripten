@@ -340,7 +340,7 @@ function getValue(ptr, type, noSafe) {
       case 'i64': return {{{ makeGetValue('ptr', '0', 'i64', undefined, undefined, undefined, undefined, '1') }}};
       case 'float': return {{{ makeGetValue('ptr', '0', 'float', undefined, undefined, undefined, undefined, '1') }}};
       case 'double': return {{{ makeGetValue('ptr', '0', 'double', undefined, undefined, undefined, undefined, '1') }}};
-      default: abort('invalid type for setValue: ' + type);
+      default: abort('invalid type for getValue: ' + type);
     }
   } else {
 #endif
@@ -352,7 +352,7 @@ function getValue(ptr, type, noSafe) {
       case 'i64': return {{{ makeGetValue('ptr', '0', 'i64') }}};
       case 'float': return {{{ makeGetValue('ptr', '0', 'float') }}};
       case 'double': return {{{ makeGetValue('ptr', '0', 'double') }}};
-      default: abort('invalid type for setValue: ' + type);
+      default: abort('invalid type for getValue: ' + type);
     }
 #if SAFE_HEAP
   }
@@ -1185,6 +1185,7 @@ if (typeof SharedArrayBuffer === 'undefined' || typeof Atomics === 'undefined') 
 #endif
 
 #if USE_PTHREADS
+#if !BINARYEN
 if (typeof SharedArrayBuffer !== 'undefined') {
   if (!ENVIRONMENT_IS_PTHREAD) buffer = new SharedArrayBuffer(TOTAL_MEMORY);
   // Currently SharedArrayBuffer does not have a slice() operation, so polyfill it in.
@@ -1237,6 +1238,15 @@ if (typeof Atomics === 'undefined') {
   Atomics['xor'] = function(t, i, v) { var w = t[i]; t[i] ^= v; return w; }
 }
 
+#else
+// TODO: Something smart about BINARYEN_MEM_MAX. Some default, also rename it.
+if (!ENVIRONMENT_IS_PTHREAD) {
+  Module['wasmMemory'] = new WebAssembly.Memory({ 'initial': TOTAL_MEMORY / WASM_PAGE_SIZE , 'maximum': TOTAL_MEMORY / WASM_PAGE_SIZE, 'shared': true });
+  buffer = Module['wasmMemory'].buffer;
+}
+
+updateGlobalBufferViews();
+#endif // !BINARYEN
 #else // USE_PTHREADS
 
 #if SPLIT_MEMORY == 0
@@ -1252,7 +1262,7 @@ if (Module['buffer']) {
   if (typeof WebAssembly === 'object' && typeof WebAssembly.Memory === 'function') {
 #if ASSERTIONS
     assert(TOTAL_MEMORY % WASM_PAGE_SIZE === 0);
-#endif
+#endif // ASSERTIONS
 #if ALLOW_MEMORY_GROWTH
 #if BINARYEN_MEM_MAX
 #if ASSERTIONS
@@ -1261,19 +1271,19 @@ if (Module['buffer']) {
     Module['wasmMemory'] = new WebAssembly.Memory({ 'initial': TOTAL_MEMORY / WASM_PAGE_SIZE, 'maximum': {{{ BINARYEN_MEM_MAX }}} / WASM_PAGE_SIZE });
 #else
     Module['wasmMemory'] = new WebAssembly.Memory({ 'initial': TOTAL_MEMORY / WASM_PAGE_SIZE });
-#endif
+#endif // BINARYEN_MEM_MAX
 #else
     Module['wasmMemory'] = new WebAssembly.Memory({ 'initial': TOTAL_MEMORY / WASM_PAGE_SIZE, 'maximum': TOTAL_MEMORY / WASM_PAGE_SIZE });
-#endif
+#endif // ALLOW_MEMORY_GROWTH
     buffer = Module['wasmMemory'].buffer;
   } else
-#endif
+#endif // BINARYEN
   {
     buffer = new ArrayBuffer(TOTAL_MEMORY);
   }
 #if ASSERTIONS
   assert(buffer.byteLength === TOTAL_MEMORY);
-#endif
+#endif // ASSERTIONS
 }
 updateGlobalBufferViews();
 #else // SPLIT_MEMORY
@@ -1840,7 +1850,7 @@ function addRunDependency(id) {
 #if USE_PTHREADS
   // We should never get here in pthreads (could no-op this out if called in pthreads, but that might indicate a bug in caller side,
   // so good to be very explicit)
-  assert(!ENVIRONMENT_IS_PTHREAD);
+  assert(!ENVIRONMENT_IS_PTHREAD || id === 'wasm-instantiate');
 #endif
   runDependencies++;
   if (Module['monitorRunDependencies']) {
@@ -2303,6 +2313,10 @@ function integrateWasmJS() {
 #if ASSERTIONS
       assert(Module === trueModule, 'the Module object should not be replaced during async compilation - perhaps the order of HTML elements is wrong?');
       trueModule = null;
+#endif
+#if USE_PTHREADS
+      // Keeep a reference to the compiled module so we can post it to the workers.
+      Module['wasmModule'] = output['module'];
 #endif
       receiveInstance(output['instance']);
     }

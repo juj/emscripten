@@ -188,7 +188,7 @@ class JSOptimizer(object):
     self.js_transform_tempfiles = js_transform_tempfiles
 
   def flush(self, title='js_opts'):
-    self.queue = filter(lambda p: p not in self.blacklist, self.queue)
+    self.queue = [p for p in self.queue if p not in self.blacklist]
 
     assert not shared.Settings.WASM_BACKEND, 'JSOptimizer should not run with pure wasm output'
 
@@ -297,7 +297,7 @@ def run():
   stderr = PIPE if not DEBUG else None # unless we are in DEBUG mode
 
   EMCC_CXX = '--emscripten-cxx' in sys.argv
-  sys.argv = filter(lambda x: x != '--emscripten-cxx', sys.argv)
+  sys.argv = [x for x in sys.argv if x != '--emscripten-cxx']
 
   if len(sys.argv) <= 1 or ('--help' not in sys.argv and len(sys.argv) >= 2 and sys.argv[1] != '--version'):
     shared.check_sanity(force=DEBUG)
@@ -374,14 +374,14 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     # fake running the command, to see the full args we pass to clang
     debug_env = os.environ.copy()
     debug_env['EMCC_DEBUG'] = '1'
-    args = filter(lambda x: x != '--cflags', sys.argv)
+    args = [x for x in sys.argv if x != '--cflags']
     with misc_temp_files.get_file(suffix='.o') as temp_target:
       input_file = 'hello_world.c'
       out, err = subprocess.Popen([shared.PYTHON] + args + [shared.path_from_root('tests', input_file), '-c', '-o', temp_target], stderr=subprocess.PIPE, env=debug_env).communicate()
-      lines = filter(lambda x: shared.CLANG_CC in x and input_file in x, err.split(os.linesep))
+      lines = [x for x in err.split(os.linesep) if shared.CLANG_CC in x and input_file in x]
       line = re.search('running: (.*)', lines[0]).group(1)
       parts = shlex.split(line.replace('\\', '\\\\'))
-      parts = filter(lambda x: x != '-c' and x != '-o' and input_file not in x and temp_target not in x and '-emit-llvm' not in x, parts)
+      parts = [x for x in parts if x != '-c' and x != '-o' and input_file not in x and temp_target not in x and '-emit-llvm' not in x]
       print(' '.join(shared.Building.doublequote_spaces(parts[1:])))
     exit(0)
 
@@ -470,7 +470,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       exit(subprocess.call(cmd))
     else:
       only_object = '-c' in cmd
-      for i in reversed(range(len(cmd)-1)): # Last -o directive should take precedence, if multiple are specified
+      for i in reversed(list(range(len(cmd)-1))): # Last -o directive should take precedence, if multiple are specified
         if cmd[i] == '-o':
           if not only_object:
             cmd[i+1] += '.js'
@@ -537,7 +537,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     if sys.argv[i].startswith('-o='):
       raise Exception('Invalid syntax: do not use -o=X, use -o X')
 
-  for i in reversed(range(len(sys.argv)-1)): # Last -o directive should take precedence, if multiple are specified
+  for i in reversed(list(range(len(sys.argv)-1))): # Last -o directive should take precedence, if multiple are specified
     if sys.argv[i] == '-o':
       target = sys.argv[i+1]
       sys.argv = sys.argv[:i] + sys.argv[i+2:]
@@ -814,7 +814,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       # command line already now.
 
       def get_last_setting_change(setting):
-        return ([None] + filter(lambda x: x.startswith(setting + '='), settings_changes))[-1]
+        return ([None] + [x for x in settings_changes if x.startswith(setting + '=')])[-1]
 
       strict_cmdline = get_last_setting_change('STRICT')
       if strict_cmdline:
@@ -884,7 +884,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
             value = '"' + value + '"'
         else:
           value = value.replace('\\', '\\\\')
-        exec('shared.Settings.' + key + ' = ' + value, globals(), locals())
+        setattr(shared.Settings, key, eval(value))
         if key == 'EXPORTED_FUNCTIONS':
           # used for warnings in emscripten.py
           shared.Settings.ORIGINAL_EXPORTED_FUNCTIONS = original_exported_response or shared.Settings.EXPORTED_FUNCTIONS[:]
@@ -912,7 +912,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         assert shared.Settings.FORCE_ALIGNED_MEMORY == 0, 'forced aligned memory is not supported in fastcomp'
         assert shared.Settings.PGO == 0, 'pgo not supported in fastcomp'
         assert shared.Settings.QUANTUM_SIZE == 4, 'altering the QUANTUM_SIZE is not supported'
-      except Exception, e:
+      except Exception as e:
         logging.error('Compiler settings are incompatible with fastcomp. You can fall back to the older compiler core, although that is not recommended, see http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html')
         raise e
 
@@ -1133,7 +1133,6 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         shared.Settings.ASM_JS = 2 # when targeting wasm, we use a wasm Memory, but that is not compatible with asm.js opts
         shared.Settings.GLOBAL_BASE = 1024 # leave some room for mapping global vars
         assert not shared.Settings.SPLIT_MEMORY, 'WebAssembly does not support split memory'
-        assert not shared.Settings.USE_PTHREADS, 'WebAssembly does not support pthreads'
         if shared.Settings.ELIMINATE_DUPLICATE_FUNCTIONS:
           logging.warning('for wasm there is no need to set ELIMINATE_DUPLICATE_FUNCTIONS, the binaryen optimizer does it automatically')
           shared.Settings.ELIMINATE_DUPLICATE_FUNCTIONS = 0
@@ -1310,7 +1309,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
 
       # -E preprocessor-only support
       if '-E' in newargs or '-M' in newargs or '-MM' in newargs:
-        input_files = map(lambda x: x[1], input_files)
+        input_files = [x[1] for x in input_files]
         cmd = get_bitcode_args(input_files)
         if specified_target:
           cmd += ['-o', specified_target]
@@ -2311,7 +2310,7 @@ def do_binaryen(final, target, asm_target, options, memfile, wasm_binary_target,
   if shared.Settings.BINARYEN_PASSES:
     shutil.move(wasm_binary_target, wasm_binary_target + '.pre')
     # BINARYEN_PASSES is comma-separated, and we support both '-'-prefixed and unprefixed pass names
-    passes = map(lambda p: ('--' + p) if p[0] != '-' else p, shared.Settings.BINARYEN_PASSES.split(','))
+    passes = [('--' + p) if p[0] != '-' else p for p in shared.Settings.BINARYEN_PASSES.split(',')]
     cmd = [os.path.join(binaryen_bin, 'wasm-opt'), wasm_binary_target + '.pre', '-o', wasm_binary_target] + passes
     if debug_info:
       cmd += ['-g'] # preserve the debug info

@@ -54,6 +54,14 @@ Module['print'] = threadPrint;
 Module['printErr'] = threadPrintErr;
 this.alert = threadAlert;
 
+Module['instantiateWasm'] = function(info, receiveInstance) {
+  // Instantiate from the module posted from the main thread.
+  // We can just use sync instantiation in the worker.
+  instance = new WebAssembly.Instance(Module['wasmModule'], info);
+  receiveInstance(instance);
+  return instance.exports;
+}
+
 this.onmessage = function(e) {
   try {
   if (e.data.cmd === 'load') { // Preload command that is called once per worker to parse and load the Emscripten code.
@@ -66,6 +74,15 @@ this.onmessage = function(e) {
     STATICTOP = e.data.STATICTOP;
     DYNAMIC_BASE = e.data.DYNAMIC_BASE;
     DYNAMICTOP_PTR = e.data.DYNAMICTOP_PTR;
+
+    if (e.data.wasmModule) {
+      // Module and memory were sent from main thread
+      Module['wasmModule'] = e.data.wasmModule;
+      Module['wasmMemory'] = e.data.wasmMemory;
+      buffer = Module['wasmMemory'].buffer;
+    } else {
+      buffer = e.data.buffer;
+    }
 
     PthreadWorkerInit = e.data.PthreadWorkerInit;
     if (typeof e.data.urlOrBlob === 'string') {

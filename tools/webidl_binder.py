@@ -8,7 +8,7 @@ http://kripken.github.io/emscripten-site/docs/porting/connecting_cpp_and_javascr
 from __future__ import print_function
 import os, sys
 
-import shared
+from . import shared
 
 sys.path.append(shared.path_from_root('third_party'))
 sys.path.append(shared.path_from_root('third_party', 'ply'))
@@ -28,7 +28,7 @@ if DEBUG: print("Debug print ON, CHECKS=%s" % CHECKS)
 
 class Dummy(object):
   def __init__(self, init):
-    for k, v in init.iteritems():
+    for k, v in init.items():
       self.__dict__[k] = v
 
   def getExtendedAttribute(self, name):
@@ -341,7 +341,7 @@ def render_function(class_name, func_name, sigs, return_type, non_pointer, copy,
   all_args = sigs.get(max_args)
 
   if DEBUG:
-    print('renderfunc', class_name, func_name, sigs.keys(), return_type, constructor)
+    print('renderfunc', class_name, func_name, list(sigs.keys()), return_type, constructor)
     for i in range(max_args):
       a = all_args[i]
       if isinstance(a, WebIDL.IDLArgument):
@@ -472,11 +472,11 @@ def render_function(class_name, func_name, sigs, return_type, non_pointer, copy,
   for i in range(min_args, max_args+1):
     raw = sigs.get(i)
     if raw is None: continue
-    sig = map(full_typename, raw)
+    sig = list(map(full_typename, raw))
     if array_attribute:
-      sig = map(lambda x: x.replace('[]', ''), sig) # for arrays, ignore that this is an array - our get/set methods operate on the elements
+      sig = [x.replace('[]', '') for x in sig] # for arrays, ignore that this is an array - our get/set methods operate on the elements
 
-    c_arg_types = map(type_to_c, sig)
+    c_arg_types = list(map(type_to_c, sig))
 
     normal_args = ', '.join(['%s arg%d' % (c_arg_types[j], j) for j in range(i)])
     if constructor:
@@ -526,7 +526,7 @@ def render_function(class_name, func_name, sigs, return_type, non_pointer, copy,
 
     if not constructor:
       if i == max_args:
-        dec_args = ', '.join(map(lambda j: type_to_cdec(raw[j]) + ' arg' + str(j), range(i)))
+        dec_args = ', '.join([type_to_cdec(raw[j]) + ' arg' + str(j) for j in range(i)])
         js_call_args = ', '.join(['%sarg%d' % (('(int)' if sig[j] in interfaces else '') + ('&' if raw[j].getExtendedAttribute('Ref') or raw[j].getExtendedAttribute('Value') else ''), j) for j in range(i)])
 
         js_impl_methods += [r'''  %s %s(%s) {
@@ -546,7 +546,7 @@ def render_function(class_name, func_name, sigs, return_type, non_pointer, copy,
           (', ' if js_call_args else '') + js_call_args)]
 
 
-for name, interface in interfaces.iteritems():
+for name, interface in interfaces.items():
   js_impl = interface.getExtendedAttribute('JSImplementation')
   if not js_impl: continue
   implements[name] = [js_impl[0]]
@@ -560,7 +560,7 @@ for name, interface in interfaces.iteritems():
 # that invariant. Further, the height of a node never decreases. Therefore, when the loop
 # finishes, all ancestors of a given node should have a larger height number than that node.
 nodeHeight = {}
-for child, parent in implements.iteritems():
+for child, parent in implements.items():
   parent = parent[0]
   while parent:
     nodeHeight[parent] = max(nodeHeight.get(parent, 0), nodeHeight.get(child, 0) + 1)
@@ -571,7 +571,7 @@ for child, parent in implements.iteritems():
     else:
       parent = None
 
-names = interfaces.keys()
+names = list(interfaces.keys())
 names.sort(lambda x, y: nodeHeight.get(y, 0) - nodeHeight.get(x, 0))
 
 for name in names:
@@ -712,7 +712,7 @@ public:
 
 deferred_js = []
 
-for name, enum in enums.iteritems():
+for name, enum in enums.items():
   mid_c += ['\n// ' + name + '\n']
   deferred_js += ['\n', '// ' + name + '\n']
   for value in enum.values():
