@@ -1666,7 +1666,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
           if DEBUG:
             # Copy into temp dir as well, so can be run there too
             shared.safe_copy(memfile, os.path.join(shared.get_emscripten_temp_dir(), os.path.basename(memfile)))
-          if not shared.Settings.BINARYEN or 'asmjs' in shared.Settings.BINARYEN_METHOD or 'interpret-asm2wasm' in shared.Settings.BINARYEN_METHOD:
+          if not shared.Settings.BINARYEN or 'asmjs' in shared.Settings.BINARYEN_METHOD or 'interpret-asm2wasm' in shared.Settings.BINARYEN_METHOD or shared.Settings.USE_PTHREADS:
             return 'memoryInitializer = "%s";' % shared.JS.get_subresource_location(memfile, embed_memfile(options))
           else:
             return 'memoryInitializer = null;'
@@ -2258,9 +2258,12 @@ def do_binaryen(final, target, asm_target, options, memfile, wasm_binary_target,
     if options.opt_level > 0:
       cmd.append(shared.Building.opt_level_to_str(options.opt_level, options.shrink_level))
     # import mem init file if it exists, and if we will not be using asm.js as a binaryen method (as it needs the mem init file, of course)
+    # Note that importing (embedding) memory init file into the .wasm module as a data section is not compatible with multithreading in WebAssembly,
+    # because each thread would reinitialize the global data section at thread creation time, so only embed a data section to the generated
+    # .wasm file if not using multithreading
     mem_file_exists = options.memory_init_file and os.path.exists(memfile)
     ok_binaryen_method = 'asmjs' not in shared.Settings.BINARYEN_METHOD and 'interpret-asm2wasm' not in shared.Settings.BINARYEN_METHOD
-    import_mem_init = mem_file_exists and ok_binaryen_method
+    import_mem_init = mem_file_exists and ok_binaryen_method and not shared.Settings.USE_PTHREADS
     if import_mem_init:
       cmd += ['--mem-init=' + memfile]
       if not shared.Settings.RELOCATABLE:
