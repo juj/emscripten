@@ -2280,11 +2280,15 @@ function integrateWasmJS() {
     info['env'] = env;
     // handle a generated wasm instance, receiving its exports and
     // performing other necessary setup
-    function receiveInstance(instance) {
+    function receiveInstance(instance, module) {
       exports = instance.exports;
       if (exports.memory) mergeMemory(exports.memory);
       Module['asm'] = exports;
       Module["usingWasm"] = true;
+#if USE_PTHREADS
+      // Keep a reference to the compiled module so we can post it to the workers.
+      Module['wasmModule'] = module;
+#endif
       removeRunDependency('wasm-instantiate');
     }
 
@@ -2319,11 +2323,7 @@ function integrateWasmJS() {
       assert(Module === trueModule, 'the Module object should not be replaced during async compilation - perhaps the order of HTML elements is wrong?');
       trueModule = null;
 #endif
-#if USE_PTHREADS
-      // Keeep a reference to the compiled module so we can post it to the workers.
-      Module['wasmModule'] = output['module'];
-#endif
-      receiveInstance(output['instance']);
+      receiveInstance(output['instance'], output['module']);
     }
     function instantiateArrayBuffer(receiver) {
       getBinaryPromise().then(function(binary) {
@@ -2353,8 +2353,10 @@ function integrateWasmJS() {
     return {}; // no exports yet; we'll fill them in later
 #else
     var instance;
+    var module;
     try {
-      instance = new WebAssembly.Instance(new WebAssembly.Module(getBinary()), info)
+      module = new WebAssembly.Module(getBinary());
+      instance = new WebAssembly.Instance(module, info)
     } catch (e) {
       Module['printErr']('failed to compile wasm module: ' + e);
       if (e.toString().indexOf('imported Memory with incompatible size') >= 0) {
@@ -2362,7 +2364,7 @@ function integrateWasmJS() {
       }
       return false;
     }
-    receiveInstance(instance);
+    receiveInstance(instance, module);
     return exports;
 #endif
   }
