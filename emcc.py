@@ -1718,7 +1718,7 @@ var Module = typeof %(EXPORT_NAME)s !== 'undefined' ? %(EXPORT_NAME)s : {};
           if DEBUG:
             # Copy into temp dir as well, so can be run there too
             shared.safe_copy(memfile, os.path.join(shared.get_emscripten_temp_dir(), os.path.basename(memfile)))
-          if not shared.Settings.BINARYEN or 'asmjs' in shared.Settings.BINARYEN_METHOD or 'interpret-asm2wasm' in shared.Settings.BINARYEN_METHOD:
+          if not shared.Settings.BINARYEN or 'asmjs' in shared.Settings.BINARYEN_METHOD or 'interpret-asm2wasm' in shared.Settings.BINARYEN_METHOD or shared.Settings.USE_PTHREADS:
             return 'memoryInitializer = "%s";' % shared.JS.get_subresource_location(memfile, embed_memfile(options))
           else:
             return ''
@@ -2310,6 +2310,9 @@ def do_binaryen(target, asm_target, options, memfile, wasm_binary_target,
     if options.opt_level > 0:
       cmd.append(shared.Building.opt_level_to_str(options.opt_level, options.shrink_level))
     # import mem init file if it exists, and if we will not be using asm.js as a binaryen method (as it needs the mem init file, of course)
+    # Note that importing (embedding) memory init file into the .wasm module as a data section is not compatible with multithreading in WebAssembly,
+    # because each thread would reinitialize the global data section at thread creation time, so only embed a data section to the generated
+    # .wasm file if not using multithreading
     mem_file_exists = options.memory_init_file and os.path.exists(memfile)
     import_mem_init = mem_file_exists and shared.Settings.MEM_INIT_IN_WASM
     if import_mem_init:
