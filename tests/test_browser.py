@@ -3115,10 +3115,10 @@ window.close = function() {
 
   # Run a browser test both with and without wasm
   def btest_wasm(self, *args, **kwargs):
-    print 'asm.js: ' + str(*args)
+    print('asm.js: ' + str(*args))
     self.btest(*args, **kwargs)
     if True:
-      print 'Wasm: ' + str(*args)
+      print('Wasm: ' + str(*args))
       # TODO: some kind of cli flag to trigger this?
       self.btest(*args, force_wasm=True, **kwargs)
 
@@ -3715,7 +3715,7 @@ window.close = function() {
 #      ['-DTEST_EXPLICIT_CONTEXT_SWAP=1',    '-s', 'PROXY_TO_PTHREAD=1', '-s', 'USE_PTHREADS=1', '-s', 'OFFSCREENCANVAS_SUPPORT=1', '-DTEST_MANUALLY_SET_ELEMENT_CSS_SIZE=1', '-DTEST_TRANSFER_CANVAS_TO_PTHREAD=1']
     ]:
       cmd = ['-lGL', '-O3', '-g2', '--shell-file', path_from_root('tests', 'canvas_animate_resize_shell.html'), '--separate-asm', '-s', 'GL_DEBUG=1', '--threadprofiler'] + args
-      print ' '.join(cmd)
+      print(' '.join(cmd))
       self.btest('canvas_animate_resize.cpp', expected='1', args=cmd)
 
   # Test that event backproxying works.
