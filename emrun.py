@@ -504,6 +504,8 @@ class HTTPHandler(SimpleHTTPRequestHandler):
       if guess_file_type.endswith('.'): guess_file_type = guess_file_type[:-1]
 
     ctype = self.guess_type(guess_file_type)
+    if guess_file_type.lower().endswith('.wasm'):
+      ctype = 'application/wasm'
     self.send_header("Content-type", ctype)
     fs = os.fstat(f.fileno())
     self.send_header("Content-Length", str(fs[6]))
