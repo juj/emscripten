@@ -1318,8 +1318,8 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
           args.append('-fno-inline-functions')
         # For fastcomp backend, no LLVM IR functions should ever be annotated 'optnone', because that would skip running the SimplifyCFG pass on them, which is required to always run to
         # clean up LandingPadInst instructions that are not needed.
-        if not shared.Settings.WASM_BACKEND:
-          args += ['-Xclang', '-disable-O0-optnone']
+#        if not shared.Settings.WASM_BACKEND:
+#          args += ['-Xclang', '-disable-O0-optnone']
         args = system_libs.process_args(args, shared.Settings)
         return args
 
