@@ -57,6 +57,7 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
   egl_symbols = read_symbols(shared.path_from_root('system', 'lib', 'egl.symbols'))
   compiler_rt_symbols = read_symbols(shared.path_from_root('system', 'lib', 'compiler-rt.symbols'))
   pthreads_symbols = read_symbols(shared.path_from_root('system', 'lib', 'pthreads.symbols'))
+  asmjs_pthreads_symbols = read_symbols(shared.path_from_root('system', 'lib', 'asmjs_pthreads.symbols'))
   wasm_libc_symbols = read_symbols(shared.path_from_root('system', 'lib', 'wasm-libc.symbols'))
   html5_symbols = read_symbols(shared.path_from_root('system', 'lib', 'html5.symbols'))
 
@@ -179,6 +180,10 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
         'pthread_setspecific.c', 'pthread_setcancelstate.c'
       ])
     pthreads_files += [os.path.join('pthread', 'library_pthread.c')]
+    return build_libc(libname, pthreads_files, ['-O2', '-s', 'USE_PTHREADS=1'])
+
+  def create_pthreads_asmjs(libname):
+    pthreads_files = [os.path.join('pthread', 'library_pthread_asmjs.c')]
     return build_libc(libname, pthreads_files, ['-O2', '-s', 'USE_PTHREADS=1'])
 
   def create_egl(libname):
@@ -452,10 +457,12 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
                  (dlmalloc_name(), 'bc', create_dlmalloc,    [],                  [],            False)]
 
   if shared.Settings.USE_PTHREADS:
-    system_libs += [('libc-mt',       'bc', create_libc,       libc_symbols,     [],       False),
-                    ('gl-mt',         'bc', create_gl,         gl_symbols,       ['libc'], False),
-                    ('pthreads',      'bc', create_pthreads,   pthreads_symbols, ['libc'], False)]
+    system_libs += [('libc-mt',        'bc', create_libc,           libc_symbols,     [],       False),
+                    ('gl-mt',          'bc', create_gl,             gl_symbols,       ['libc'], False),
+                    ('pthreads',       'bc', create_pthreads,       pthreads_symbols, ['libc'], False),
+                    ('pthreads_asmjs', 'bc', create_pthreads_asmjs, asmjs_pthreads_symbols, ['libc'], False)]
     force.add('pthreads')
+    force.add('pthreads_asmjs')
   else:
     system_libs += [('libc', 'bc', create_libc, libc_symbols, [], False),
                     ('gl',   'bc', create_gl,   gl_symbols,   ['libc'], False)]
