@@ -145,7 +145,11 @@ GL_APICALL void GL_APIENTRY emscripten_glVertexAttrib4fv (GLuint index, const GL
 GL_APICALL void GL_APIENTRY emscripten_glVertexAttribPointer (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer);
 GL_APICALL void GL_APIENTRY emscripten_glViewport (GLint x, GLint y, GLsizei width, GLsizei height);
 
+#ifdef EMSCRIPTEN_WEBGL_TRACE
 #define GL_FUNCTION_TRACE(func) printf(#func "\n")
+#else
+#define GL_FUNCTION_TRACE(func) ((void)0)
+#endif
 
 #define ASYNC_GL_FUNCTION_0(sig, ret, functionName) ret functionName(void) { GL_FUNCTION_TRACE(functionName); if (pthread_getspecific(currentThreadOwnsItsWebGLContext)) emscripten_##functionName(); else emscripten_async_run_in_main_runtime_thread(sig, &emscripten_##functionName); }
 #define ASYNC_GL_FUNCTION_1(sig, ret, functionName, t0) ret functionName(t0 p0) { GL_FUNCTION_TRACE(functionName); if (pthread_getspecific(currentThreadOwnsItsWebGLContext)) emscripten_##functionName(p0); else emscripten_async_run_in_main_runtime_thread(sig, &emscripten_##functionName, p0); }
