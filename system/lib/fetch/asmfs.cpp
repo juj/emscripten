@@ -15,7 +15,7 @@
 #include <ctype.h>
 #include <pthread.h>
 #include <emscripten/threading.h>
-#include <bits\ioctl.h>
+#include <bits/ioctl.h>
 #include "syscall_arch.h"
 
 extern "C" {
