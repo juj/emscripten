@@ -13,6 +13,8 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <ctype.h>
+#include <pthread.h>
+#include <emscripten/threading.h>
 #include "syscall_arch.h"
 
 extern "C" {
