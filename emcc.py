@@ -1224,18 +1224,21 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         # may need, including filesystem usage from standalone file packager output (i.e.
         # file packages not built together with emcc, but that are loaded at runtime
         # separately, and they need emcc's output to contain the support they need)
+        if not shared.Settings.ASMFS:
+          shared.Settings.EXPORTED_RUNTIME_METHODS += [
+            'FS_createFolder',
+            'FS_createPath',
+            'FS_createDataFile',
+            'FS_createPreloadedFile',
+            'FS_createLazyFile',
+            'FS_createLink',
+            'FS_createDevice',
+            'FS_unlink'
+          ]
         shared.Settings.EXPORTED_RUNTIME_METHODS += [
-          'FS_createFolder',
-          'FS_createPath',
-          'FS_createDataFile',
-          'FS_createPreloadedFile',
-          'FS_createLazyFile',
-          'FS_createLink',
-          'FS_createDevice',
-          'FS_unlink',
           'getMemory',
           'addRunDependency',
-          'removeRunDependency',
+          'removeRunDependency'
         ]
 
       if shared.Settings.USE_PTHREADS:
