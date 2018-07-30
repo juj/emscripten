@@ -773,6 +773,12 @@ var HEADLESS = 0;
 // Good for comparing builds for debugging purposes (and nothing else)
 var DETERMINISTIC = 0;
 
+
+var ASM_MODULE_NAME = 'Module["asm"]'; // If we separate out asm.js with the --separate-asm option,
+                                       // this is the name of the variable where the generated asm.js
+                                       // Module is assigned to. This name can either be a property
+                                       // of Module, or a freestanding variable name, like "var asmJsModule".
+
 // By default we emit all code in a straightforward way into the output
 // .js file. That means that if you load that in a script tag in a web
 // page, it will use the global scope. With MODULARIZE set, we will instead emit
