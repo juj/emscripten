@@ -91,28 +91,28 @@ this.onmessage = function(e) {
   try {
     if (e.data.cmd === 'load') { // Preload command that is called once per worker to parse and load the Emscripten code.
       // Initialize the thread-local field(s):
-      tempDoublePtr = e.data.tempDoublePtr;
+      Module['tempDoublePtr'] = e.data.tempDoublePtr;
 
       // Initialize the global "process"-wide fields:
-      Module['TOTAL_MEMORY'] = TOTAL_MEMORY = e.data.TOTAL_MEMORY;
-      STATICTOP = e.data.STATICTOP;
-      DYNAMIC_BASE = e.data.DYNAMIC_BASE;
-      DYNAMICTOP_PTR = e.data.DYNAMICTOP_PTR;
+      TOTAL_MEMORY = Module['TOTAL_MEMORY'] = TOTAL_MEMORY = e.data.TOTAL_MEMORY;
+      STATICTOP = Module['STATICTOP'] = e.data.STATICTOP;
+      DYNAMIC_BASE = Module['DYNAMIC_BASE'] = e.data.DYNAMIC_BASE;
+      DYNAMICTOP_PTR = Module['DYNAMICTOP_PTR'] = e.data.DYNAMICTOP_PTR;
 
 #if WASM
       // Module and memory were sent from main thread
       Module['wasmModule'] = e.data.wasmModule;
       Module['wasmMemory'] = e.data.wasmMemory;
-      buffer = Module['wasmMemory'].buffer;
+      buffer = Module['buffer'] = Module['wasmMemory'].buffer;
 #else
-      buffer = e.data.buffer;
+      buffer = Module['buffer'] = e.data.buffer;
 #endif
 
 #if SEPARATE_ASM != 0
       importScripts(e.data.asmJsUrlOrBlob || '{{{ SEPARATE_ASM }}}' ); // load the separated-out asm.js
 #endif
 
-      PthreadWorkerInit = e.data.PthreadWorkerInit;
+      Module['PthreadWorkerInit'] = e.data.PthreadWorkerInit;
       if (typeof e.data.urlOrBlob === 'string') {
         importScripts(e.data.urlOrBlob);
       } else {
@@ -144,11 +144,14 @@ this.onmessage = function(e) {
       assert(parentThreadId);
       // TODO: Emscripten runtime has these variables twice(!), once outside the asm.js module, and a second time inside the asm.js module.
       //       Review why that is? Can those get out of sync?
-      STACK_BASE = STACKTOP = e.data.stackBase;
-      STACK_MAX = STACK_BASE + e.data.stackSize;
+      STACK_BASE = STACKTOP = Module['STACK_BASE'] = Module['STACKTOP'] = e.data.stackBase;
+      STACK_MAX = Module['STACK_MAX'] = STACK_BASE + e.data.stackSize;
       assert(STACK_BASE != 0);
       assert(STACK_MAX > STACK_BASE);
       Module['establishStackSpace'](e.data.stackBase, e.data.stackBase + e.data.stackSize);
+#if MODULARIZE
+      Module['establishStackSpaceInModule'](e.data.stackBase, e.data.stackBase + e.data.stackSize);
+#endif
 #if STACK_OVERFLOW_CHECK
       Module.writeStackCookie();
 #endif
@@ -168,7 +171,7 @@ this.onmessage = function(e) {
         result = Module['dynCall_ii'](e.data.start_routine, e.data.arg);
 
 #if STACK_OVERFLOW_CHECK
-        checkStackCookie();
+        Module.checkStackCookie();
 #endif
 
       } catch(e) {

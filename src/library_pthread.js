@@ -1177,3 +1177,8 @@ var LibraryPThread = {
 
 autoAddDeps(LibraryPThread, '$PThread');
 mergeInto(LibraryManager.library, LibraryPThread);
+
+if (USE_PTHREADS) {
+  DEFAULT_LIBRARY_FUNCS_TO_INCLUDE.push('emscripten_futex_wake');
+  DEFAULT_LIBRARY_FUNCS_TO_INCLUDE.push('emscripten_futex_wait');
+}

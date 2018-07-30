@@ -919,9 +919,9 @@ if (!ENVIRONMENT_IS_PTHREAD) { // Pthreads have already initialized these variab
 #if USE_PTHREADS
 if (ENVIRONMENT_IS_PTHREAD) {
   staticSealed = true; // The static memory area has been initialized already in the main thread, pthreads skip this.
-#if SEPARATE_ASM != 0
-  importScripts('{{{ SEPARATE_ASM }}}'); // load the separated-out asm.js
-#endif
+//#if SEPARATE_ASM != 0
+  //importScripts('{{{ SEPARATE_ASM }}}'); // load the separated-out asm.js
+//#endif
 }
 #endif
 
@@ -939,6 +939,11 @@ function checkStackCookie() {
   }
   // Also test the global address 0 for integrity.
   if (HEAP32[0] !== 0x63736d65 /* 'emsc' */) throw 'Runtime error: The application has corrupted its heap memory area (address zero)!';
+}
+
+function establishStackSpaceInModule(stackBase, stackMax) {
+  STACK_BASE = STACKTOP = stackBase;
+  STACK_MAX = stackMax;
 }
 
 function abortStackOverflow(allocSize) {

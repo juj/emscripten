@@ -423,6 +423,7 @@ function exportRuntime() {
   if (USE_PTHREADS) {
     runtimeElements.push('PThread');
     runtimeElements.push('ExitStatus');
+    runtimeElements.push('establishStackSpaceInModule');
   }
   if (SUPPORT_BASE64_EMBEDDING) {
     runtimeElements.push('intArrayFromBase64');
