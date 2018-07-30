@@ -3111,8 +3111,12 @@ def run_c_preprocessor_on_file(src, dst):
   #
   # Still, this should give a good balance to be compatible with existing behavior.
 
+  preprocessed = read_and_preprocess(src, True)
+  temp_file = dst + '.temp.preprocessed'
+  open(temp_file, 'w').write(preprocessed)
+
   # Find the #if lines that we'll allow expanding.
-  whitelisted_defines = find_lines_with_preprocessor_directives(src)
+  whitelisted_defines = find_lines_with_preprocessor_directives(temp_file)
 
   def any_string_contains(string_list, substr):
     for s in string_list:
@@ -3128,13 +3132,15 @@ def run_c_preprocessor_on_file(src, dst):
       defines += [d]
 
   response_filename = response_file.create_response_file(defines, TEMP_DIR)
-  preprocessed = subprocess.check_output([CLANG_CC, '-E', '-P', '-C', '-x', 'c', '@' + response_filename, src])
+  preprocessed = subprocess.check_output([CLANG_CC, '-E', '-P', '-C', '-x', 'c', '@' + response_filename, temp_file])
   try_delete(response_filename)
+
+  os.remove(temp_file)
 
   if dst: open(dst, 'w').write(preprocessed)
   return preprocessed
 
-def read_and_preprocess(filename):
+def read_and_preprocess(filename, expandMacros=False):
   temp_dir = get_emscripten_temp_dir()
   # Create a settings file with the current settings to pass to the JS preprocessor
   # Note: Settings.serialize returns an array of -s options i.e. ['-s', '<setting1>', '-s', '<setting2>', ...]
@@ -3152,6 +3158,7 @@ def read_and_preprocess(filename):
     path = None
   stdout = os.path.join(temp_dir, 'stdout')
   args = [settings_file, file]
+  if expandMacros: args += ['true']
 
   run_js(path_from_root('tools/preprocessor.js'), NODE_JS, args, True, stdout=open(stdout, 'w'), cwd=path)
   out = open(stdout, 'r').read()

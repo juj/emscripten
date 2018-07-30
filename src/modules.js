@@ -417,6 +417,15 @@ function exportRuntime() {
     'print',
     'printErr',
   ];
+  if (STACK_OVERFLOW_CHECK) {
+    runtimeElements.push('writeStackCookie');
+    runtimeElements.push('checkStackCookie');
+    runtimeElements.push('abortStackOverflow');
+  }
+  if (USE_PTHREADS) {
+    runtimeElements.push('PThread');
+    runtimeElements.push('ExitStatus');
+  }
   if (SUPPORT_BASE64_EMBEDDING) {
     runtimeElements.push('intArrayFromBase64');
     runtimeElements.push('tryParseAsDataURI');

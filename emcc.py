@@ -1239,6 +1239,18 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
           'removeRunDependency'
         ]
 
+      if shared.Settings.STACK_OVERFLOW_CHECK:
+        shared.Settings.EXPORTED_RUNTIME_METHODS += [
+          'writeStackCookie',
+          'checkStackCookie'
+        ]
+
+      if shared.Settings.USE_PTHREADS:
+        shared.Settings.EXPORTED_RUNTIME_METHODS += [
+          'PThread',
+          'ExitStatus'
+        ]
+
       if shared.Settings.USE_PTHREADS:
         if shared.Settings.LINKABLE:
           exit_with_error('-s LINKABLE=1 is not supported with -s USE_PTHREADS>0!')
