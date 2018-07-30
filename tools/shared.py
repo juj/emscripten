@@ -3112,7 +3112,7 @@ def run_c_preprocessor_on_file(src, dst):
   # Still, this should give a good balance to be compatible with existing behavior.
 
   preprocessed = read_and_preprocess(src, True)
-  temp_file = dst + '.temp.preprocessed'
+  temp_file = src + '.temp.preprocessed'
   open(temp_file, 'w').write(preprocessed)
 
   # Find the #if lines that we'll allow expanding.
