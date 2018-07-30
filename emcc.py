@@ -2493,7 +2493,7 @@ def emit_js_source_maps(target, js_transform_tempfiles):
 def separate_asm_js(final, asm_target):
   """Separate out the asm.js code, if asked. Or, if necessary for another option"""
   logger.debug('separating asm')
-  shared.check_call([shared.PYTHON, shared.path_from_root('tools', 'separate_asm.py'), final, asm_target, final])
+  shared.check_call([shared.PYTHON, shared.path_from_root('tools', 'separate_asm.py'), final, asm_target, final, shared.Settings.ASM_MODULE_NAME])
 
   # extra only-my-code logic
   if shared.Settings.ONLY_MY_CODE:
