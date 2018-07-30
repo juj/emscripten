@@ -1248,7 +1248,8 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       if shared.Settings.USE_PTHREADS:
         shared.Settings.EXPORTED_RUNTIME_METHODS += [
           'PThread',
-          'ExitStatus'
+          'ExitStatus',
+          'establishStackSpaceInModule'
         ]
 
       if shared.Settings.USE_PTHREADS:
