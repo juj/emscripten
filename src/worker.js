@@ -65,7 +65,7 @@ out = threadPrint;
 err = threadPrintErr;
 this.alert = threadAlert;
 
-// #if WASM
+#if WASM
 Module['instantiateWasm'] = function(info, receiveInstance) {
   // Instantiate from the module posted from the main thread.
   // We can just use sync instantiation in the worker.
@@ -75,7 +75,7 @@ Module['instantiateWasm'] = function(info, receiveInstance) {
   receiveInstance(instance); // The second 'module' parameter is intentionally null here, we don't need to keep a ref to the Module object from here.
   return instance.exports;
 }
-//#endif
+#endif
 
 this.onmessage = function(e) {
   try {
@@ -89,18 +89,17 @@ this.onmessage = function(e) {
       DYNAMIC_BASE = e.data.DYNAMIC_BASE;
       DYNAMICTOP_PTR = e.data.DYNAMICTOP_PTR;
 
-
-//#if WASM
+#if WASM
       if (e.data.wasmModule) {
         // Module and memory were sent from main thread
         Module['wasmModule'] = e.data.wasmModule;
         Module['wasmMemory'] = e.data.wasmMemory;
         buffer = Module['wasmMemory'].buffer;
       } else {
-//#else
+#else
         buffer = e.data.buffer;
       }
-//#endif
+#endif
 
       PthreadWorkerInit = e.data.PthreadWorkerInit;
       if (typeof e.data.urlOrBlob === 'string') {
@@ -110,9 +109,9 @@ this.onmessage = function(e) {
         importScripts(objectUrl);
         URL.revokeObjectURL(objectUrl);
       }
-//#if !ASMFS
+#if !ASMFS
       if (typeof FS !== 'undefined' && typeof FS.createStandardStreams === 'function') FS.createStandardStreams();
-//#endif
+#endif
       postMessage({ cmd: 'loaded' });
     } else if (e.data.cmd === 'objectTransfer') {
       PThread.receiveObjectTransfer(e.data);
@@ -132,14 +131,14 @@ this.onmessage = function(e) {
       assert(STACK_BASE != 0);
       assert(STACK_MAX > STACK_BASE);
       Module['establishStackSpace'](e.data.stackBase, e.data.stackBase + e.data.stackSize);
-      var result = 0;
-//#if STACK_OVERFLOW_CHECK
-      if (typeof writeStackCookie === 'function') writeStackCookie();
-//#endif
+#if STACK_OVERFLOW_CHECK
+      writeStackCookie();
+#endif
 
       PThread.receiveObjectTransfer(e.data);
       PThread.setThreadStatus(_pthread_self(), 1/*EM_THREAD_STATUS_RUNNING*/);
 
+      var result = 0;
       try {
         // pthread entry points are always of signature 'void *ThreadMain(void *arg)'
         // Native codebases sometimes spawn threads with other thread entry point signatures,
@@ -150,9 +149,9 @@ this.onmessage = function(e) {
         // flag -s EMULATE_FUNCTION_POINTER_CASTS=1 to add in emulation for this x86 ABI extension.
         result = Module['dynCall_ii'](e.data.start_routine, e.data.arg);
 
-//#if STACK_OVERFLOW_CHECK
-        if (typeof checkStackCookie === 'function') checkStackCookie();
-//#endif
+#if STACK_OVERFLOW_CHECK
+        checkStackCookie();
+#endif
 
       } catch(e) {
         if (e === 'Canceled!') {
