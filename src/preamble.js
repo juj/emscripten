@@ -941,15 +941,15 @@ function checkStackCookie() {
   if (HEAP32[0] !== 0x63736d65 /* 'emsc' */) throw 'Runtime error: The application has corrupted its heap memory area (address zero)!';
 }
 
-function establishStackSpaceInModule(stackBase, stackMax) {
-  STACK_BASE = STACKTOP = stackBase;
-  STACK_MAX = stackMax;
-}
-
 function abortStackOverflow(allocSize) {
   abort('Stack overflow! Attempted to allocate ' + allocSize + ' bytes on the stack, but stack has only ' + (STACK_MAX - stackSave() + allocSize) + ' bytes available!');
 }
 #endif
+
+function establishStackSpaceInModule(stackBase, stackMax) {
+  STACK_BASE = STACKTOP = stackBase;
+  STACK_MAX = stackMax;
+}
 
 #if EMTERPRETIFY
 function abortStackOverflowEmterpreter() {
