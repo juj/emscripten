@@ -106,10 +106,19 @@ this.onmessage = function(e) {
       buffer = Module['buffer'] = Module['wasmMemory'].buffer;
 #else
       buffer = Module['buffer'] = e.data.buffer;
-#endif
 
 #if SEPARATE_ASM != 0
-      importScripts(e.data.asmJsUrlOrBlob || '{{{ SEPARATE_ASM }}}' ); // load the separated-out asm.js
+      // load the separated-out asm.js
+      e.data.asmJsUrlOrBlob = e.data.asmJsUrlOrBlob || '{{{ SEPARATE_ASM }}}';
+      if (typeof e.data.asmJsUrlOrBlob === 'string') {
+        importScripts(e.data.asmJsUrlOrBlob);
+      } else {
+        var objectUrl = URL.createObjectURL(e.data.asmJsUrlOrBlob);
+        importScripts(objectUrl);
+        URL.revokeObjectURL(objectUrl);
+      }
+#endif
+
 #endif
 
       Module['PthreadWorkerInit'] = e.data.PthreadWorkerInit;
