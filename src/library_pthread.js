@@ -397,6 +397,7 @@ var LibraryPThread = {
             wasmModule: Module['wasmModule'],
 #else
             buffer: HEAPU8.buffer,
+            asmJsUrlOrBlob: Module["asmJsUrlOrBlob"],
 #endif
             tempDoublePtr: tempDoublePtr,
             TOTAL_MEMORY: TOTAL_MEMORY,
