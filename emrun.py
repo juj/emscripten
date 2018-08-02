@@ -259,20 +259,6 @@ user_pref("browser.privatebrowsing.autostart", true);
 user_pref("browser.tabs.warnOnClose", false);
 // Allow the launched script window to close itself, so that we don't need to kill the browser process in order to move on.
 user_pref("dom.allow_scripts_to_close_windows", true);
-// Set various update timers to a large value in the future in order to not
-// trigger a large mass of update HTTP traffic on each Firefox run on the clean profile.
-// 2147483647 seconds since Unix epoch is sometime in the year 2038, and this is the max integer accepted by Firefox.
-user_pref("app.update.lastUpdateTime.addon-background-update-timer", 2147483647);
-user_pref("app.update.lastUpdateTime.background-update-timer", 2147483647);
-user_pref("app.update.lastUpdateTime.blocklist-background-update-timer", 2147483647);
-user_pref("app.update.lastUpdateTime.browser-cleanup-thumbnails", 2147483647);
-user_pref("app.update.lastUpdateTime.experiments-update-timer", 2147483647);
-user_pref("app.update.lastUpdateTime.search-engine-update-timer", 2147483647);
-user_pref("app.update.lastUpdateTime.xpi-signature-verification", 2147483647);
-user_pref("extensions.getAddons.cache.lastUpdate", 2147483647);
-user_pref("media.gmp-eme-adobe.lastUpdate", 2147483647);
-user_pref("media.gmp-gmpopenh264.lastUpdate", 2147483647);
-user_pref("datareporting.healthreport.nextDataSubmissionTime", "2147483647000");
 // Detect directly when executing if asm.js does not validate by throwing an error.
 user_pref("javascript.options.throw_on_asmjs_validation_failure", true);
 // Sending Firefox Health Report Telemetry data is not desirable, since these are automated runs.
@@ -292,6 +278,9 @@ user_pref("extensions.getAddons.cache.enabled", false);
 user_pref("javascript.options.wasm", true);
 // Enable SharedArrayBuffer (this profile is for a testing environment, so Spectre/Meltdown don't apply)
 user_pref("javascript.options.shared_memory", true);
+// Don't show Firefox Privacy Notice at startup
+user_pref("datareporting.policy.dataSubmissionPolicyAcceptedVersion", 2);
+user_pref("datareporting.policy.dataSubmissionPolicyNotifiedTime", "1518798283624");
 ''')
   f.close()
   logv('create_emrun_safe_firefox_profile: Created new Firefox profile "' + temp_firefox_profile_dir + '"')
