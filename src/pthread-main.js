@@ -218,7 +218,7 @@ this.onmessage = function(e) {
       // no-op
     } else if (e.data.cmd === 'processThreadQueue') {
       if (threadInfoStruct) { // If this thread is actually running?
-        _emscripten_current_thread_process_queued_calls();
+        Module['_emscripten_current_thread_process_queued_calls']();
       }
     } else {
       err('pthread-main.js received unknown command ' + e.data.cmd);
