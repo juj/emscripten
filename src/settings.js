@@ -364,6 +364,10 @@ var WEBSOCKET_URL = 'ws://';
 // as would be present in the Sec-WebSocket-Protocol header.
 var WEBSOCKET_SUBPROTOCOL = 'binary';
 
+
+// If 1, prints out debugging related to WebSockets calls. If 2, traces bytes communicated via the socket.
+var WEBSOCKET_DEBUG = 0;
+
 // Print out debugging information from our OpenAL implementation.
 var OPENAL_DEBUG = 0;
 
