@@ -168,6 +168,10 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
         'usleep.c', 'alarm.c', 'syscall.c', '_exit.c', 'popen.c',
         'getgrouplist.c', 'initgroups.c', 'wordexp.c', 'timer_create.c',
         'faccessat.c',
+        'socket.c', 'socketpair.c', 'shutdown.c', 'bind.c', 'connect.c',
+        'listen.c', 'accept.c', 'getsockname.c', 'getpeername.c', 'send.c',
+        'recv.c', 'sendto.c', 'recvfrom.c', 'sendmsg.c', 'recvmsg.c',
+        'getsockopt.c', 'setsockopt.c'
     ]
 
     # individual math files
