@@ -530,6 +530,11 @@ extern void emscripten_html5_remove_all_event_listeners(void);
 #define emscripten_set_webglcontextlost_callback(target, userData, useCapture, callback)      emscripten_set_webglcontextlost_callback_on_thread(     (target), (userData), (useCapture), (callback), EM_CALLBACK_THREAD_CONTEXT_CALLING_THREAD)
 #define emscripten_set_webglcontextrestored_callback(target, userData, useCapture, callback)  emscripten_set_webglcontextrestored_callback_on_thread( (target), (userData), (useCapture), (callback), EM_CALLBACK_THREAD_CONTEXT_CALLING_THREAD)
 
+typedef void (*em_request_animation_frame_callback)(double time, void *userData);
+
+extern long emscripten_request_animation_frame(em_request_animation_frame_callback cb, void *userData);
+extern void emscripten_cancel_animation_frame(long requestAnimationFrameId);
+
 #ifdef __cplusplus
 } // ~extern "C"
 #endif
