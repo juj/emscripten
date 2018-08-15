@@ -258,29 +258,30 @@ var LibraryJSEvents = {
         var e = event || window.event;
 
 #if USE_PTHREADS
-        var keyEventData = targetThread ? _malloc( {{{ C_STRUCTS.EmscriptenKeyboardEvent.__size__ }}} ) : JSEvents.keyEvent; // This allocated block is passed as satellite data to the proxied function call, so the call frees up the data block when done.
+        var k = targetThread ? _malloc( {{{ C_STRUCTS.EmscriptenKeyboardEvent.__size__ }}} ) : JSEvents.keyEvent; // This allocated block is passed as satellite data to the proxied function call, so the call frees up the data block when done.
 #else
-        var keyEventData = JSEvents.keyEvent;
+        var k = JSEvents.keyEvent;
 #endif
-        stringToUTF8(e.key ? e.key : "", keyEventData + {{{ C_STRUCTS.EmscriptenKeyboardEvent.key }}}, {{{ cDefine('EM_HTML5_SHORT_STRING_LEN_BYTES') }}});
-        stringToUTF8(e.code ? e.code : "", keyEventData + {{{ C_STRUCTS.EmscriptenKeyboardEvent.code }}}, {{{ cDefine('EM_HTML5_SHORT_STRING_LEN_BYTES') }}});
-        {{{ makeSetValue('keyEventData', C_STRUCTS.EmscriptenKeyboardEvent.location, 'e.location', 'i32') }}};
-        {{{ makeSetValue('keyEventData', C_STRUCTS.EmscriptenKeyboardEvent.ctrlKey, 'e.ctrlKey', 'i32') }}};
-        {{{ makeSetValue('keyEventData', C_STRUCTS.EmscriptenKeyboardEvent.shiftKey, 'e.shiftKey', 'i32') }}};
-        {{{ makeSetValue('keyEventData', C_STRUCTS.EmscriptenKeyboardEvent.altKey, 'e.altKey', 'i32') }}};
-        {{{ makeSetValue('keyEventData', C_STRUCTS.EmscriptenKeyboardEvent.metaKey, 'e.metaKey', 'i32') }}};
-        {{{ makeSetValue('keyEventData', C_STRUCTS.EmscriptenKeyboardEvent.repeat, 'e.repeat', 'i32') }}};
-        stringToUTF8(e.locale ? e.locale : "", keyEventData + {{{ C_STRUCTS.EmscriptenKeyboardEvent.locale }}}, {{{ cDefine('EM_HTML5_SHORT_STRING_LEN_BYTES') }}});
-        stringToUTF8(e.char ? e.char : "", keyEventData + {{{ C_STRUCTS.EmscriptenKeyboardEvent.charValue }}}, {{{ cDefine('EM_HTML5_SHORT_STRING_LEN_BYTES') }}});
-        {{{ makeSetValue('keyEventData', C_STRUCTS.EmscriptenKeyboardEvent.charCode, 'e.charCode', 'i32') }}};
-        {{{ makeSetValue('keyEventData', C_STRUCTS.EmscriptenKeyboardEvent.keyCode, 'e.keyCode', 'i32') }}};
-        {{{ makeSetValue('keyEventData', C_STRUCTS.EmscriptenKeyboardEvent.which, 'e.which', 'i32') }}};
+        stringToUTF8(e.key ? e.key : "", k + {{{ C_STRUCTS.EmscriptenKeyboardEvent.key }}}, {{{ cDefine('EM_HTML5_SHORT_STRING_LEN_BYTES') }}});
+        stringToUTF8(e.code ? e.code : "", k + {{{ C_STRUCTS.EmscriptenKeyboardEvent.code }}}, {{{ cDefine('EM_HTML5_SHORT_STRING_LEN_BYTES') }}});
+
+        {{{ makeSetValue('k', C_STRUCTS.EmscriptenKeyboardEvent.location, 'e.location', 'i32') }}};
+        {{{ makeSetValue('k', C_STRUCTS.EmscriptenKeyboardEvent.ctrlKey, 'e.ctrlKey', 'i32') }}};
+        {{{ makeSetValue('k', C_STRUCTS.EmscriptenKeyboardEvent.shiftKey, 'e.shiftKey', 'i32') }}};
+        {{{ makeSetValue('k', C_STRUCTS.EmscriptenKeyboardEvent.altKey, 'e.altKey', 'i32') }}};
+        {{{ makeSetValue('k', C_STRUCTS.EmscriptenKeyboardEvent.metaKey, 'e.metaKey', 'i32') }}};
+        {{{ makeSetValue('k', C_STRUCTS.EmscriptenKeyboardEvent.repeat, 'e.repeat', 'i32') }}};
+        stringToUTF8(e.locale ? e.locale : "", k + {{{ C_STRUCTS.EmscriptenKeyboardEvent.locale }}}, {{{ cDefine('EM_HTML5_SHORT_STRING_LEN_BYTES') }}});
+        stringToUTF8(e.char ? e.char : "", k + {{{ C_STRUCTS.EmscriptenKeyboardEvent.charValue }}}, {{{ cDefine('EM_HTML5_SHORT_STRING_LEN_BYTES') }}});
+        {{{ makeSetValue('k', C_STRUCTS.EmscriptenKeyboardEvent.charCode, 'e.charCode', 'i32') }}};
+        {{{ makeSetValue('k', C_STRUCTS.EmscriptenKeyboardEvent.keyCode, 'e.keyCode', 'i32') }}};
+        {{{ makeSetValue('k', C_STRUCTS.EmscriptenKeyboardEvent.which, 'e.which', 'i32') }}};
 
 #if USE_PTHREADS
-        if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, keyEventData, userData);
+        if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, k, userData);
         else
 #endif
-        if (Module['dynCall_iiii'](callbackfunc, eventTypeId, keyEventData, userData)) e.preventDefault();
+        if (Module['dynCall_iiii'](callbackfunc, eventTypeId, k, userData)) e.preventDefault();
       };
 
       var eventHandler = {
@@ -299,39 +300,39 @@ var LibraryJSEvents = {
     },
 
     // Copies mouse event data from the given JS mouse event 'e' to the specified Emscripten mouse event structure in the HEAP.
-    // eventStruct: the structure to populate.
+    // s: the structure to populate.
     // e: The JS mouse event to read data from.
     // target: Specifies a target DOM element that will be used as the reference to populate targetX and targetY parameters.
-    fillMouseEventData: function(eventStruct, e, target) {
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.timestamp, 'JSEvents.tick()', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.screenX, 'e.screenX', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.screenY, 'e.screenY', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.clientX, 'e.clientX', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.clientY, 'e.clientY', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.ctrlKey, 'e.ctrlKey', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.shiftKey, 'e.shiftKey', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.altKey, 'e.altKey', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.metaKey, 'e.metaKey', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.button, 'e.button', 'i16') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.buttons, 'e.buttons', 'i16') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.movementX, 'e["movementX"] || e["mozMovementX"] || e["webkitMovementX"] || (e.screenX-JSEvents.previousScreenX)', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.movementY, 'e["movementY"] || e["mozMovementY"] || e["webkitMovementY"] || (e.screenY-JSEvents.previousScreenY)', 'i32') }}};
+    fillMouseEventData: function(s, e, target) {
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.timestamp, 'JSEvents.tick()', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.screenX, 'e.screenX', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.screenY, 'e.screenY', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.clientX, 'e.clientX', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.clientY, 'e.clientY', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.ctrlKey, 'e.ctrlKey', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.shiftKey, 'e.shiftKey', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.altKey, 'e.altKey', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.metaKey, 'e.metaKey', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.button, 'e.button', 'i16') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.buttons, 'e.buttons', 'i16') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.movementX, 'e["movementX"] || e["mozMovementX"] || e["webkitMovementX"] || (e.screenX-JSEvents.previousScreenX)', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.movementY, 'e["movementY"] || e["mozMovementY"] || e["webkitMovementY"] || (e.screenY-JSEvents.previousScreenY)', 'i32') }}};
 
       if (Module['canvas']) {
         var rect = Module['canvas'].getBoundingClientRect();
-        {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.canvasX, 'e.clientX - rect.left', 'i32') }}};
-        {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.canvasY, 'e.clientY - rect.top', 'i32') }}};
+        {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.canvasX, 'e.clientX - rect.left', 'i32') }}};
+        {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.canvasY, 'e.clientY - rect.top', 'i32') }}};
       } else { // Canvas is not initialized, return 0.
-        {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.canvasX, '0', 'i32') }}};
-        {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.canvasY, '0', 'i32') }}};
+        {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.canvasX, '0', 'i32') }}};
+        {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.canvasY, '0', 'i32') }}};
       }
       if (target) {
         var rect = JSEvents.getBoundingClientRectOrZeros(target);
-        {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.targetX, 'e.clientX - rect.left', 'i32') }}};
-        {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.targetY, 'e.clientY - rect.top', 'i32') }}};
+        {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.targetX, 'e.clientX - rect.left', 'i32') }}};
+        {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.targetY, 'e.clientY - rect.top', 'i32') }}};
       } else { // No specific target passed, return 0.
-        {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.targetX, '0', 'i32') }}};
-        {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.targetY, '0', 'i32') }}};
+        {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.targetX, '0', 'i32') }}};
+        {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.targetY, '0', 'i32') }}};
       }
       // wheel and mousewheel events contain wrong screenX/screenY on chrome/opera
       // https://github.com/kripken/emscripten/pull/4997
@@ -390,33 +391,39 @@ var LibraryJSEvents = {
       var wheelHandlerFunc = function(event) {
         var e = event || window.event;
 #if USE_PTHREADS
-        var wheelEvent = targetThread ? _malloc( {{{ C_STRUCTS.EmscriptenWheelEvent.__size__ }}} ) : JSEvents.wheelEvent; // This allocated block is passed as satellite data to the proxied function call, so the call frees up the data block when done.
+        var w = targetThread ? _malloc( {{{ C_STRUCTS.EmscriptenWheelEvent.__size__ }}} ) : JSEvents.wheelEvent; // This allocated block is passed as satellite data to the proxied function call, so the call frees up the data block when done.
 #else
-        var wheelEvent = JSEvents.wheelEvent;
+        var w = JSEvents.wheelEvent;
 #endif
-        JSEvents.fillMouseEventData(wheelEvent, e, target);
-        {{{ makeSetValue('wheelEvent', C_STRUCTS.EmscriptenWheelEvent.deltaX, 'e["deltaX"]', 'double') }}};
-        {{{ makeSetValue('wheelEvent', C_STRUCTS.EmscriptenWheelEvent.deltaY, 'e["deltaY"]', 'double') }}};
-        {{{ makeSetValue('wheelEvent', C_STRUCTS.EmscriptenWheelEvent.deltaZ, 'e["deltaZ"]', 'double') }}};
-        {{{ makeSetValue('wheelEvent', C_STRUCTS.EmscriptenWheelEvent.deltaMode, 'e["deltaMode"]', 'i32') }}};
+        JSEvents.fillMouseEventData(w, e, target);
+        {{{ makeSetValue('w', C_STRUCTS.EmscriptenWheelEvent.deltaX, 'e["deltaX"]', 'double') }}};
+        {{{ makeSetValue('w', C_STRUCTS.EmscriptenWheelEvent.deltaY, 'e["deltaY"]', 'double') }}};
+        {{{ makeSetValue('w', C_STRUCTS.EmscriptenWheelEvent.deltaZ, 'e["deltaZ"]', 'double') }}};
+        {{{ makeSetValue('w', C_STRUCTS.EmscriptenWheelEvent.deltaMode, 'e["deltaMode"]', 'i32') }}};
 #if USE_PTHREADS
-        if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, wheelEvent, userData);
+        if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, w, userData);
         else
 #endif
-        if (Module['dynCall_iiii'](callbackfunc, eventTypeId, wheelEvent, userData)) e.preventDefault();
+        if (Module['dynCall_iiii'](callbackfunc, eventTypeId, w, userData)) e.preventDefault();
       };
       // The 'mousewheel' event as implemented in Safari 6.0.5
       var mouseWheelHandlerFunc = function(event) {
         var e = event || window.event;
-        JSEvents.fillMouseEventData(JSEvents.wheelEvent, e, target);
-        {{{ makeSetValue('JSEvents.wheelEvent', C_STRUCTS.EmscriptenWheelEvent.deltaX, 'e["wheelDeltaX"] || 0', 'double') }}};
-        {{{ makeSetValue('JSEvents.wheelEvent', C_STRUCTS.EmscriptenWheelEvent.deltaY, '-(e["wheelDeltaY"] ? e["wheelDeltaY"] : e["wheelDelta"]) /* 1. Invert to unify direction with the DOM Level 3 wheel event. 2. MSIE does not provide wheelDeltaY, so wheelDelta is used as a fallback. */', 'double') }}};
-        {{{ makeSetValue('JSEvents.wheelEvent', C_STRUCTS.EmscriptenWheelEvent.deltaZ, '0 /* Not available */', 'double') }}};
-        {{{ makeSetValue('JSEvents.wheelEvent', C_STRUCTS.EmscriptenWheelEvent.deltaMode, '0 /* DOM_DELTA_PIXEL */', 'i32') }}};
-        var shouldCancel = Module['dynCall_iiii'](callbackfunc, eventTypeId, JSEvents.wheelEvent, userData);
-        if (shouldCancel) {
-          e.preventDefault();
-        }
+#if USE_PTHREADS
+        var w = targetThread ? _malloc( {{{ C_STRUCTS.EmscriptenWheelEvent.__size__ }}} ) : JSEvents.wheelEvent; // This allocated block is passed as satellite data to the proxied function call, so the call frees up the data block when done.
+#else
+        var w = JSEvents.wheelEvent;
+#endif
+        JSEvents.fillMouseEventData(w, e, target);
+        {{{ makeSetValue('w', C_STRUCTS.EmscriptenWheelEvent.deltaX, 'e["wheelDeltaX"] || 0', 'double') }}};
+        {{{ makeSetValue('w', C_STRUCTS.EmscriptenWheelEvent.deltaY, '-(e["wheelDeltaY"] ? e["wheelDeltaY"] : e["wheelDelta"]) /* 1. Invert to unify direction with the DOM Level 3 wheel event. 2. MSIE does not provide wheelDeltaY, so wheelDelta is used as a fallback. */', 'double') }}};
+        {{{ makeSetValue('w', C_STRUCTS.EmscriptenWheelEvent.deltaZ, '0 /* Not available */', 'double') }}};
+        {{{ makeSetValue('w', C_STRUCTS.EmscriptenWheelEvent.deltaMode, '0 /* DOM_DELTA_PIXEL */', 'i32') }}};
+#if USE_PTHREADS
+        if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, w, userData);
+        else
+#endif
+        if (Module['dynCall_iiii'](callbackfunc, eventTypeId, w, userData)) e.preventDefault();
       };
 
       var eventHandler = {
@@ -431,13 +438,12 @@ var LibraryJSEvents = {
     },
 
     pageScrollPos: function() {
-      if (window.pageXOffset > 0 || window.pageYOffset > 0) {
-        return [window.pageXOffset, window.pageYOffset];
-      }
-      if (typeof document.documentElement.scrollLeft !== 'undefined' || typeof document.documentElement.scrollTop !== 'undefined') {
-        return [document.documentElement.scrollLeft, document.documentElement.scrollTop];
-      }
-      return [document.body.scrollLeft|0, document.body.scrollTop|0];
+      var w = window;
+      if (w.pageXOffset || w.pageYOffset) return [w.pageXOffset, w.pageYOffset];
+      var de = document.documentElement;
+      if (de.scrollLeft || de.scrollTop) return [de.scrollLeft, de.scrollTop];
+      var b = document.body;
+      return [b.scrollLeft|0, b.scrollTop|0];
     },
 
     registerUiEventCallback: function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString, targetThread) {
@@ -464,24 +470,24 @@ var LibraryJSEvents = {
         var scrollPos = JSEvents.pageScrollPos();
 
 #if USE_PTHREADS
-        var uiEvent = targetThread ? _malloc( {{{ C_STRUCTS.EmscriptenUiEvent.__size__ }}} ) : JSEvents.uiEvent;
+        var u = targetThread ? _malloc( {{{ C_STRUCTS.EmscriptenUiEvent.__size__ }}} ) : JSEvents.uiEvent;
 #else
-        var uiEvent = JSEvents.uiEvent;
+        var u = JSEvents.uiEvent;
 #endif
-        {{{ makeSetValue('uiEvent', C_STRUCTS.EmscriptenUiEvent.detail, 'e.detail', 'i32') }}};
-        {{{ makeSetValue('uiEvent', C_STRUCTS.EmscriptenUiEvent.documentBodyClientWidth, 'document.body.clientWidth', 'i32') }}};
-        {{{ makeSetValue('uiEvent', C_STRUCTS.EmscriptenUiEvent.documentBodyClientHeight, 'document.body.clientHeight', 'i32') }}};
-        {{{ makeSetValue('uiEvent', C_STRUCTS.EmscriptenUiEvent.windowInnerWidth, 'window.innerWidth', 'i32') }}};
-        {{{ makeSetValue('uiEvent', C_STRUCTS.EmscriptenUiEvent.windowInnerHeight, 'window.innerHeight', 'i32') }}};
-        {{{ makeSetValue('uiEvent', C_STRUCTS.EmscriptenUiEvent.windowOuterWidth, 'window.outerWidth', 'i32') }}};
-        {{{ makeSetValue('uiEvent', C_STRUCTS.EmscriptenUiEvent.windowOuterHeight, 'window.outerHeight', 'i32') }}};
-        {{{ makeSetValue('uiEvent', C_STRUCTS.EmscriptenUiEvent.scrollTop, 'scrollPos[0]', 'i32') }}};
-        {{{ makeSetValue('uiEvent', C_STRUCTS.EmscriptenUiEvent.scrollLeft, 'scrollPos[1]', 'i32') }}};
+        {{{ makeSetValue('u', C_STRUCTS.EmscriptenUiEvent.detail, 'e.detail', 'i32') }}};
+        {{{ makeSetValue('u', C_STRUCTS.EmscriptenUiEvent.documentBodyClientWidth, 'document.body.clientWidth', 'i32') }}};
+        {{{ makeSetValue('u', C_STRUCTS.EmscriptenUiEvent.documentBodyClientHeight, 'document.body.clientHeight', 'i32') }}};
+        {{{ makeSetValue('u', C_STRUCTS.EmscriptenUiEvent.windowInnerWidth, 'window.innerWidth', 'i32') }}};
+        {{{ makeSetValue('u', C_STRUCTS.EmscriptenUiEvent.windowInnerHeight, 'window.innerHeight', 'i32') }}};
+        {{{ makeSetValue('u', C_STRUCTS.EmscriptenUiEvent.windowOuterWidth, 'window.outerWidth', 'i32') }}};
+        {{{ makeSetValue('u', C_STRUCTS.EmscriptenUiEvent.windowOuterHeight, 'window.outerHeight', 'i32') }}};
+        {{{ makeSetValue('u', C_STRUCTS.EmscriptenUiEvent.scrollTop, 'scrollPos[0]', 'i32') }}};
+        {{{ makeSetValue('u', C_STRUCTS.EmscriptenUiEvent.scrollLeft, 'scrollPos[1]', 'i32') }}};
 #if USE_PTHREADS
-        if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, uiEvent, userData);
+        if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, u, userData);
         else
 #endif
-        if (Module['dynCall_iiii'](callbackfunc, eventTypeId, uiEvent, userData)) e.preventDefault();
+        if (Module['dynCall_iiii'](callbackfunc, eventTypeId, u, userData)) e.preventDefault();
       };
 
       var eventHandler = {
@@ -515,18 +521,18 @@ var LibraryJSEvents = {
         var id = e.target.id ? e.target.id : '';
 
 #if USE_PTHREADS
-        var focusEvent = targetThread ? _malloc( {{{ C_STRUCTS.EmscriptenFocusEvent.__size__ }}} ) : JSEvents.focusEvent;
+        var f = targetThread ? _malloc( {{{ C_STRUCTS.EmscriptenFocusEvent.__size__ }}} ) : JSEvents.focusEvent;
 #else
-        var focusEvent = JSEvents.focusEvent;
+        var f = JSEvents.focusEvent;
 #endif
         stringToUTF8(nodeName, focusEvent + {{{ C_STRUCTS.EmscriptenFocusEvent.nodeName }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
         stringToUTF8(id, focusEvent + {{{ C_STRUCTS.EmscriptenFocusEvent.id }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
 
 #if USE_PTHREADS
-        if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, focusEvent, userData);
+        if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, f, userData);
         else
 #endif
-        if (Module['dynCall_iiii'](callbackfunc, eventTypeId, focusEvent, userData)) e.preventDefault();
+        if (Module['dynCall_iiii'](callbackfunc, eventTypeId, f, userData)) e.preventDefault();
       };
 
       var eventHandler = {
@@ -545,12 +551,12 @@ var LibraryJSEvents = {
       else return Date.now();
     },
 
-    fillDeviceOrientationEventData: function(eventStruct, e, target) {
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceOrientationEvent.timestamp, 'JSEvents.tick()', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceOrientationEvent.alpha, 'e.alpha', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceOrientationEvent.beta, 'e.beta', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceOrientationEvent.gamma, 'e.gamma', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceOrientationEvent.absolute, 'e.absolute', 'i32') }}};
+    fillDeviceOrientationEventData: function(s, e, target) {
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceOrientationEvent.timestamp, 'JSEvents.tick()', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceOrientationEvent.alpha, 'e.alpha', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceOrientationEvent.beta, 'e.beta', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceOrientationEvent.gamma, 'e.gamma', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceOrientationEvent.absolute, 'e.absolute', 'i32') }}};
     },
 
     registerDeviceOrientationEventCallback: function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString, targetThread) {
@@ -585,17 +591,17 @@ var LibraryJSEvents = {
       JSEvents.registerOrRemoveHandler(eventHandler);
     },
 
-    fillDeviceMotionEventData: function(eventStruct, e, target) {
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceMotionEvent.timestamp, 'JSEvents.tick()', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceMotionEvent.accelerationX, 'e.acceleration.x', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceMotionEvent.accelerationY, 'e.acceleration.y', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceMotionEvent.accelerationZ, 'e.acceleration.z', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceMotionEvent.accelerationIncludingGravityX, 'e.accelerationIncludingGravity.x', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceMotionEvent.accelerationIncludingGravityY, 'e.accelerationIncludingGravity.y', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceMotionEvent.accelerationIncludingGravityZ, 'e.accelerationIncludingGravity.z', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceMotionEvent.rotationRateAlpha, 'e.rotationRate.alpha', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceMotionEvent.rotationRateBeta, 'e.rotationRate.beta', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenDeviceMotionEvent.rotationRateGamma, 'e.rotationRate.gamma', 'double') }}};
+    fillDeviceMotionEventData: function(s, e, target) {
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceMotionEvent.timestamp, 'JSEvents.tick()', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceMotionEvent.accelerationX, 'e.acceleration.x', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceMotionEvent.accelerationY, 'e.acceleration.y', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceMotionEvent.accelerationZ, 'e.acceleration.z', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceMotionEvent.accelerationIncludingGravityX, 'e.accelerationIncludingGravity.x', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceMotionEvent.accelerationIncludingGravityY, 'e.accelerationIncludingGravity.y', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceMotionEvent.accelerationIncludingGravityZ, 'e.accelerationIncludingGravity.z', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceMotionEvent.rotationRateAlpha, 'e.rotationRate.alpha', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceMotionEvent.rotationRateBeta, 'e.rotationRate.beta', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenDeviceMotionEvent.rotationRateGamma, 'e.rotationRate.gamma', 'double') }}};
     },
 
     registerDeviceMotionEventCallback: function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString, targetThread) {
@@ -631,22 +637,20 @@ var LibraryJSEvents = {
     },
 
     screenOrientation: function() {
-      if (!window.screen) return undefined;
-      return window.screen.orientation || window.screen.mozOrientation || window.screen.webkitOrientation || window.screen.msOrientation;
+      var s = window.screen;
+      return s && s.orientation || s.mozOrientation || s.webkitOrientation || s.msOrientation;
     },
 
-    fillOrientationChangeEventData: function(eventStruct, e) {
+    fillOrientationChangeEventData: function(s, e) {
       var orientations  = ["portrait-primary", "portrait-secondary", "landscape-primary", "landscape-secondary"];
       var orientations2 = ["portrait",         "portrait",           "landscape",         "landscape"];
 
       var orientationString = JSEvents.screenOrientation();
       var orientation = orientations.indexOf(orientationString);
-      if (orientation == -1) {
-        orientation = orientations2.indexOf(orientationString);
-      }
+      if (orientation == -1) orientation = orientations2.indexOf(orientationString);
 
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenOrientationChangeEvent.orientationIndex, '1 << orientation', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenOrientationChangeEvent.orientationAngle, 'window.orientation', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenOrientationChangeEvent.orientationIndex, '1 << orientation', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenOrientationChangeEvent.orientationAngle, 'window.orientation', 'i32') }}};
     },
 
     registerOrientationChangeEventCallback: function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString, targetThread) {
@@ -655,11 +659,8 @@ var LibraryJSEvents = {
 #endif
       if (!JSEvents.orientationChangeEvent) JSEvents.orientationChangeEvent = _malloc( {{{ C_STRUCTS.EmscriptenOrientationChangeEvent.__size__ }}} );
 
-      if (!target) {
-        target = window.screen; // Orientation events need to be captured from 'window.screen' instead of 'window'
-      } else {
-        target = JSEvents.findEventTarget(target);
-      }
+      if (!target) target = window.screen; // Orientation events need to be captured from 'window.screen' instead of 'window'
+      else target = JSEvents.findEventTarget(target);
 
       var orientationChangeEventHandlerFunc = function(event) {
         var e = event || window.event;
@@ -698,22 +699,22 @@ var LibraryJSEvents = {
       return document.fullscreenEnabled || document.mozFullScreenEnabled || document.webkitFullscreenEnabled || document.msFullscreenEnabled;
     },
     
-    fillFullscreenChangeEventData: function(eventStruct, e) {
+    fillFullscreenChangeEventData: function(s, e) {
       var fullscreenElement = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
       var isFullscreen = !!fullscreenElement;
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenFullscreenChangeEvent.isFullscreen, 'isFullscreen', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenFullscreenChangeEvent.fullscreenEnabled, 'JSEvents.fullscreenEnabled()', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenFullscreenChangeEvent.isFullscreen, 'isFullscreen', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenFullscreenChangeEvent.fullscreenEnabled, 'JSEvents.fullscreenEnabled()', 'i32') }}};
       // If transitioning to fullscreen, report info about the element that is now fullscreen.
       // If transitioning to windowed mode, report info about the element that just was fullscreen.
       var reportedElement = isFullscreen ? fullscreenElement : JSEvents.previousFullscreenElement;
       var nodeName = JSEvents.getNodeNameForTarget(reportedElement);
       var id = (reportedElement && reportedElement.id) ? reportedElement.id : '';
-      stringToUTF8(nodeName, eventStruct + {{{ C_STRUCTS.EmscriptenFullscreenChangeEvent.nodeName }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
-      stringToUTF8(id, eventStruct + {{{ C_STRUCTS.EmscriptenFullscreenChangeEvent.id }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenFullscreenChangeEvent.elementWidth, 'reportedElement ? reportedElement.clientWidth : 0', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenFullscreenChangeEvent.elementHeight, 'reportedElement ? reportedElement.clientHeight : 0', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenFullscreenChangeEvent.screenWidth, 'screen.width', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenFullscreenChangeEvent.screenHeight, 'screen.height', 'i32') }}};
+      stringToUTF8(nodeName, s + {{{ C_STRUCTS.EmscriptenFullscreenChangeEvent.nodeName }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
+      stringToUTF8(id, s + {{{ C_STRUCTS.EmscriptenFullscreenChangeEvent.id }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenFullscreenChangeEvent.elementWidth, 'reportedElement ? reportedElement.clientWidth : 0', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenFullscreenChangeEvent.elementHeight, 'reportedElement ? reportedElement.clientHeight : 0', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenFullscreenChangeEvent.screenWidth, 'screen.width', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenFullscreenChangeEvent.screenHeight, 'screen.height', 'i32') }}};
       if (isFullscreen) {
         JSEvents.previousFullscreenElement = fullscreenElement;
       }
@@ -784,24 +785,25 @@ var LibraryJSEvents = {
         }
       }
 
+      var s = target.style;
       // If we are adding padding, must choose a background color or otherwise Chrome will give the
       // padding a default white color. Do it only if user has not customized their own background color.
-      if (!target.style.backgroundColor) target.style.backgroundColor = 'black';
+      if (!s.backgroundColor) s.backgroundColor = 'black';
       // IE11 does the same, but requires the color to be set in the document body.
       if (!document.body.style.backgroundColor) document.body.style.backgroundColor = 'black'; // IE11
       // Firefox always shows black letterboxes independent of style color.
 
-      target.style.width = cssWidth + 'px';
-      target.style.height = cssHeight + 'px';
+      s.width = cssWidth + 'px';
+      s.height = cssHeight + 'px';
 
       if (strategy.filteringMode == {{{ cDefine('EMSCRIPTEN_FULLSCREEN_FILTERING_NEAREST') }}}) {
-        target.style.imageRendering = 'optimizeSpeed';
-        target.style.imageRendering = '-moz-crisp-edges';
-        target.style.imageRendering = '-o-crisp-edges';
-        target.style.imageRendering = '-webkit-optimize-contrast';
-        target.style.imageRendering = 'optimize-contrast';
-        target.style.imageRendering = 'crisp-edges';
-        target.style.imageRendering = 'pixelated';
+        s.imageRendering = 'optimizeSpeed';
+        s.imageRendering = '-moz-crisp-edges';
+        s.imageRendering = '-o-crisp-edges';
+        s.imageRendering = '-webkit-optimize-contrast';
+        s.imageRendering = 'optimize-contrast';
+        s.imageRendering = 'crisp-edges';
+        s.imageRendering = 'pixelated';
       }
 
       var dpiScale = (strategy.canvasResolutionScaleMode == {{{ cDefine('EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_HIDEF') }}}) ? window.devicePixelRatio : 1;
@@ -849,14 +851,14 @@ var LibraryJSEvents = {
       return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
-    fillPointerlockChangeEventData: function(eventStruct, e) {
+    fillPointerlockChangeEventData: function(s, e) {
       var pointerLockElement = document.pointerLockElement || document.mozPointerLockElement || document.webkitPointerLockElement || document.msPointerLockElement;
       var isPointerlocked = !!pointerLockElement;
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenPointerlockChangeEvent.isActive, 'isPointerlocked', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenPointerlockChangeEvent.isActive, 'isPointerlocked', 'i32') }}};
       var nodeName = JSEvents.getNodeNameForTarget(pointerLockElement);
       var id = (pointerLockElement && pointerLockElement.id) ? pointerLockElement.id : '';
-      stringToUTF8(nodeName, eventStruct + {{{ C_STRUCTS.EmscriptenPointerlockChangeEvent.nodeName }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
-      stringToUTF8(id, eventStruct + {{{ C_STRUCTS.EmscriptenPointerlockChangeEvent.id }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
+      stringToUTF8(nodeName, s + {{{ C_STRUCTS.EmscriptenPointerlockChangeEvent.nodeName }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
+      stringToUTF8(id, s + {{{ C_STRUCTS.EmscriptenPointerlockChangeEvent.id }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
     },
 
     registerPointerlockChangeEventCallback: function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString, targetThread) {
@@ -942,12 +944,9 @@ var LibraryJSEvents = {
       return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
-    fillVisibilityChangeEventData: function(eventStruct, e) {
-      var visibilityStates = [ "hidden", "visible", "prerender", "unloaded" ];
-      var visibilityState = visibilityStates.indexOf(document.visibilityState);
-
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenVisibilityChangeEvent.hidden, 'document.hidden', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenVisibilityChangeEvent.visibilityState, 'visibilityState', 'i32') }}};
+    fillVisibilityChangeEventData: function(s, e) {
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenVisibilityChangeEvent.hidden, 'document.hidden', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenVisibilityChangeEvent.visibilityState, '["hidden", "visible", "prerender", "unloaded"].indexOf(document.visibilityState)', 'i32') }}};
     },
 
     registerVisibilityChangeEventCallback: function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString, targetThread) {
@@ -1001,59 +1000,53 @@ var LibraryJSEvents = {
 
         var touches = {};
         for(var i = 0; i < e.touches.length; ++i) {
-          var touch = e.touches[i];
-          touches[touch.identifier] = touch;
+          var t = e.touches[i];
+          touches[t.identifier] = t;
         }
         for(var i = 0; i < e.changedTouches.length; ++i) {
-          var touch = e.changedTouches[i];
-          touches[touch.identifier] = touch;
-          touch.changed = true;
+          var t = e.changedTouches[i];
+          touches[t.identifier] = t;
+          t.changed = true;
         }
-        for(var i = 0; i < e.targetTouches.length; ++i) {
-          var touch = e.targetTouches[i];
-          touches[touch.identifier].onTarget = true;
-        }
+
+        for(var i = 0; i < e.targetTouches.length; ++i) touches[e.targetTouches[i].identifier].onTarget = true;
 
 #if USE_PTHREADS
         var touchEvent = targetThread ? _malloc( {{{ C_STRUCTS.EmscriptenTouchEvent.__size__ }}} ) : JSEvents.touchEvent;
 #else
         var touchEvent = JSEvents.touchEvent;
 #endif
-        var ptr = touchEvent;
-        {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchEvent.ctrlKey, 'e.ctrlKey', 'i32') }}};
-        {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchEvent.shiftKey, 'e.shiftKey', 'i32') }}};
-        {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchEvent.altKey, 'e.altKey', 'i32') }}};
-        {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchEvent.metaKey, 'e.metaKey', 'i32') }}};
-        ptr += {{{ C_STRUCTS.EmscriptenTouchEvent.touches }}}; // Advance to the start of the touch array.
+        var t = touchEvent;
+        {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchEvent.ctrlKey, 'e.ctrlKey', 'i32') }}};
+        {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchEvent.shiftKey, 'e.shiftKey', 'i32') }}};
+        {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchEvent.altKey, 'e.altKey', 'i32') }}};
+        {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchEvent.metaKey, 'e.metaKey', 'i32') }}};
+        t += {{{ C_STRUCTS.EmscriptenTouchEvent.touches }}}; // Advance to the start of the touch array.
         var canvasRect = Module['canvas'] ? Module['canvas'].getBoundingClientRect() : undefined;
         var targetRect = JSEvents.getBoundingClientRectOrZeros(target);
         var numTouches = 0;
         for(var i in touches) {
           var t = touches[i];
-          {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.identifier, 't.identifier', 'i32') }}};
-          {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.screenX, 't.screenX', 'i32') }}};
-          {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.screenY, 't.screenY', 'i32') }}};
-          {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.clientX, 't.clientX', 'i32') }}};
-          {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.clientY, 't.clientY', 'i32') }}};
-          {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.pageX, 't.pageX', 'i32') }}};
-          {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.pageY, 't.pageY', 'i32') }}};
-          {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.isChanged, 't.changed', 'i32') }}};
-          {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.onTarget, 't.onTarget', 'i32') }}};
+          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.identifier, 't.identifier', 'i32') }}};
+          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.screenX, 't.screenX', 'i32') }}};
+          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.screenY, 't.screenY', 'i32') }}};
+          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.clientX, 't.clientX', 'i32') }}};
+          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.clientY, 't.clientY', 'i32') }}};
+          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.pageX, 't.pageX', 'i32') }}};
+          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.pageY, 't.pageY', 'i32') }}};
+          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.isChanged, 't.changed', 'i32') }}};
+          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.onTarget, 't.onTarget', 'i32') }}};
           if (canvasRect) {
-            {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.canvasX, 't.clientX - canvasRect.left', 'i32') }}};
-            {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.canvasY, 't.clientY - canvasRect.top', 'i32') }}};
+            {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.canvasX, 't.clientX - canvasRect.left', 'i32') }}};
+            {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.canvasY, 't.clientY - canvasRect.top', 'i32') }}};
           } else {
-            {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.canvasX, '0', 'i32') }}};
-            {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.canvasY, '0', 'i32') }}};            
+            {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.canvasX, '0', 'i32') }}};
+            {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.canvasY, '0', 'i32') }}};            
           }
-          {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.targetX, 't.clientX - targetRect.left', 'i32') }}};
-          {{{ makeSetValue('ptr', C_STRUCTS.EmscriptenTouchPoint.targetY, 't.clientY - targetRect.top', 'i32') }}};
-          
-          ptr += {{{ C_STRUCTS.EmscriptenTouchPoint.__size__ }}};
-
-          if (++numTouches >= 32) {
-            break;
-          }
+          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.targetX, 't.clientX - targetRect.left', 'i32') }}};
+          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.targetY, 't.clientY - targetRect.top', 'i32') }}};
+          t += {{{ C_STRUCTS.EmscriptenTouchPoint.__size__ }}};
+          if (++numTouches >= 32) break;
         }
         {{{ makeSetValue('touchEvent', C_STRUCTS.EmscriptenTouchEvent.numTouches, 'numTouches', 'i32') }}};
 
@@ -1075,31 +1068,23 @@ var LibraryJSEvents = {
       JSEvents.registerOrRemoveHandler(eventHandler);
     },
 
-    fillGamepadEventData: function(eventStruct, e) {
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenGamepadEvent.timestamp, 'e.timestamp', 'double') }}};
-      for(var i = 0; i < e.axes.length; ++i) {
-        {{{ makeSetValue('eventStruct+i*8', C_STRUCTS.EmscriptenGamepadEvent.axis, 'e.axes[i]', 'double') }}};
+    fillGamepadEventData: function(s, e) {
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenGamepadEvent.timestamp, 'e.timestamp', 'double') }}};
+      for(var i = 0; i < e.axes.length; ++i) {{{ makeSetValue('s+i*8', C_STRUCTS.EmscriptenGamepadEvent.axis, 'e.axes[i]', 'double') }}};
+      for(var i = 0; i < e.buttons.length; ++i) {
+        if (typeof(e.buttons[i]) === 'object') {{{ makeSetValue('s+i*8', C_STRUCTS.EmscriptenGamepadEvent.analogButton, 'e.buttons[i].value', 'double') }}};
+        else {{{ makeSetValue('s+i*8', C_STRUCTS.EmscriptenGamepadEvent.analogButton, 'e.buttons[i]', 'double') }}};
       }
       for(var i = 0; i < e.buttons.length; ++i) {
-        if (typeof(e.buttons[i]) === 'object') {
-          {{{ makeSetValue('eventStruct+i*8', C_STRUCTS.EmscriptenGamepadEvent.analogButton, 'e.buttons[i].value', 'double') }}};
-        } else {
-          {{{ makeSetValue('eventStruct+i*8', C_STRUCTS.EmscriptenGamepadEvent.analogButton, 'e.buttons[i]', 'double') }}};
-        }
+        if (typeof(e.buttons[i]) === 'object') {{{ makeSetValue('s+i*4', C_STRUCTS.EmscriptenGamepadEvent.digitalButton, 'e.buttons[i].pressed', 'i32') }}};
+        else {{{ makeSetValue('s+i*4', C_STRUCTS.EmscriptenGamepadEvent.digitalButton, 'e.buttons[i] == 1.0', 'i32') }}};
       }
-      for(var i = 0; i < e.buttons.length; ++i) {
-        if (typeof(e.buttons[i]) === 'object') {
-          {{{ makeSetValue('eventStruct+i*4', C_STRUCTS.EmscriptenGamepadEvent.digitalButton, 'e.buttons[i].pressed', 'i32') }}};
-        } else {
-          {{{ makeSetValue('eventStruct+i*4', C_STRUCTS.EmscriptenGamepadEvent.digitalButton, 'e.buttons[i] == 1.0', 'i32') }}};
-        }
-      }
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenGamepadEvent.connected, 'e.connected', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenGamepadEvent.index, 'e.index', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenGamepadEvent.numAxes, 'e.axes.length', 'i32') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenGamepadEvent.numButtons, 'e.buttons.length', 'i32') }}};
-      stringToUTF8(e.id, eventStruct + {{{ C_STRUCTS.EmscriptenGamepadEvent.id }}}, {{{ cDefine('EM_HTML5_MEDIUM_STRING_LEN_BYTES') }}});
-      stringToUTF8(e.mapping, eventStruct + {{{ C_STRUCTS.EmscriptenGamepadEvent.mapping }}}, {{{ cDefine('EM_HTML5_MEDIUM_STRING_LEN_BYTES') }}});
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenGamepadEvent.connected, 'e.connected', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenGamepadEvent.index, 'e.index', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenGamepadEvent.numAxes, 'e.axes.length', 'i32') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenGamepadEvent.numButtons, 'e.buttons.length', 'i32') }}};
+      stringToUTF8(e.id, s + {{{ C_STRUCTS.EmscriptenGamepadEvent.id }}}, {{{ cDefine('EM_HTML5_MEDIUM_STRING_LEN_BYTES') }}});
+      stringToUTF8(e.mapping, s + {{{ C_STRUCTS.EmscriptenGamepadEvent.mapping }}}, {{{ cDefine('EM_HTML5_MEDIUM_STRING_LEN_BYTES') }}});
     },
 
     registerGamepadEventCallback: function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString, targetThread) {
@@ -1166,11 +1151,11 @@ var LibraryJSEvents = {
 
     battery: function() { return navigator.battery || navigator.mozBattery || navigator.webkitBattery; },
 
-    fillBatteryEventData: function(eventStruct, e) {
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenBatteryEvent.chargingTime, 'e.chargingTime', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenBatteryEvent.dischargingTime, 'e.dischargingTime', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenBatteryEvent.level, 'e.level', 'double') }}};
-      {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenBatteryEvent.charging, 'e.charging', 'i32') }}};
+    fillBatteryEventData: function(s, e) {
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenBatteryEvent.chargingTime, 'e.chargingTime', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenBatteryEvent.dischargingTime, 'e.dischargingTime', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenBatteryEvent.level, 'e.level', 'double') }}};
+      {{{ makeSetValue('s', C_STRUCTS.EmscriptenBatteryEvent.charging, 'e.charging', 'i32') }}};
     },
     
     registerBatteryEventCallback: function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString, targetThread) {
@@ -1448,38 +1433,23 @@ var LibraryJSEvents = {
     if (allowedOrientations & 4) orientations.push("landscape-primary");
     if (allowedOrientations & 8) orientations.push("landscape-secondary");
     var succeeded;
-    if (window.screen.lockOrientation) {
-      succeeded = window.screen.lockOrientation(orientations);
-    } else if (window.screen.mozLockOrientation) {
-      succeeded = window.screen.mozLockOrientation(orientations);
-    } else if (window.screen.webkitLockOrientation) {
-      succeeded = window.screen.webkitLockOrientation(orientations);
-    } else if (window.screen.msLockOrientation) {
-      succeeded = window.screen.msLockOrientation(orientations);
-    } else {
-      return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
-    }
-    if (succeeded) {
-      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
-    } else {
-      return {{{ cDefine('EMSCRIPTEN_RESULT_FAILED') }}};
-    }
+    var s = window.screen;
+    if (s.lockOrientation) succeeded = s.lockOrientation(orientations);
+    else if (s.mozLockOrientation) succeeded = s.mozLockOrientation(orientations);
+    else if (s.webkitLockOrientation) succeeded = s.webkitLockOrientation(orientations);
+    else if (s.msLockOrientation) succeeded = s.msLockOrientation(orientations);
+    return succeeded ? {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}} : {{{ cDefine('EMSCRIPTEN_RESULT_FAILED') }}};
   },
   
   emscripten_unlock_orientation__proxy: 'sync',
   emscripten_unlock_orientation__sig: 'i',
   emscripten_unlock_orientation: function() {
-    if (window.screen.unlockOrientation) {
-      window.screen.unlockOrientation();
-    } else if (window.screen.mozUnlockOrientation) {
-      window.screen.mozUnlockOrientation();
-    } else if (window.screen.webkitUnlockOrientation) {
-      window.screen.webkitUnlockOrientation();
-    } else if (window.screen.msUnlockOrientation) {
-      window.screen.msUnlockOrientation();
-    } else {
-      return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
-    }
+    var s = window.screen;
+    if (s.unlockOrientation) s.unlockOrientation();
+    else if (s.mozUnlockOrientation) s.mozUnlockOrientation();
+    else if (s.webkitUnlockOrientation) s.webkitUnlockOrientation();
+    else if (s.msUnlockOrientation) s.msUnlockOrientation();
+    else return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
@@ -1924,17 +1894,12 @@ var LibraryJSEvents = {
     // Make sure no queued up calls will fire after this.
     JSEvents.removeDeferredCalls(JSEvents.requestPointerLock);
 
-    if (document.exitPointerLock) {
-      document.exitPointerLock();
-    } else if (document.msExitPointerLock) {
-      document.msExitPointerLock();
-    } else if (document.mozExitPointerLock) {
-      document.mozExitPointerLock();
-    } else if (document.webkitExitPointerLock) {
-      document.webkitExitPointerLock();
-    } else {
-      return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
-    }
+    var d = document;
+    if (d.exitPointerLock) d.exitPointerLock();
+    else if (d.msExitPointerLock) d.msExitPointerLock();
+    else if (d.mozExitPointerLock) d.mozExitPointerLock();
+    else if (d.webkitExitPointerLock) d.webkitExitPointerLock();
+    else return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
   
@@ -2100,29 +2065,29 @@ var LibraryJSEvents = {
   },
 
   // Execute in calling thread without proxying needed.
-  emscripten_webgl_init_context_attributes: function(attributes) {
-    {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.alpha, 1, 'i32') }}};
-    {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.depth, 1, 'i32') }}};
-    {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.stencil, 0, 'i32') }}};
-    {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.antialias, 1, 'i32') }}};
-    {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.premultipliedAlpha, 1, 'i32') }}};
-    {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.preserveDrawingBuffer, 0, 'i32') }}};
-    {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.preferLowPowerToHighPerformance, 0, 'i32') }}};
-    {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.failIfMajorPerformanceCaveat, 0, 'i32') }}};
-    {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.majorVersion, 1, 'i32') }}};
-    {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.minorVersion, 0, 'i32') }}};
-    {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.enableExtensionsByDefault, 1, 'i32') }}};
-    {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.explicitSwapControl, 0, 'i32') }}};
+  emscripten_webgl_init_context_attributes: function(a) {
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.alpha, 1, 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.depth, 1, 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.stencil, 0, 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.antialias, 1, 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.premultipliedAlpha, 1, 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.preserveDrawingBuffer, 0, 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.preferLowPowerToHighPerformance, 0, 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.failIfMajorPerformanceCaveat, 0, 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.majorVersion, 1, 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.minorVersion, 0, 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.enableExtensionsByDefault, 1, 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.explicitSwapControl, 0, 'i32') }}};
 #if USE_PTHREADS
     // The default proposed context initialization state is as follows:
     // - if main thread is creating the context, default to the context not being shared between threads
     // - if a web worker is creating the context, default to using OffscreenCanvas if available, or proxying via Offscreen Framebuffer if not
-    if (ENVIRONMENT_IS_WORKER) {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 1/*EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK*/, 'i32') }}};
+    if (ENVIRONMENT_IS_WORKER) {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 1/*EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK*/, 'i32') }}};
     else
 #endif
-      {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 0/*EMSCRIPTEN_WEBGL_CONTEXT_PROXY_DISALLOW*/, 'i32') }}};
+      {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 0/*EMSCRIPTEN_WEBGL_CONTEXT_PROXY_DISALLOW*/, 'i32') }}};
 
-    {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 0, 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 0, 'i32') }}};
   },
 
 #if !USE_PTHREADS
@@ -2133,22 +2098,22 @@ var LibraryJSEvents = {
 
   emscripten_webgl_do_create_context__deps: ['$GL'],
   // This function performs proxying manually, depending on the style of context that is to be created.
-  emscripten_webgl_do_create_context: function(target, attributes) {
-    var contextAttributes = {};
-    contextAttributes['alpha'] = !!{{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.alpha, 'i32') }}};
-    contextAttributes['depth'] = !!{{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.depth, 'i32') }}};
-    contextAttributes['stencil'] = !!{{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.stencil, 'i32') }}};
-    contextAttributes['antialias'] = !!{{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.antialias, 'i32') }}};
-    contextAttributes['premultipliedAlpha'] = !!{{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.premultipliedAlpha, 'i32') }}};
-    contextAttributes['preserveDrawingBuffer'] = !!{{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.preserveDrawingBuffer, 'i32') }}};
-    contextAttributes['preferLowPowerToHighPerformance'] = !!{{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.preferLowPowerToHighPerformance, 'i32') }}};
-    contextAttributes['failIfMajorPerformanceCaveat'] = !!{{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.failIfMajorPerformanceCaveat, 'i32') }}};
-    contextAttributes['majorVersion'] = {{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.majorVersion, 'i32') }}};
-    contextAttributes['minorVersion'] = {{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.minorVersion, 'i32') }}};
-    contextAttributes['enableExtensionsByDefault'] = {{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.enableExtensionsByDefault, 'i32') }}};
-    contextAttributes['explicitSwapControl'] = {{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.explicitSwapControl, 'i32') }}};
-    contextAttributes['proxyContextToMainThread'] = {{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 'i32') }}};
-    contextAttributes['renderViaOffscreenBackBuffer'] = {{{ makeGetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 'i32') }}};
+  emscripten_webgl_do_create_context: function(target, a) {
+    var c = {};
+    c['alpha'] = !!{{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.alpha, 'i32') }}};
+    c['depth'] = !!{{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.depth, 'i32') }}};
+    c['stencil'] = !!{{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.stencil, 'i32') }}};
+    c['antialias'] = !!{{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.antialias, 'i32') }}};
+    c['premultipliedAlpha'] = !!{{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.premultipliedAlpha, 'i32') }}};
+    c['preserveDrawingBuffer'] = !!{{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.preserveDrawingBuffer, 'i32') }}};
+    c['preferLowPowerToHighPerformance'] = !!{{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.preferLowPowerToHighPerformance, 'i32') }}};
+    c['failIfMajorPerformanceCaveat'] = !!{{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.failIfMajorPerformanceCaveat, 'i32') }}};
+    c['majorVersion'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.majorVersion, 'i32') }}};
+    c['minorVersion'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.minorVersion, 'i32') }}};
+    c['enableExtensionsByDefault'] = {{{ makeGetValue('atraibutes', C_STRUCTS.EmscriptenWebGLContextAttributes.enableExtensionsByDefault, 'i32') }}};
+    c['explicitSwapControl'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.explicitSwapControl, 'i32') }}};
+    c['proxyContextToMainThread'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 'i32') }}};
+    c['renderViaOffscreenBackBuffer'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 'i32') }}};
 
     target = Pointer_stringify(target);
     var canvas;
@@ -2161,22 +2126,22 @@ var LibraryJSEvents = {
 #if USE_PTHREADS
     // Create a WebGL context that is proxied to main thread if canvas was not found on worker, or if explicitly requested to do so.
     if (ENVIRONMENT_IS_PTHREAD) {
-      if (contextAttributes['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS') }}} ||
-         (!canvas && contextAttributes['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK') }}})) {
+      if (c['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS') }}} ||
+         (!canvas && c['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK') }}})) {
         // When WebGL context is being proxied via the main thread, we must render using an offscreen FBO render target to avoid WebGL's
         // "implicit swap when callback exits" behavior. TODO: If OffscreenCanvas is supported, explicitSwapControl=true and still proxying,
         // then this can be avoided, since OffscreenCanvas enables explicit swap control.
 #if GL_DEBUG
-        if (contextAttributes['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS') }}}) console.error('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS enabled, proxying WebGL rendering from pthread to main thread.');
-        if (!canvas && contextAttributes['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK') }}}) console.error('Specified canvas target "' + target + '" is not an OffscreenCanvas in the current pthread, but EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK is set. Proxying WebGL rendering from pthread to main thread.');
+        if (c['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS') }}}) console.error('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS enabled, proxying WebGL rendering from pthread to main thread.');
+        if (!canvas && c['proxyContextToMainThread'] === {{{ cDefine('EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK') }}}) console.error('Specified canvas target "' + target + '" is not an OffscreenCanvas in the current pthread, but EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK is set. Proxying WebGL rendering from pthread to main thread.');
         console.error('Performance warning: forcing renderViaOffscreenBackBuffer=true and preserveDrawingBuffer=true since proxying WebGL rendering.');
 #endif
         // We will be proxying - if OffscreenCanvas is supported, we can proxy a bit more efficiently by avoiding having to create an Offscreen FBO.
         if (typeof OffscreenCanvas === 'undefined') {
-          {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, '1', 'i32') }}}
-          {{{ makeSetValue('attributes', C_STRUCTS.EmscriptenWebGLContextAttributes.preserveDrawingBuffer, '1', 'i32') }}}
+          {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, '1', 'i32') }}}
+          {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.preserveDrawingBuffer, '1', 'i32') }}}
         }
-        return _emscripten_sync_run_in_main_thread_2({{{ cDefine('EM_PROXIED_CREATE_CONTEXT') }}}, target, attributes);
+        return _emscripten_sync_run_in_main_thread_2({{{ cDefine('EM_PROXIED_CREATE_CONTEXT') }}}, target, a);
       }
     }
 #endif
@@ -2194,13 +2159,13 @@ var LibraryJSEvents = {
     else if (typeof HTMLCanvasElement !== 'undefined' && canvas instanceof HTMLCanvasElement) console.log('emscripten_webgl_create_context: Creating an HTMLCanvasElement-based WebGL context on target "' + target + '"');
 #endif
 
-    if (contextAttributes['explicitSwapControl']) {
+    if (c['explicitSwapControl']) {
       var supportsOffscreenCanvas = canvas.transferControlToOffscreen || (typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas);
 
       if (!supportsOffscreenCanvas) {
 #if OFFSCREEN_FRAMEBUFFER
-        if (!contextAttributes['renderViaOffscreenBackBuffer']) {
-          contextAttributes['renderViaOffscreenBackBuffer'] = true;
+        if (!c['renderViaOffscreenBackBuffer']) {
+          c['renderViaOffscreenBackBuffer'] = true;
 #if GL_DEBUG
           console.error('emscripten_webgl_create_context: Performance warning, OffscreenCanvas is not supported but explicitSwapControl was requested, so force-enabling renderViaOffscreenBackBuffer=true to allow explicit swapping!');
 #endif
@@ -2232,14 +2197,14 @@ var LibraryJSEvents = {
     }
 #else // !OFFSCREENCANVAS_SUPPORT
 #if OFFSCREEN_FRAMEBUFFER
-    if (contextAttributes['explicitSwapControl'] && !contextAttributes['renderViaOffscreenBackBuffer']) {
-      contextAttributes['renderViaOffscreenBackBuffer'] = true;
+    if (c['explicitSwapControl'] && !c['renderViaOffscreenBackBuffer']) {
+      c['renderViaOffscreenBackBuffer'] = true;
 #if GL_DEBUG
       console.error('emscripten_webgl_create_context: Performance warning, not building with OffscreenCanvas support enabled but explicitSwapControl was requested, so force-enabling renderViaOffscreenBackBuffer=true to allow explicit swapping!');
 #endif
     }
 #else
-    if (contextAttributes['explicitSwapControl']) {
+    if (c['explicitSwapControl']) {
 #if GL_DEBUG
       console.error('emscripten_webgl_create_context failed: explicitSwapControl is not supported, please rebuild with -s OFFSCREENCANVAS_SUPPORT=1 to enable targeting the experimental OffscreenCanvas specification, or rebuild with -s OFFSCREEN_FRAMEBUFFER=1 to emulate explicitSwapControl in the absence of OffscreenCanvas support!');
 #endif
@@ -2249,8 +2214,7 @@ var LibraryJSEvents = {
 
 #endif // ~!OFFSCREENCANVAS_SUPPORT
 
-    var contextHandle = GL.createContext(canvas, contextAttributes);
-    return contextHandle;
+    return GL.createContext(canvas, c);
   },
 #if USE_PTHREADS
   // Runs on the calling thread, proxies if needed.
