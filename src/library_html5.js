@@ -4,7 +4,9 @@
 // found in the LICENSE file.
 
 var LibraryJSEvents = {
+#if REGISTER_GAMEPADS_AT_START
   $JSEvents__postset: 'JSEvents.staticInit();',
+#endif
   $JSEvents__deps: ['_get_canvas_element_size', '_set_canvas_element_size'],
   $JSEvents: {
     // pointers to structs malloc()ed to Emscripten HEAP for JS->C interop.
