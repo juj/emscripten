@@ -49,7 +49,7 @@ void WebSocketMessageUnmaskPayload(uint8_t *payload, uint64_t payloadLength, uin
   uint8_t maskingKey8[4];
   memcpy(maskingKey8, &maskingKey, 4);
   uint32_t *data_u32 = (uint32_t *)payload;
-  uint32_t *end_u32 = (uint32_t *)((uintptr_t)(payload + payloadLength) & ~3u);
+  uint32_t *end_u32 = (uint32_t *)((uintptr_t)(payload + (payloadLength & ~3u)));
 
   while(data_u32 < end_u32)
     *data_u32++ ^= maskingKey;
