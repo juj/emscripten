@@ -370,6 +370,9 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
       files += [os.path.join(src_dir, f) for f in filenames]
     return build_libc(libname, files, ['-Oz'])
 
+  def create_posix_proxy(libname):
+    return build_libc(libname, [shared.path_from_root('system', 'lib', 'websocket', 'websocket_to_posix_socket.cpp')], ['-Oz'])
+
   def create_compiler_rt(libname):
     files = files_in_path(
       path_components=['system', 'lib', 'compiler-rt', 'lib', 'builtins'],
@@ -609,6 +612,10 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
     system_libs += [Library('gl',             ext, create_gl,             gl_symbols,             [libc_name],  False)] # noqa
 
   system_libs.append(Library(libc_name, ext, create_libc, libc_symbols, libc_deps, False))
+  if shared.Settings.PROXY_POSIX_SOCKETS:
+    system_libs += [Library('posix_proxy',    ext, create_posix_proxy, [], [],     False)] # noqa
+    force.add('posix_proxy')
+
 
   # if building to wasm, we need more math code, since we have less builtins
   if shared.Settings.WASM:
