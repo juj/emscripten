@@ -365,6 +365,10 @@ var WEBSOCKET_URL = 'ws://';
 var WEBSOCKET_SUBPROTOCOL = 'binary';
 
 
+
+// If 1, the POSIX sockets API uses a proxy bridge to proxy sockets calls
+var PROXY_POSIX_SOCKETS = 0;
+
 // If 1, prints out debugging related to WebSockets calls. If 2, traces bytes communicated via the socket.
 var WEBSOCKET_DEBUG = 0;
 
