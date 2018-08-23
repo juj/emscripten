@@ -411,7 +411,7 @@ void Send(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int send(i
   SEND_RET_TYPE ret = send(d->socket, (const char *)d->message, d->length, d->flags);
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("send(socket=%d,message=%p,length=%zd,flags=%d)->%d\n", d->socket, d->message, d->length, d->flags, ret);
+  printf("send(socket=%d,message=%p,length=%zd,flags=%d)->" SEND_FORMATTING_SPECIFIER "\n", d->socket, d->message, d->length, d->flags, ret);
   if (ret < 0) PRINT_ERRNO();
 #endif
 
@@ -440,7 +440,7 @@ void Recv(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int recv(i
   SEND_RET_TYPE ret = recv(d->socket, (char *)buffer, d->length, d->flags);
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("recv(socket=%d,buffer=%p,length=%zd,flags=%d)->%d\n", d->socket, buffer, d->length, d->flags, ret);
+  printf("recv(socket=%d,buffer=%p,length=%zd,flags=%d)->" SEND_FORMATTING_SPECIFIER "\n", d->socket, buffer, d->length, d->flags, ret);
   if (ret < 0) PRINT_ERRNO();
 #endif
 
@@ -479,7 +479,7 @@ void Sendto(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int send
   SEND_RET_TYPE ret = sendto(d->socket, (const char *)d->message, d->length, d->flags, (sockaddr*)d->dest_addr, d->dest_len);
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("sendto(socket=%d,message=%p,length=%zd,flags=%d,dest_addr=%p,dest_len=%d)->%d\n", d->socket, d->message, d->length, d->flags, d->dest_addr, d->dest_len, ret);
+  printf("sendto(socket=%d,message=%p,length=%zd,flags=%d,dest_addr=%p,dest_len=%d)->" SEND_FORMATTING_SPECIFIER "\n", d->socket, d->message, d->length, d->flags, d->dest_addr, d->dest_len, ret);
   if (ret < 0) PRINT_ERRNO();
 #endif
 
