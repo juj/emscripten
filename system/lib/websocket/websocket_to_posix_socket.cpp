@@ -1,0 +1,747 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <emscripten/websocket.h>
+#include <emscripten/threading.h>
+#include <pthread.h>
+#include <sys/socket.h>
+#include <errno.h>
+
+#define MIN(a,b) (((a)<(b))?(a):(b))
+
+#define POSIX_SOCKET_DEBUG
+
+extern "C"
+{
+
+static void *memdup(const void *ptr, size_t sz)
+{
+  if (!ptr) return 0;
+  void *dup = malloc(sz);
+  if (dup) memcpy(dup, ptr, sz);
+  return dup;
+}
+
+static EMSCRIPTEN_WEBSOCKET_T bridgeSocket = (EMSCRIPTEN_WEBSOCKET_T)0;
+
+// Each proxied socket call has at least the following data.
+struct SocketCallHeader
+{
+  int callId;
+  int function;
+};
+
+// Each socket call returns at least the following data.
+struct SocketCallResultHeader
+{
+  int callId;
+  int ret;
+  int errno_;
+  // Buffer can contain more data here, conceptually:
+  // uint8_t extraData[];
+};
+
+struct PosixSocketCallResult
+{
+  PosixSocketCallResult *next;
+  int callId;
+  int operationCompleted;
+
+  // Before the call has finished, this field represents the minimum expected number of bytes that server will need to report back.
+  // After the call has finished, this field reports back the number of bytes pointed to by data, >= the expected value.
+  int bytes;
+
+  // Result data:
+  SocketCallResultHeader *data;
+};
+static PosixSocketCallResult *callResultHead = 0;
+
+static PosixSocketCallResult *allocate_call_result(int expectedBytes)
+{
+  static int nextId = 1;
+  PosixSocketCallResult *b = (PosixSocketCallResult*)(malloc(sizeof(PosixSocketCallResult)));
+  b->callId = nextId++;
+  b->bytes = expectedBytes;
+  b->data = 0;
+  b->operationCompleted = 0;
+  b->next = 0;
+
+  if (!callResultHead)
+    callResultHead = b;
+  else
+  {
+    PosixSocketCallResult *t = callResultHead;
+    while(t->next) t = t->next;
+    t->next = b;
+  }
+  return b;
+}
+
+static void free_call_result(PosixSocketCallResult *buffer)
+{
+  if (buffer->data) free(buffer->data);
+  free(buffer);
+}
+
+PosixSocketCallResult *pop_call_result(int callId)
+{
+  PosixSocketCallResult *prev = 0;
+  PosixSocketCallResult *b = callResultHead;
+  while(b)
+  {
+    if (b->callId == callId)
+    {
+      if (prev) prev->next = b->next;
+      else callResultHead = b->next;
+      b->next = 0;
+      return b;
+    }
+    b = b->next;
+  }
+  return 0;
+}
+
+void wait_for_call_result(PosixSocketCallResult *b)
+{
+  while(!emscripten_atomic_load_u32(&b->operationCompleted))
+    emscripten_futex_wait(&b->operationCompleted, 0, 1e9);
+}
+
+static EM_BOOL bridge_socket_on_message(int eventType, const EmscriptenWebSocketMessageEvent *websocketEvent, void *userData)
+{
+  printf("POSIX sockets bridge received message on thread %p, size: %d bytes\n", (void*)pthread_self(), websocketEvent->numBytes);
+
+  if (websocketEvent->numBytes < sizeof(SocketCallResultHeader))
+  {
+    printf("Received corrupt WebSocket result message with size %d, not enough space for header, at least %d bytes!\n", (int)websocketEvent->numBytes, (int)sizeof(SocketCallResultHeader));
+    return EM_TRUE;
+  }
+
+  SocketCallResultHeader *header = (SocketCallResultHeader *)websocketEvent->data;
+  PosixSocketCallResult *b = pop_call_result(header->callId);
+  if (!b)
+  {
+    printf("Received WebSocket result message to unknown call ID %d!\n", (int)header->callId);
+    // TODO: Craft a socket result that signifies a failure, and wake the listening thread
+    return EM_TRUE;
+  }
+
+  if (websocketEvent->numBytes < b->bytes)
+  {
+    printf("Received corrupt WebSocket result message with size %d, expected at least %d bytes!\n", (int)websocketEvent->numBytes, b->bytes);
+    // TODO: Craft a socket result that signifies a failure, and wake the listening thread
+    return EM_TRUE;
+  }
+
+  b->bytes = websocketEvent->numBytes;
+  b->data = (SocketCallResultHeader*)memdup(websocketEvent->data, websocketEvent->numBytes);
+
+  if (!b->data)
+  {
+    printf("Out of memory, tried to allocate %d bytes!\n", websocketEvent->numBytes);
+    return EM_TRUE;
+  }
+
+  emscripten_atomic_store_u32(&b->operationCompleted, 1);
+  emscripten_futex_wake(&b->operationCompleted, 0x7FFFFFFF);
+
+  return EM_TRUE;
+}
+
+EMSCRIPTEN_WEBSOCKET_T emscripten_init_websocket_to_posix_socket_bridge(const char *bridgeUrl)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("emscripten_init_websocket_to_posix_socket_bridge(bridgeUrl=\"%s\")\n", bridgeUrl);
+#endif
+  EmscriptenWebSocketCreateAttributes attr;
+  emscripten_websocket_init_create_attributes(&attr);
+  attr.url = bridgeUrl;
+  bridgeSocket = emscripten_websocket_new(&attr);
+  emscripten_websocket_set_onmessage_callback_on_thread(bridgeSocket, 0, bridge_socket_on_message, EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD);
+
+  return bridgeSocket;
+}
+
+#define POSIX_SOCKET_MSG_SOCKET 1
+#define POSIX_SOCKET_MSG_SOCKETPAIR 2
+#define POSIX_SOCKET_MSG_SHUTDOWN 3
+#define POSIX_SOCKET_MSG_BIND 4
+#define POSIX_SOCKET_MSG_CONNECT 5
+#define POSIX_SOCKET_MSG_LISTEN 6
+#define POSIX_SOCKET_MSG_ACCEPT 7
+#define POSIX_SOCKET_MSG_GETSOCKNAME 8
+#define POSIX_SOCKET_MSG_GETPEERNAME 9
+#define POSIX_SOCKET_MSG_SEND 10
+#define POSIX_SOCKET_MSG_RECV 11
+#define POSIX_SOCKET_MSG_SENDTO 12
+#define POSIX_SOCKET_MSG_RECVFROM 13
+#define POSIX_SOCKET_MSG_SENDMSG 14
+#define POSIX_SOCKET_MSG_RECVMSG 15
+#define POSIX_SOCKET_MSG_GETSOCKOPT 16
+#define POSIX_SOCKET_MSG_SETSOCKOPT 17
+
+#define MAX_SOCKADDR_SIZE 256
+#define MAX_OPTIONVALUE_SIZE 16
+
+int socket(int domain, int type, int protocol)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("socket(domain=%d,type=%d,protocol=%d) on thread %p\n", domain, type, protocol, (void*)pthread_self());
+#endif
+
+  struct {
+    SocketCallHeader header;
+    int domain;
+    int type;
+    int protocol;
+  } d;
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(SocketCallResultHeader));
+  d.header.callId = b->callId;
+  d.header.function = POSIX_SOCKET_MSG_SOCKET;
+  d.domain = domain;
+  d.type = type;
+  d.protocol = protocol;
+  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d));
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret < 0) errno = b->data->errno_;
+  free_call_result(b);
+  return ret;
+}
+
+int socketpair(int domain, int type, int protocol, int socket_vector[2])
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("socketpair(domain=%d,type=%d,protocol=%d, socket_vector=[%d,%d])\n", domain, type, protocol, socket_vector[0], socket_vector[1]);
+#endif
+
+  struct {
+    SocketCallHeader header;
+    int domain;
+    int type;
+    int protocol;
+  } d;
+
+  struct Result {
+    SocketCallResultHeader header;
+    int sv[2];
+  };
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(Result));
+  d.header.callId = b->callId;
+  d.header.function = POSIX_SOCKET_MSG_SOCKETPAIR;
+  d.domain = domain;
+  d.type = type;
+  d.protocol = protocol;
+  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d));
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret == 0)
+  {
+    Result *r = (Result*)b->data;
+    socket_vector[0] = r->sv[0];
+    socket_vector[1] = r->sv[1];    
+  }
+  else
+  {
+    errno = b->data->errno_;
+  }
+  free_call_result(b);
+  return ret;
+}
+
+int shutdown(int socket, int how)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("shutdown(socket=%d,how=%d)\n", socket, how);
+#endif
+
+  struct {
+    SocketCallHeader header;
+    int socket;
+    int how;
+  } d;
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(SocketCallResultHeader));
+  d.header.callId = b->callId;
+  d.header.function = POSIX_SOCKET_MSG_SHUTDOWN;
+  d.socket = socket;
+  d.how = how;
+  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d));
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret != 0) errno = b->data->errno_;
+  free_call_result(b);
+  return ret;
+}
+
+int bind(int socket, const struct sockaddr *address, socklen_t address_len)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("bind(socket=%d,address=%p,address_len=%d)\n", socket, address, address_len);
+#endif
+
+  struct Data {
+    SocketCallHeader header;
+    int socket;
+    socklen_t address_len;
+    uint8_t address[];
+  };
+  int numBytes = sizeof(Data) + address_len;
+  Data *d = (Data*)malloc(numBytes);
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(SocketCallResultHeader));
+  d->header.callId = b->callId;
+  d->header.function = POSIX_SOCKET_MSG_BIND;
+  d->socket = socket;
+  d->address_len = address_len;
+  if (address) memcpy(d->address, address, address_len);
+  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d) + address_len - MAX_SOCKADDR_SIZE);
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret != 0) errno = b->data->errno_;
+  free_call_result(b);
+
+  free(d);
+  return ret;
+}
+
+int connect(int socket, const struct sockaddr *address, socklen_t address_len)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("connect(socket=%d,address=%p,address_len=%d)\n", socket, address, address_len);
+#endif
+
+  struct Data {
+    SocketCallHeader header;
+    int socket;
+    socklen_t address_len;
+    uint8_t address[];
+  };
+  int numBytes = sizeof(Data) + address_len;
+  Data *d = (Data*)malloc(numBytes);
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(SocketCallResultHeader));
+  d->header.callId = b->callId;
+  d->header.function = POSIX_SOCKET_MSG_CONNECT;
+  d->socket = socket;
+  d->address_len = address_len;
+  if (address) memcpy(d->address, address, address_len);
+  emscripten_websocket_send_binary(bridgeSocket, d, numBytes);
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret != 0) errno = b->data->errno_;
+  free_call_result(b);
+
+  free(d);
+  return ret;
+}
+
+int listen(int socket, int backlog)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("listen(socket=%d,backlog=%d)\n", socket, backlog);
+#endif
+  
+  struct {
+    SocketCallHeader header;
+    int socket;
+    int backlog;
+  } d;
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(SocketCallResultHeader));
+  d.header.callId = b->callId;
+  d.header.function = POSIX_SOCKET_MSG_LISTEN;
+  d.socket = socket;
+  d.backlog = backlog;
+  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d));
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret != 0) errno = b->data->errno_;
+  free_call_result(b);
+  return ret;
+}
+
+int accept(int socket, struct sockaddr *address, socklen_t *address_len)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("accept(socket=%d,address=%p,address_len=%p)\n", socket, address, address_len);
+#endif
+
+  struct {
+    SocketCallHeader header;
+    int socket;
+    socklen_t address_len;
+  } d;
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(SocketCallResultHeader));
+  d.header.callId = b->callId;
+  d.header.function = POSIX_SOCKET_MSG_ACCEPT;
+  d.socket = socket;
+  d.address_len = *address_len;
+  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d) + *address_len - MAX_SOCKADDR_SIZE);
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret < 0) errno = b->data->errno_;
+  free_call_result(b);
+  return ret;
+}
+
+int getsockname(int socket, struct sockaddr *address, socklen_t *address_len)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("getsockname(socket=%d,address=%p,address_len=%p)\n", socket, address, address_len);
+#endif
+
+  struct {
+    SocketCallHeader header;
+    int socket;
+    socklen_t address_len;
+  } d;
+
+  struct Result {
+    SocketCallResultHeader header;
+    int address_len;
+    uint8_t address[];
+  };
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(Result));
+  d.header.callId = b->callId;
+  d.header.function = POSIX_SOCKET_MSG_GETSOCKNAME;
+  d.socket = socket;
+  d.address_len = *address_len;
+  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d) + *address_len - MAX_SOCKADDR_SIZE);
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret == 0)
+  {
+    Result *r = (Result*)b->data;
+    int realAddressLen = MIN(b->bytes - sizeof(Result), r->address_len);
+    int copiedAddressLen = MIN(*address_len, realAddressLen);
+    memcpy(address, r->address, copiedAddressLen);
+    *address_len = realAddressLen;
+  }
+  else
+  {
+    errno = b->data->errno_;
+  }
+  free_call_result(b);
+  return ret;
+}
+
+int getpeername(int socket, struct sockaddr *address, socklen_t *address_len)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("getpeername(socket=%d,address=%p,address_len=%p)\n", socket, address, address_len);
+#endif
+
+  struct {
+    SocketCallHeader header;
+    int socket;
+    socklen_t address_len;
+  } d;
+
+  struct Result {
+    SocketCallResultHeader header;
+    int address_len;
+    uint8_t address[];
+  };
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(Result));
+  d.header.callId = b->callId;
+  d.header.function = POSIX_SOCKET_MSG_GETPEERNAME;
+  d.socket = socket;
+  d.address_len = *address_len;
+  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d) + *address_len - MAX_SOCKADDR_SIZE);
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret == 0)
+  {
+    Result *r = (Result*)b->data;
+    int realAddressLen = MIN(b->bytes - sizeof(Result), r->address_len);
+    int copiedAddressLen = MIN(*address_len, realAddressLen);
+    memcpy(address, r->address, copiedAddressLen);
+    *address_len = realAddressLen;
+  }
+  else
+  {
+    errno = b->data->errno_;
+  }
+  free_call_result(b);
+  return ret;
+}
+
+ssize_t send(int socket, const void *message, size_t length, int flags)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("send(socket=%d,message=%p,length=%zd,flags=%d)\n", socket, message, length, flags);
+#endif
+
+  struct MSG {
+    SocketCallHeader header;
+    int socket;
+    uint32_t/*size_t*/ length;
+    int flags;
+    uint8_t message[];
+  };
+  size_t sz = sizeof(MSG)+length;
+  MSG *d = (MSG*)malloc(sz);
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(SocketCallResultHeader));
+  d->header.callId = b->callId;
+  d->header.function = POSIX_SOCKET_MSG_SEND;
+  d->socket = socket;
+  d->length = length;
+  d->flags = flags;
+  memcpy(d->message, message, length);
+  emscripten_websocket_send_binary(bridgeSocket, d, sz);
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret < 0) errno = b->data->errno_;
+  free_call_result(b);
+
+  free(d);
+  return ret;
+}
+
+ssize_t recv(int socket, void *buffer, size_t length, int flags)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("recv(socket=%d,buffer=%p,length=%zd,flags=%d)\n", socket, buffer, length, flags);
+#endif
+
+  struct {
+    SocketCallHeader header;
+    int socket;
+    uint32_t/*size_t*/ length;
+    int flags;
+  } d;
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(SocketCallResultHeader));
+  d.header.callId = b->callId;
+  d.header.function = POSIX_SOCKET_MSG_RECV;
+  d.socket = socket;
+  d.length = length;
+  d.flags = flags;
+  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d));
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret >= 0)
+  {
+    struct Result {
+      SocketCallResultHeader header;
+      uint8_t data[];
+    };
+    Result *r = (Result*)b->data;
+    memcpy(buffer, r->data, MIN(ret, length));
+  }
+  else
+  {
+    errno = b->data->errno_;
+  }
+  free_call_result(b);
+
+  return ret;
+}
+
+ssize_t sendto(int socket, const void *message, size_t length, int flags, const struct sockaddr *dest_addr, socklen_t dest_len)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("sendto(socket=%d,message=%p,length=%zd,flags=%d,dest_addr=%p,dest_len=%d)\n", socket, message, length, flags, dest_addr, dest_len);
+#endif
+
+  struct MSG {
+    SocketCallHeader header;
+    int socket;
+    uint32_t/*size_t*/ length;
+    int flags;
+    uint32_t/*socklen_t*/ dest_len;
+    uint8_t dest_addr[MAX_SOCKADDR_SIZE];
+    uint8_t message[];
+  };
+  size_t sz = sizeof(MSG)+length;
+  MSG *d = (MSG*)malloc(sz);
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(SocketCallResultHeader));
+  d->header.callId = b->callId;
+  d->header.function = POSIX_SOCKET_MSG_SENDTO;
+  d->socket = socket;
+  d->length = length;
+  d->flags = flags;
+  d->dest_len = dest_len;
+  memset(d->dest_addr, 0, sizeof(d->dest_addr));
+  memcpy(d->dest_addr, dest_addr, dest_len);
+  memcpy(d->message, message, length);
+  emscripten_websocket_send_binary(bridgeSocket, d, sz);
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret < 0) errno = b->data->errno_;
+  free_call_result(b);
+
+  free(d);
+  return ret;
+}
+
+ssize_t recvfrom(int socket, void *buffer, size_t length, int flags, struct sockaddr *address, socklen_t *address_len)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("recvfrom(socket=%d,buffer=%p,length=%zd,flags=%d,address=%p,address_len=%p)\n", socket, buffer, length, flags, address, address_len);
+#endif
+
+  struct {
+    SocketCallHeader header;
+    int socket;
+    uint32_t/*size_t*/ length;
+    int flags;
+    uint32_t/*socklen_t*/ address_len;
+  } d;
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(SocketCallResultHeader));
+  d.header.callId = b->callId;
+  d.header.function = POSIX_SOCKET_MSG_RECVFROM;
+  d.socket = socket;
+  d.length = length;
+  d.flags = flags;
+  d.address_len = *address_len;
+  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d));
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret >= 0)
+  {
+    struct Result {
+      SocketCallResultHeader header;
+      int data_len;
+      int address_len; // N.B. this is the reported address length of the sender, that may be larger than what is actually serialized to this message.
+      uint8_t data_and_address[];
+    };
+    Result *r = (Result*)b->data;
+    memcpy(buffer, r->data_and_address, MIN(r->data_len, length));
+    int copiedAddressLen = MIN((address_len ? *address_len : 0), r->address_len);
+    if (address) memcpy(address, r->data_and_address + r->data_len, copiedAddressLen);
+    if (address_len) *address_len = r->address_len;
+  }
+  else
+  {
+    errno = b->data->errno_;
+  }
+  free_call_result(b);
+
+  return ret;
+}
+
+ssize_t sendmsg(int socket, const struct msghdr *message, int flags)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("sendmsg(socket=%d,message=%p,flags=%d)\n", socket, message, flags);
+#endif
+
+  exit(1); // TODO
+  return 0;
+}
+
+ssize_t recvmsg(int socket, struct msghdr *message, int flags)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("recvmsg(socket=%d,message=%p,flags=%d)\n", socket, message, flags);
+#endif
+
+  exit(1); // TODO
+  return 0;
+}
+
+int getsockopt(int socket, int level, int option_name, void *option_value, socklen_t *option_len)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("getsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%p)\n", socket, level, option_name, option_value, option_len);
+#endif
+
+  struct {
+    SocketCallHeader header;
+    int socket;
+    int level;
+    int option_name;
+    uint32_t/*socklen_t*/ option_len;
+  } d;
+
+  struct Result {
+    SocketCallResultHeader header;
+    uint8_t option_value[];
+  };
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(Result));
+  d.header.callId = b->callId;
+  d.header.function = POSIX_SOCKET_MSG_GETSOCKOPT;
+  d.socket = socket;
+  d.level = level;
+  d.option_name = option_name;
+  d.option_len = *option_len;
+  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d));
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret == 0)
+  {
+    Result *r = (Result*)b->data;
+    int optLen = b->bytes - sizeof(Result);
+    if (option_value) memcpy(option_value, r->option_value, MIN(*option_len, optLen));
+    *option_len = optLen;
+  }
+  else
+  {
+    errno = b->data->errno_;
+  }
+  free_call_result(b);
+  return ret;
+}
+
+int setsockopt(int socket, int level, int option_name, const void *option_value, socklen_t option_len)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("setsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%d)\n", socket, level, option_name, option_value, option_len);
+#endif
+
+  struct MSG {
+    SocketCallHeader header;
+    int socket;
+    int level;
+    int option_name;
+    int option_len;
+    uint8_t option_value[];
+  };
+  int messageSize = sizeof(MSG) + option_len;
+  MSG *d = (MSG*)malloc(messageSize);
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(SocketCallResultHeader));
+  d->header.callId = b->callId;
+  d->header.function = POSIX_SOCKET_MSG_SETSOCKOPT;
+  d->socket = socket;
+  d->level = level;
+  d->option_name = option_name;
+  memcpy(d->option_value, option_value, option_len);
+  d->option_len = option_len;
+  emscripten_websocket_send_binary(bridgeSocket, d, messageSize);
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret != 0) errno = b->data->errno_;
+  free_call_result(b);
+
+  free(d);
+  return ret;
+}
+
+} // ~extern "C"
