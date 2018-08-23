@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h>
+#include "posix_sockets.h"
 #include <string.h>
 #include <errno.h>
 
@@ -44,7 +44,7 @@ struct SocketCallHeader
   int function;
 };
 
-void WebSocketMessageUnmaskPayload(uint8_t *payload, size_t payloadLength, uint32_t maskingKey)
+void WebSocketMessageUnmaskPayload(uint8_t *payload, uint64_t payloadLength, uint32_t maskingKey)
 {
   uint8_t maskingKey8[4];
   memcpy(maskingKey8, &maskingKey, 4);
@@ -63,7 +63,7 @@ void WebSocketMessageUnmaskPayload(uint8_t *payload, size_t payloadLength, uint3
   }
 }
 
-void SendWebSocketMessage(int client_fd, void *buf, int numBytes)
+void SendWebSocketMessage(int client_fd, void *buf, uint64_t numBytes)
 {
   uint8_t headerData[sizeof(WebSocketMessageHeader) + 8/*possible extended length*/] = {};
   WebSocketMessageHeader *header = (WebSocketMessageHeader *)headerData;
@@ -76,7 +76,7 @@ void SendWebSocketMessage(int client_fd, void *buf, int numBytes)
   else if (numBytes <= 65535)
   {
     header->payloadLength = 126;
-    *(uint16_t*)(headerData+headerBytes) = htons(numBytes);
+    *(uint16_t*)(headerData+headerBytes) = htons((unsigned short)numBytes);
     headerBytes += 2;
   }
   else
@@ -87,7 +87,7 @@ void SendWebSocketMessage(int client_fd, void *buf, int numBytes)
   }
 
 #if 1
-  printf("Sending %d bytes message (%d bytes of payload) to WebSocket\n", headerBytes + numBytes, numBytes);
+  printf("Sending %llu bytes message (%llu bytes of payload) to WebSocket\n", headerBytes + numBytes, numBytes);
 
   printf("Header:");
   for(int i = 0; i < headerBytes; ++i)
@@ -99,8 +99,8 @@ void SendWebSocketMessage(int client_fd, void *buf, int numBytes)
   printf("\n");
 #endif
 
-  send(client_fd, headerData, headerBytes, 0); // header
-  send(client_fd, buf, numBytes, 0); // payload
+  send(client_fd, (const char*)headerData, headerBytes, 0); // header
+  send(client_fd, (const char*)buf, (int)numBytes, 0); // payload
 }
 
 #define PRINT_ERRNO() do { \
@@ -108,7 +108,7 @@ void SendWebSocketMessage(int client_fd, void *buf, int numBytes)
   printf("Call failed! errno: %s(%d)\n", strerror(Errno), Errno); \
   } while(0)
 
-int Socket(int client_fd, uint8_t *data, int numBytes)//int domain, int type, int protocol)
+void Socket(int client_fd, uint8_t *data, uint64_t numBytes) // int socket(int domain, int type, int protocol);
 {
   struct MSG {
     SocketCallHeader header;
@@ -134,11 +134,9 @@ int Socket(int client_fd, uint8_t *data, int numBytes)//int domain, int type, in
   r.ret = ret;
   r.errno_ = (ret != 0) ? errno : 0;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
-
-  return ret;
 }
 
-int Socketpair(int client_fd, uint8_t *data, int numBytes)//int domain, int type, int protocol, int socket_vector[2])
+void Socketpair(int client_fd, uint8_t *data, uint64_t numBytes) // int socketpair(int domain, int type, int protocol, int socket_vector[2]);
 {
   struct MSG {
     SocketCallHeader header;
@@ -149,8 +147,14 @@ int Socketpair(int client_fd, uint8_t *data, int numBytes)//int domain, int type
   MSG *d = (MSG*)data;
 
   int socket_vector[2];
- 
+
+#ifdef _MSC_VER
+  printf("TODO implement socketpair() on Windows\n");
+  int ret = -1;
+#else
   int ret = socketpair(d->domain, d->type, d->protocol, socket_vector);
+#endif
+
 #ifdef POSIX_SOCKET_DEBUG
   printf("socketpair(domain=%d,type=%d,protocol=%d, socket_vector=[%d,%d])->%d\n", d->domain, d->type, d->protocol, socket_vector[0], socket_vector[1], ret);
   if (ret != 0) PRINT_ERRNO();
@@ -168,11 +172,9 @@ int Socketpair(int client_fd, uint8_t *data, int numBytes)//int domain, int type
   r.sv[0] = socket_vector[0];
   r.sv[1] = socket_vector[1];
   SendWebSocketMessage(client_fd, &r, sizeof(r));
-
-  return ret;
 }
 
-int Shutdown(int client_fd, uint8_t *data, int numBytes)//int socket, int how)
+void Shutdown(int client_fd, uint8_t *data, uint64_t numBytes) // int shutdown(int socket, int how);
 {
   struct MSG {
     SocketCallHeader header;
@@ -196,11 +198,9 @@ int Shutdown(int client_fd, uint8_t *data, int numBytes)//int socket, int how)
   r.ret = ret;
   r.errno_ = (ret != 0) ? errno : 0;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
-
-  return ret;
 }
 
-int Bind(int client_fd, uint8_t *data, int numBytes)//int socket, const struct sockaddr *address, socklen_t address_len)
+void Bind(int client_fd, uint8_t *data, uint64_t numBytes) // int bind(int socket, const struct sockaddr *address, socklen_t address_len);
 {
   struct MSG {
     SocketCallHeader header;
@@ -225,11 +225,9 @@ int Bind(int client_fd, uint8_t *data, int numBytes)//int socket, const struct s
   r.ret = ret;
   r.errno_ = (ret != 0) ? errno : 0;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
-
-  return ret;
 }
 
-int Connect(int client_fd, uint8_t *data, int numBytes)//int socket, const struct sockaddr *address, socklen_t address_len)
+void Connect(int client_fd, uint8_t *data, uint64_t numBytes) // int connect(int socket, const struct sockaddr *address, socklen_t address_len);
 {
   struct MSG {
     SocketCallHeader header;
@@ -239,7 +237,7 @@ int Connect(int client_fd, uint8_t *data, int numBytes)//int socket, const struc
   };
   MSG *d = (MSG*)data;
 
-  int actualAddressLen = MIN(d->address_len, numBytes - sizeof(MSG));
+  int actualAddressLen = MIN(d->address_len, (uint32_t)numBytes - sizeof(MSG));
 
   int ret = connect(d->socket, (sockaddr*)d->address, actualAddressLen);
 #ifdef POSIX_SOCKET_DEBUG
@@ -256,11 +254,9 @@ int Connect(int client_fd, uint8_t *data, int numBytes)//int socket, const struc
   r.ret = ret;
   r.errno_ = (ret != 0) ? errno : 0;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
-
-  return ret;
 }
 
-int Listen(int client_fd, uint8_t *data, int numBytes)//int socket, int backlog)
+void Listen(int client_fd, uint8_t *data, uint64_t numBytes) // int listen(int socket, int backlog);
 {
   struct MSG {
     SocketCallHeader header;
@@ -284,11 +280,9 @@ int Listen(int client_fd, uint8_t *data, int numBytes)//int socket, int backlog)
   r.ret = ret;
   r.errno_ = (ret != 0) ? errno : 0;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
-
-  return ret;
 }
 
-int Accept(int client_fd, uint8_t *data, int numBytes)//int socket, struct sockaddr *address, socklen_t *address_len)
+void Accept(int client_fd, uint8_t *data, uint64_t numBytes) // int accept(int socket, struct sockaddr *address, socklen_t *address_len);
 {
   struct MSG {
     SocketCallHeader header;
@@ -315,7 +309,7 @@ int Accept(int client_fd, uint8_t *data, int numBytes)//int socket, struct socka
     uint8_t address[];
   };
 
-  int actualAddressLen = MIN(addressLen, d->address_len);
+  int actualAddressLen = MIN(addressLen, (socklen_t)d->address_len);
   int resultSize = sizeof(Result) + actualAddressLen;
   Result *r = (Result*)malloc(resultSize);
   r->callId = d->header.callId;
@@ -325,11 +319,9 @@ int Accept(int client_fd, uint8_t *data, int numBytes)//int socket, struct socka
   memcpy(r->address, address, actualAddressLen);
   SendWebSocketMessage(client_fd, r, resultSize);
   free(r);
-
-  return ret;
 }
 
-int Getsockname(int client_fd, uint8_t *data, int numBytes)//int socket, struct sockaddr *address, socklen_t *address_len)
+void Getsockname(int client_fd, uint8_t *data, uint64_t numBytes) // int getsockname(int socket, struct sockaddr *address, socklen_t *address_len);
 {
   struct MSG {
     SocketCallHeader header;
@@ -355,7 +347,7 @@ int Getsockname(int client_fd, uint8_t *data, int numBytes)//int socket, struct 
     int address_len;
     uint8_t address[];
   };
-  int actualAddressLen = MIN(addressLen, d->address_len);
+  int actualAddressLen = MIN(addressLen, (socklen_t)d->address_len);
   int resultSize = sizeof(Result) + actualAddressLen;
   Result *r = (Result*)malloc(resultSize);
   r->callId = d->header.callId;
@@ -365,11 +357,9 @@ int Getsockname(int client_fd, uint8_t *data, int numBytes)//int socket, struct 
   memcpy(r->address, address, actualAddressLen);
   SendWebSocketMessage(client_fd, r, resultSize);
   free(r);
-
-  return ret;
 }
 
-int Getpeername(int client_fd, uint8_t *data, int numBytes)//int socket, struct sockaddr *address, socklen_t *address_len)
+void Getpeername(int client_fd, uint8_t *data, uint64_t numBytes) // int getpeername(int socket, struct sockaddr *address, socklen_t *address_len);
 {
   struct MSG {
     SocketCallHeader header;
@@ -395,7 +385,7 @@ int Getpeername(int client_fd, uint8_t *data, int numBytes)//int socket, struct 
     int address_len;
     uint8_t address[];
   };
-  int actualAddressLen = MIN(addressLen, d->address_len);
+  int actualAddressLen = MIN(addressLen, (socklen_t)d->address_len);
   int resultSize = sizeof(Result) + actualAddressLen;
   Result *r = (Result*)malloc(resultSize);
   r->callId = d->header.callId;
@@ -405,11 +395,9 @@ int Getpeername(int client_fd, uint8_t *data, int numBytes)//int socket, struct 
   memcpy(r->address, address, actualAddressLen);
   SendWebSocketMessage(client_fd, r, resultSize);
   free(r);
-
-  return ret;
 }
 
-ssize_t Send(int client_fd, uint8_t *data, int numBytes)//int socket, const void *message, size_t length, int flags)
+void Send(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int send(int socket, const void *message, size_t length, int flags);
 {
   struct MSG {
     SocketCallHeader header;
@@ -420,7 +408,7 @@ ssize_t Send(int client_fd, uint8_t *data, int numBytes)//int socket, const void
   };
   MSG *d = (MSG*)data;
 
-  int ret = send(d->socket, d->message, d->length, d->flags);
+  SEND_RET_TYPE ret = send(d->socket, (const char *)d->message, d->length, d->flags);
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("send(socket=%d,message=%p,length=%zd,flags=%d)->%d\n", d->socket, d->message, d->length, d->flags, ret);
@@ -429,18 +417,16 @@ ssize_t Send(int client_fd, uint8_t *data, int numBytes)//int socket, const void
 
   struct {
     int callId;
-    int ret;
+    int/*ssize_t/int*/ ret;
     int errno_;
   } r;
   r.callId = d->header.callId;
-  r.ret = ret;
+  r.ret = (int)ret;
   r.errno_ = (ret != 0) ? errno : 0;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
-
-  return 0;
 }
 
-ssize_t Recv(int client_fd, uint8_t *data, int numBytes)//int socket, void *buffer, size_t length, int flags)
+void Recv(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int recv(int socket, void *buffer, size_t length, int flags);
 {
   struct MSG {
     SocketCallHeader header;
@@ -451,7 +437,7 @@ ssize_t Recv(int client_fd, uint8_t *data, int numBytes)//int socket, void *buff
   MSG *d = (MSG*)data;
 
   uint8_t *buffer = (uint8_t*)malloc(d->length);
-  int ret = recv(d->socket, buffer, d->length, d->flags);
+  SEND_RET_TYPE ret = recv(d->socket, (char *)buffer, d->length, d->flags);
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("recv(socket=%d,buffer=%p,length=%zd,flags=%d)->%d\n", d->socket, buffer, d->length, d->flags, ret);
@@ -462,24 +448,22 @@ ssize_t Recv(int client_fd, uint8_t *data, int numBytes)//int socket, void *buff
 
   struct Result {
     int callId;
-    int ret;
+    int/*ssize_t/int*/ ret;
     int errno_;
     uint8_t data[];
   };
   int resultSize = sizeof(Result) + receivedBytes;
   Result *r = (Result *)malloc(resultSize);
   r->callId = d->header.callId;
-  r->ret = ret;
+  r->ret = (int)ret;
   r->errno_ = (ret != 0) ? errno : 0;
   memcpy(r->data, buffer, receivedBytes);
   free(buffer);
   SendWebSocketMessage(client_fd, r, resultSize);
   free(r);
-
-  return ret;
 }
 
-ssize_t Sendto(int client_fd, uint8_t *data, int numBytes)//int socket, const void *message, size_t length, int flags, const struct sockaddr *dest_addr, socklen_t dest_len)
+void Sendto(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int sendto(int socket, const void *message, size_t length, int flags, const struct sockaddr *dest_addr, socklen_t dest_len);
 {
   struct MSG {
     SocketCallHeader header;
@@ -492,7 +476,7 @@ ssize_t Sendto(int client_fd, uint8_t *data, int numBytes)//int socket, const vo
   };
   MSG *d = (MSG*)data;
 
-  int ret = sendto(d->socket, d->message, d->length, d->flags, (sockaddr*)d->dest_addr, d->dest_len);
+  SEND_RET_TYPE ret = sendto(d->socket, (const char *)d->message, d->length, d->flags, (sockaddr*)d->dest_addr, d->dest_len);
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("sendto(socket=%d,message=%p,length=%zd,flags=%d,dest_addr=%p,dest_len=%d)->%d\n", d->socket, d->message, d->length, d->flags, d->dest_addr, d->dest_len, ret);
@@ -501,18 +485,16 @@ ssize_t Sendto(int client_fd, uint8_t *data, int numBytes)//int socket, const vo
 
   struct {
     int callId;
-    int ret;
+    int/*ssize_t/int*/ ret;
     int errno_;
   } r;
   r.callId = d->header.callId;
-  r.ret = ret;
+  r.ret = (int)ret;
   r.errno_ = (ret != 0) ? errno : 0;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
-
-  return 0;
 }
 
-ssize_t Recvfrom(int client_fd, uint8_t *data, int numBytes)//int socket, void *buffer, size_t length, int flags, struct sockaddr *address, socklen_t *address_len)
+void Recvfrom(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int recvfrom(int socket, void *buffer, size_t length, int flags, struct sockaddr *address, socklen_t *address_len);
 {
   struct MSG {
     SocketCallHeader header;
@@ -527,7 +509,7 @@ ssize_t Recvfrom(int client_fd, uint8_t *data, int numBytes)//int socket, void *
   uint8_t *buffer = (uint8_t *)malloc(d->length);
 
   socklen_t address_len = (socklen_t)d->address_len;
-  int ret = recvfrom(d->socket, buffer, d->length, d->flags, (sockaddr*)address, &address_len);
+  int ret = recvfrom(d->socket, (char *)buffer, d->length, d->flags, (sockaddr*)address, &address_len);
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("recvfrom(socket=%d,buffer=%p,length=%zd,flags=%d,address=%p,address_len=%u)->%d\n", d->socket, buffer, d->length, d->flags, address, d->address_len, ret);
@@ -535,11 +517,11 @@ ssize_t Recvfrom(int client_fd, uint8_t *data, int numBytes)//int socket, void *
 #endif
 
   int receivedBytes = MAX(ret, 0);
-  int actualAddressLen = MIN(address_len, d->address_len);
+  int actualAddressLen = MIN(address_len, (socklen_t)d->address_len);
 
   struct Result {
     int callId;
-    int ret;
+    int/*ssize_t/int*/ ret;
     int errno_;
     int data_len;
     int address_len; // N.B. this is the reported address length of the sender, that may be larger than what is actually serialized to this message.
@@ -548,7 +530,7 @@ ssize_t Recvfrom(int client_fd, uint8_t *data, int numBytes)//int socket, void *
   int resultSize = sizeof(Result) + receivedBytes + actualAddressLen;
   Result *r = (Result *)malloc(resultSize);
   r->callId = d->header.callId;
-  r->ret = ret;
+  r->ret = (int)ret;
   r->errno_ = (ret != 0) ? errno : 0;
   r->data_len = receivedBytes;
   r->address_len = d->address_len; // How many bytes would have been needed to fit the whole sender address, not the actual size provided
@@ -556,33 +538,29 @@ ssize_t Recvfrom(int client_fd, uint8_t *data, int numBytes)//int socket, void *
   memcpy(r->data_and_address + receivedBytes, address, actualAddressLen);
   SendWebSocketMessage(client_fd, r, resultSize);
   free(r);
-
-  return ret;
 }
 
-ssize_t Sendmsg(int client_fd, uint8_t *data, int numBytes)//int socket, const struct msghdr *message, int flags)
+void Sendmsg(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int sendmsg(int socket, const struct msghdr *message, int flags);
 {
+	printf("TODO implement sendmsg()\n");
 #ifdef POSIX_SOCKET_DEBUG
 //  printf("sendmsg(socket=%d,message=%p,flags=%d)\n", d->socket, d->message, d->flags);
 //  if (ret < 0) PRINT_ERRNO();
 #endif
 
-  exit(1); // TODO
-  return 0;
+  // TODO
 }
 
-ssize_t Recvmsg(int client_fd, uint8_t *data, int numBytes)//int socket, struct msghdr *message, int flags)
+void Recvmsg(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int recvmsg(int socket, struct msghdr *message, int flags);
 {
+	printf("TODO implement recvmsg()\n");
 #ifdef POSIX_SOCKET_DEBUG
 //  printf("recvmsg(socket=%d,message=%p,flags=%d)\n", d->socket, d->message, d->flags);
 //  if (ret < 0) PRINT_ERRNO();
 #endif
-
-  exit(1); // TODO
-  return 0;
 }
 
-int Getsockopt(int client_fd, uint8_t *data, int numBytes)//int socket, int level, int option_name, void *option_value, socklen_t *option_len)
+void Getsockopt(int client_fd, uint8_t *data, uint64_t numBytes) // int getsockopt(int socket, int level, int option_name, void *option_value, socklen_t *option_len);
 {
   struct MSG {
     SocketCallHeader header;
@@ -596,7 +574,7 @@ int Getsockopt(int client_fd, uint8_t *data, int numBytes)//int socket, int leve
   uint8_t option_value[MAX_OPTIONVALUE_SIZE];
 
   socklen_t option_len = (socklen_t)d->option_len;
-  int ret = getsockopt(d->socket, d->level, d->option_name, option_value, &option_len);
+  int ret = getsockopt(d->socket, d->level, d->option_name, (char*)option_value, &option_len);
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("getsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%u)->%d\n", d->socket, d->level, d->option_name, option_value, d->option_len, ret);
@@ -611,7 +589,7 @@ int Getsockopt(int client_fd, uint8_t *data, int numBytes)//int socket, int leve
     uint8_t option_value[];
   };
 
-  int actualOptionLen = MIN(option_len, d->option_len);
+  int actualOptionLen = MIN(option_len, (socklen_t)d->option_len);
   int resultSize = sizeof(Result) + actualOptionLen;
   Result *r = (Result*)malloc(resultSize);
   r->callId = d->header.callId;
@@ -621,11 +599,9 @@ int Getsockopt(int client_fd, uint8_t *data, int numBytes)//int socket, int leve
   memcpy(r->option_value, option_value, actualOptionLen);
   SendWebSocketMessage(client_fd, r, resultSize);
   free(r);
-
-  return ret;
 }
 
-int Setsockopt(int client_fd, uint8_t *data, int numBytes)//int socket, int level, int option_name, const void *option_value, socklen_t option_len)
+void Setsockopt(int client_fd, uint8_t *data, uint64_t numBytes) // int setsockopt(int socket, int level, int option_name, const void *option_value, socklen_t option_len);
 {
   struct MSG {
     SocketCallHeader header;
@@ -636,9 +612,9 @@ int Setsockopt(int client_fd, uint8_t *data, int numBytes)//int socket, int leve
     uint8_t option_value[];
   };
   MSG *d = (MSG*)data;
-  int actualOptionLen = MIN(d->option_len, numBytes - sizeof(MSG));
+  int actualOptionLen = MIN(d->option_len, (int)(numBytes - sizeof(MSG)));
 
-  int ret = setsockopt(d->socket, d->level, d->option_name, d->option_value, actualOptionLen);
+  int ret = setsockopt(d->socket, d->level, d->option_name, (const char *)d->option_value, actualOptionLen);
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("setsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%d)->%d\n", d->socket, d->level, d->option_name, d->option_value, d->option_len, ret);
@@ -654,11 +630,9 @@ int Setsockopt(int client_fd, uint8_t *data, int numBytes)//int socket, int leve
   r.ret = ret;
   r.errno_ = (ret != 0) ? errno : 0;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
-
-  return ret;
 }
 
-void ProcessWebSocketMessage(int client_fd, uint8_t *payload, size_t numBytes)
+void ProcessWebSocketMessage(int client_fd, uint8_t *payload, uint64_t numBytes)
 {
   if (numBytes < sizeof(SocketCallHeader))
   {

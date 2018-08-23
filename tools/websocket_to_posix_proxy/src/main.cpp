@@ -2,9 +2,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
+#include "posix_sockets.h"
 #include <assert.h>
 #include <vector>
 
@@ -25,7 +23,7 @@ void base64_encode(void *dst, const void *src, size_t len)
     if (s < end) e |= *s++;
     *d++ = b64[e >> 18] | (b64[(e >> 12) & 0x3F] << 8) | (b64[(e >> 6) & 0x3F] << 16) | (b64[e & 0x3F] << 24);
   }
-  for (int i = 0; i < (3 - (len % 3)) % 3; i++) ((char *)d)[-1-i] = '=';
+  for (size_t i = 0; i < (3 - (len % 3)) % 3; i++) ((char *)d)[-1-i] = '=';
 }
 
 #define BUFFER_SIZE 1024
@@ -68,10 +66,10 @@ void SendHandshake(int fd, const char *request)
   printf("Sent handshake:\n%s\n", handshakeMsg);
 }
 
-bool WebSocketHasFullHeader(uint8_t *data, size_t obtainedNumBytes)
+bool WebSocketHasFullHeader(uint8_t *data, uint64_t obtainedNumBytes)
 {
   if (obtainedNumBytes < 2) return false;
-  size_t expectedNumBytes = 2;
+  uint64_t expectedNumBytes = 2;
   WebSocketMessageHeader *header = (WebSocketMessageHeader *)data;
   if (header->mask) expectedNumBytes += 4;
   switch(header->payloadLength)
@@ -83,11 +81,11 @@ bool WebSocketHasFullHeader(uint8_t *data, size_t obtainedNumBytes)
   return obtainedNumBytes >= expectedNumBytes;
 }
 
-size_t WebSocketFullMessageSize(uint8_t *data, size_t obtainedNumBytes)
+uint64_t WebSocketFullMessageSize(uint8_t *data, uint64_t obtainedNumBytes)
 {
   assert(WebSocketHasFullHeader(data, obtainedNumBytes));
 
-  size_t expectedNumBytes = 2;
+  uint64_t expectedNumBytes = 2;
   WebSocketMessageHeader *header = (WebSocketMessageHeader *)data;
   if (header->mask) expectedNumBytes += 4;
   switch(header->payloadLength)
@@ -100,22 +98,22 @@ size_t WebSocketFullMessageSize(uint8_t *data, size_t obtainedNumBytes)
 }
 
 // Tests the structure integrity of the websocket message length.
-bool WebSocketValidateMessageSize(uint8_t *data, size_t obtainedNumBytes)
+bool WebSocketValidateMessageSize(uint8_t *data, uint64_t obtainedNumBytes)
 {
-  size_t expectedNumBytes = WebSocketFullMessageSize(data, obtainedNumBytes);
+  uint64_t expectedNumBytes = WebSocketFullMessageSize(data, obtainedNumBytes);
 
   if (expectedNumBytes != obtainedNumBytes)
   {
-    printf("Corrupt WebSocket message size! (got %zd bytes, expected %zd bytes)\n", obtainedNumBytes, expectedNumBytes);
+    printf("Corrupt WebSocket message size! (got %llu bytes, expected %llu bytes)\n", obtainedNumBytes, expectedNumBytes);
     printf("Received data:");
-    for(int i = 0; i < obtainedNumBytes; ++i)
+    for(size_t i = 0; i < obtainedNumBytes; ++i)
       printf(" %02X", data[i]);
     printf("\n");
   }
   return expectedNumBytes == obtainedNumBytes;
 }
 
-uint64_t WebSocketMessagePayloadLength(uint8_t *data, size_t numBytes)
+uint64_t WebSocketMessagePayloadLength(uint8_t *data, uint64_t numBytes)
 {
   WebSocketMessageHeader *header = (WebSocketMessageHeader *)data;
   switch(header->payloadLength)
@@ -126,7 +124,7 @@ uint64_t WebSocketMessagePayloadLength(uint8_t *data, size_t numBytes)
   }
 }
 
-uint32_t WebSocketMessageMaskingKey(uint8_t *data, size_t numBytes)
+uint32_t WebSocketMessageMaskingKey(uint8_t *data, uint64_t numBytes)
 {
   WebSocketMessageHeader *header = (WebSocketMessageHeader *)data;
   if (!header->mask) return 0;
@@ -138,7 +136,7 @@ uint32_t WebSocketMessageMaskingKey(uint8_t *data, size_t numBytes)
   }
 }
 
-uint8_t *WebSocketMessageData(uint8_t *data, size_t numBytes)
+uint8_t *WebSocketMessageData(uint8_t *data, uint64_t numBytes)
 {
   WebSocketMessageHeader *header = (WebSocketMessageHeader *)data;
   data += 2; // Two bytes of fixed size header
@@ -154,7 +152,7 @@ uint8_t *WebSocketMessageData(uint8_t *data, size_t numBytes)
 void CloseWebSocket(int client_fd)
 {
   printf("Closing WebSocket connection %d\n", client_fd);
-  shutdown(client_fd, SHUT_RDWR);
+  shutdown(client_fd, SHUTDOWN_BIDIRECTIONAL);
 }
 
 const char *WebSocketOpcodeToString(int opcode)
@@ -164,7 +162,7 @@ const char *WebSocketOpcodeToString(int opcode)
   return opcodes[opcode];
 }
 
-void DumpWebSocketMessage(uint8_t *data, size_t numBytes)
+void DumpWebSocketMessage(uint8_t *data, uint64_t numBytes)
 {
   bool goodMessageSize = WebSocketValidateMessageSize(data, numBytes);
   if (!goodMessageSize)
@@ -190,8 +188,19 @@ void DumpWebSocketMessage(uint8_t *data, size_t numBytes)
   printf("\n");
 }
 
-int main (int argc, char *argv[]) {
-  if (argc < 2) on_error("Usage: %s [port]\n", argv[0]);
+int main(int argc, char *argv[])
+{
+  if (argc < 2) on_error("websocket_to_posix_proxy creates a bridge that allows WebSocket connections on a web page to proxy out to perform TCP/UDP connections.\nUsage: %s [port]\n", argv[0]);
+
+#ifdef _WIN32
+  WSADATA wsaData;
+  int failed = WSAStartup(MAKEWORD(2,2), &wsaData);
+  if (failed)
+  {
+    printf("WSAStartup failed: %d\n", failed);
+    return 1;
+  }
+#endif
 
   int port = atoi(argv[1]);
 
@@ -207,7 +216,7 @@ int main (int argc, char *argv[]) {
   server.sin_addr.s_addr = htonl(INADDR_ANY);
 
   int opt_val = 1;
-  setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof opt_val);
+  setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (SETSOCKOPT_PTR_TYPE)&opt_val, sizeof opt_val);
 
   err = bind(server_fd, (struct sockaddr *) &server, sizeof(server));
   if (err < 0) on_error("Could not bind socket\n");
@@ -215,9 +224,10 @@ int main (int argc, char *argv[]) {
   err = listen(server_fd, 128);
   if (err < 0) on_error("Could not listen on socket\n");
 
-  printf("Server is listening on %d\n", port);
+  printf("websocket_to_posix_proxy server is now listening for WebSocket connections to ws://localhost:%d/\n", port);
 
-  while (1) {
+  while (1)
+  {
     socklen_t client_len = sizeof(client);
     client_fd = accept(server_fd, (struct sockaddr *) &client, &client_len);
 
@@ -246,7 +256,8 @@ int main (int argc, char *argv[]) {
     std::vector<uint8_t> fragmentData;
 
     bool connectionAlive = true;
-    while (connectionAlive) {
+    while (connectionAlive)
+    {
       int read = recv(client_fd, buf, BUFFER_SIZE, 0);
 
       if (!read) break; // done reading
@@ -264,7 +275,7 @@ int main (int argc, char *argv[]) {
       fragmentData.insert(fragmentData.end(), buf, buf+read);
       bool hasFullHeader = WebSocketHasFullHeader(&fragmentData[0], fragmentData.size());
       if (!hasFullHeader) continue;
-      size_t neededBytes = WebSocketFullMessageSize(&fragmentData[0], fragmentData.size());
+      uint64_t neededBytes = WebSocketFullMessageSize(&fragmentData[0], fragmentData.size());
       if (fragmentData.size() < neededBytes)
         continue;
 
@@ -287,9 +298,13 @@ int main (int argc, char *argv[]) {
         break;
       }
 
-      fragmentData.erase(fragmentData.begin(), fragmentData.begin() + neededBytes);
+      fragmentData.erase(fragmentData.begin(), fragmentData.begin() + (ptrdiff_t)neededBytes);
     }
   }
+
+#ifdef _WIN32
+  WSACleanup();
+#endif
 
   return 0;
 }
