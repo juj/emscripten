@@ -44,7 +44,7 @@ def files_in_path(path_components, filenames):
 
 
 def get_cflags():
-  flags = []
+  flags = ['-g4']
   if shared.Settings.WASM_OBJECT_FILES:
      flags += ['-s', 'WASM_OBJECT_FILES=1']
   return flags
@@ -317,7 +317,7 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
     libcxxabi_include = shared.path_from_root('system', 'lib', 'libcxxabi', 'include')
     return build_libcxx(
       os.path.join('system', 'lib', 'libcxx'), libname, libcxx_files,
-      ['-DLIBCXX_BUILDING_LIBCXXABI=1', '-D_LIBCPP_BUILDING_LIBRARY', '-Oz', '-I' + libcxxabi_include],
+      ['-DLIBCXX_BUILDING_LIBCXXABI=1', '-D_LIBCPP_BUILDING_LIBRARY', '-g4', '-Oz', '-I' + libcxxabi_include],
       has_noexcept_version=True)
 
   # libcxxabi - just for dynamic_cast for now
@@ -340,7 +340,7 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
     libcxxabi_include = shared.path_from_root('system', 'lib', 'libcxxabi', 'include')
     return build_libcxx(
       os.path.join('system', 'lib', 'libcxxabi', 'src'), libname, libcxxabi_files,
-      ['-Oz', '-I' + libcxxabi_include])
+      ['-g4', '-Oz', '-I' + libcxxabi_include])
 
   # gl
   def create_gl(libname):
@@ -364,7 +364,7 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
     files = []
     for dirpath, dirnames, filenames in os.walk(src_dir):
       files += [os.path.join(src_dir, f) for f in filenames]
-    return build_libc(libname, files, ['-Oz'])
+    return build_libc(libname, files, ['-g4', '-Oz'])
 
   def create_compiler_rt(libname):
     files = files_in_path(

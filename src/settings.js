@@ -1276,3 +1276,6 @@ var ENVIRONMENT_MAY_BE_WEB_OR_WORKER = 1;
 // JS -> asm.js import names. Controlled by optimization level, enabled
 // at -O1 and higher, but disabled at -g2 and higher.
 var MINIFY_ASMJS_IMPORT_NAMES = 0;
+
+// If true, function call graph dependency data is emitted to a.out.graph.json file.
+var EMIT_FUNCTION_GRAPH_DATA = 0;
