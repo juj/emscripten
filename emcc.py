@@ -1863,6 +1863,9 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         cd_target = final + '.cd'
         shutil.move(cd_target, target + '.cd')
 
+      if shared.Settings.EMIT_FUNCTION_GRAPH_DATA:
+        shutil.move(final + '.graph.json', target + '.graph.json')
+
     # exit block 'emscript'
     log_time('emscript (llvm => executable code)')
 

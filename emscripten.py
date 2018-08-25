@@ -89,7 +89,7 @@ def emscript(infile, outfile, memfile, libraries, compiler_engine, temp_files,
     # memory to be reclaimed
 
     with ToolchainProfiler.profile_block('get_and_parse_backend'):
-      backend_output = compile_js(infile, temp_files, DEBUG)
+      backend_output = compile_js(infile, outfile.name, temp_files, DEBUG)
       funcs, metadata, mem_init = parse_backend_output(backend_output, DEBUG)
       fixup_metadata_tables(metadata)
       funcs = fixup_functions(funcs, metadata)
@@ -109,10 +109,10 @@ def emscript(infile, outfile, memfile, libraries, compiler_engine, temp_files,
       shared.try_delete(outfile.name) # remove partial output
 
 
-def compile_js(infile, temp_files, DEBUG):
+def compile_js(infile, outfile_name, temp_files, DEBUG):
   """Compile infile with asm.js backend, return the contents of the compiled js"""
   with temp_files.get_file('.4.js') as temp_js:
-    backend_args = create_backend_args(infile, temp_js)
+    backend_args = create_backend_args(infile, outfile_name, temp_js)
 
     if DEBUG:
       logger.debug('emscript: llvm backend: ' + ' '.join(backend_args))
@@ -444,7 +444,7 @@ def write_cyberdwarf_data(outfile, metadata):
     json.dump({'cyberdwarf': metadata['cyberdwarf_data']}, f)
 
 
-def create_backend_args(infile, temp_js):
+def create_backend_args(infile, outfile_name, temp_js):
   """Create args for asm.js backend from settings dict"""
   args = [
     shared.LLVM_COMPILER, infile, '-march=js', '-filetype=asm', '-o', temp_js,
@@ -494,6 +494,8 @@ def create_backend_args(infile, temp_js):
       args += ['-emscripten-only-wasm']
   if shared.Settings.CYBERDWARF:
     args += ['-enable-cyberdwarf']
+  if shared.Settings.EMIT_FUNCTION_GRAPH_DATA:
+    args += ['-emit-function-graph-data=' + outfile_name + '.graph.json']
   return args
 
 

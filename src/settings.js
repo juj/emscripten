@@ -1311,3 +1311,6 @@ var MINIFY_ASMJS_IMPORT_NAMES = 0;
 // with suppressions for Closure compiler, that can be passed as an --externs file
 // to Closure.
 var MODULE_EXPORTS = [];
+
+// If true, function call graph dependency data is emitted to a.out.graph.json file.
+var EMIT_FUNCTION_GRAPH_DATA = 0;
