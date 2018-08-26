@@ -8,6 +8,7 @@
 #include "lookup.h"
 #include "stdio_impl.h"
 
+#ifndef __EMSCRIPTEN__
 int __lookup_serv(struct service buf[static MAXSERVS], const char *name, int proto, int socktype, int flags)
 {
 	char line[128];
@@ -111,3 +112,4 @@ int __lookup_serv(struct service buf[static MAXSERVS], const char *name, int pro
 	__fclose_ca(f);
 	return cnt > 0 ? cnt : EAI_SERVICE;
 }
+#endif

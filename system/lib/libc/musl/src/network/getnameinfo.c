@@ -45,6 +45,7 @@ static void mkptr6(char *s, const unsigned char *ip)
 	strcpy(s, "ip6.arpa");
 }
 
+#ifndef __EMSCRIPTEN__
 static void reverse_hosts(char *buf, const unsigned char *a, unsigned scopeid, int family)
 {
 	char line[512], *p, *z;
@@ -110,6 +111,7 @@ static void reverse_services(char *buf, int port, int dgram)
 	}
 	__fclose_ca(f);
 }
+#endif
 
 static int dns_parse_callback(void *c, int rr, const void *data, int len, const void *packet)
 {

@@ -8,7 +8,10 @@
 int __dns_count_addrs(const unsigned char *, int);
 int __dns_get_rr(void *, size_t, size_t, size_t, const unsigned char *, int, int);
 
+#ifndef __EMSCRIPTEN__
 int __dns_query(unsigned char *, const void *, int, int);
+#endif
+
 int __ipparse(void *, int, const char *);
 
 int __dns_doqueries(unsigned char *, const char *, int *, int);

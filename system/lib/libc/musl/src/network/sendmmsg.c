@@ -4,6 +4,7 @@
 #include <errno.h>
 #include "syscall.h"
 
+#ifndef __EMSCRIPTEN__
 int sendmmsg(int fd, struct mmsghdr *msgvec, unsigned int vlen, unsigned int flags)
 {
 #if LONG_MAX > INT_MAX
@@ -28,3 +29,4 @@ error:
 	return syscall_cp(SYS_sendmmsg, fd, msgvec, vlen, flags);
 #endif
 }
+#endif

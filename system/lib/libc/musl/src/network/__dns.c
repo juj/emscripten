@@ -25,6 +25,7 @@ static void cleanup(void *p)
 	close((intptr_t)p);
 }
 
+#ifndef __EMSCRIPTEN__
 int __dns_doqueries(unsigned char *dest, const char *name, int *rr, int rrcnt)
 {
 	time_t t0 = time(0);
@@ -183,6 +184,7 @@ out:
 	if (got) return got;
 	return errcode;
 }
+#endif
 
 static void mkptr4(char *s, const unsigned char *ip)
 {
@@ -201,6 +203,7 @@ static void mkptr6(char *s, const unsigned char *ip)
 	strcpy(s, "ip6.arpa");
 }
 
+#ifndef __EMSCRIPTEN__
 int __dns_query(unsigned char *r, const void *a, int family, int ptr)
 {
 	char buf[PTR_MAX];
@@ -220,6 +223,7 @@ int __dns_query(unsigned char *r, const void *a, int family, int ptr)
 
 	return __dns_doqueries(r, a, rr, rrcnt);
 }
+#endif
 
 int __dn_expand(const unsigned char *, const unsigned char *, const unsigned char *, char *, int);
 

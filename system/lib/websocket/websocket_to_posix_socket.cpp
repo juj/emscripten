@@ -6,6 +6,8 @@
 #include <pthread.h>
 #include <sys/socket.h>
 #include <errno.h>
+#include <assert.h>
+#include <netdb.h>
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
@@ -179,6 +181,8 @@ EMSCRIPTEN_WEBSOCKET_T emscripten_init_websocket_to_posix_socket_bridge(const ch
 #define POSIX_SOCKET_MSG_RECVMSG 15
 #define POSIX_SOCKET_MSG_GETSOCKOPT 16
 #define POSIX_SOCKET_MSG_SETSOCKOPT 17
+#define POSIX_SOCKET_MSG_GETADDRINFO 18
+#define POSIX_SOCKET_MSG_GETNAMEINFO 19
 
 #define MAX_SOCKADDR_SIZE 256
 #define MAX_OPTIONVALUE_SIZE 16
@@ -743,5 +747,86 @@ int setsockopt(int socket, int level, int option_name, const void *option_value,
   free(d);
   return ret;
 }
+
+// Host name resolution: <netdb.h>
+
+int getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res)
+{
+#ifdef POSIX_SOCKET_DEBUG
+  printf("getaddrinfo(node=%s,service=%s,hints=%p,res=%p)\n", node, service, hints, res);
+#endif
+
+#define MAX_NODE_LEN 2048
+#define MAX_SERVICE_LEN 128
+
+  struct {
+    SocketCallHeader header;
+    char node[MAX_NODE_LEN]; // Arbitrary max length limit
+    char service[MAX_SERVICE_LEN]; // Arbitrary max length limit
+    int hasHints;
+    int ai_flags;
+    int ai_family;
+    int ai_socktype;
+    int ai_protocol;
+  } d;
+
+  struct Result {
+    SocketCallResultHeader header;
+    uint8_t option_value[];
+  };
+
+  memset(&d, 0, sizeof(d));
+  PosixSocketCallResult *b = allocate_call_result(sizeof(Result));
+  d.header.callId = b->callId;
+  d.header.function = POSIX_SOCKET_MSG_GETADDRINFO;
+  if (node)
+  {
+    assert(strlen(node) <= MAX_NODE_LEN-1);
+    strncpy(d.node, node, MAX_NODE_LEN-1);
+  }
+  if (service)
+  {
+    assert(strlen(service) <= MAX_SERVICE_LEN-1);
+    strncpy(d.service, service, MAX_SERVICE_LEN-1);
+  }
+  d.hasHints = !!hints;
+  if (hints)
+  {
+    d.ai_flags = hints->ai_flags;
+    d.ai_family = hints->ai_family;
+    d.ai_socktype = hints->ai_socktype;
+    d.ai_protocol = hints->ai_protocol;
+  }
+
+  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d));
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret == 0)
+  {
+    // TODO
+  }
+  else
+  {
+    errno = b->data->errno_;
+  }
+  free_call_result(b);
+
+  return ret;
+}
+
+void freeaddrinfo(struct addrinfo *res)
+{
+  // TODO
+}
+
+int getnameinfo(const struct sockaddr *addr, socklen_t addrlen, char *host, socklen_t hostlen, char *serv, socklen_t servlen, int flags)
+{
+ // POSIX_SOCKET_MSG_GETNAMEINFO
+}
+
+// const char *gai_strerror(int);
+
+
 
 } // ~extern "C"
