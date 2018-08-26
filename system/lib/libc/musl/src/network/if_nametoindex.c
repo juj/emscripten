@@ -5,6 +5,7 @@
 #include <string.h>
 #include "syscall.h"
 
+#ifndef __EMSCRIPTEN__
 unsigned if_nametoindex(const char *name)
 {
 	struct ifreq ifr;
@@ -16,3 +17,4 @@ unsigned if_nametoindex(const char *name)
 	__syscall(SYS_close, fd);
 	return r < 0 ? 0 : ifr.ifr_ifindex;
 }
+#endif

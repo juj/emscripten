@@ -1,6 +1,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 
+#ifndef __EMSCRIPTEN__
 int sockatmark(int s)
 {
 	int ret;
@@ -8,3 +9,4 @@ int sockatmark(int s)
 		return -1;
 	return ret;
 }
+#endif

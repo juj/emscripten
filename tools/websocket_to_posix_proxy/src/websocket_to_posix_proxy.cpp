@@ -4,6 +4,8 @@
 #include "posix_sockets.h"
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
+#include <netdb.h>
 
 #include "websocket_to_posix_proxy.h"
 
@@ -32,6 +34,8 @@ uint64_t ntoh64(uint64_t x)
 #define POSIX_SOCKET_MSG_RECVMSG 15
 #define POSIX_SOCKET_MSG_GETSOCKOPT 16
 #define POSIX_SOCKET_MSG_SETSOCKOPT 17
+#define POSIX_SOCKET_MSG_GETADDRINFO 18
+#define POSIX_SOCKET_MSG_GETNAMEINFO 19
 
 #define MAX_SOCKADDR_SIZE 256
 #define MAX_OPTIONVALUE_SIZE 16
@@ -632,6 +636,115 @@ void Setsockopt(int client_fd, uint8_t *data, uint64_t numBytes) // int setsocko
   SendWebSocketMessage(client_fd, &r, sizeof(r));
 }
 
+void Getaddrinfo(int client_fd, uint8_t *data, uint64_t numBytes) // int getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res);
+{
+
+#define MAX_NODE_LEN 2048
+#define MAX_SERVICE_LEN 128
+
+  struct MSG {
+    SocketCallHeader header;
+    char node[MAX_NODE_LEN]; // Arbitrary max length limit
+    char service[MAX_SERVICE_LEN]; // Arbitrary max length limit
+    int hasHints;
+    int ai_flags;
+    int ai_family;
+    int ai_socktype;
+    int ai_protocol;
+  };
+  MSG *d = (MSG*)data;
+
+  addrinfo hints;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_flags = d->ai_flags;
+  hints.ai_family = d->ai_family;
+  hints.ai_socktype = d->ai_socktype;
+  hints.ai_protocol = d->ai_protocol;
+
+  addrinfo *res = 0;
+  int ret = getaddrinfo(d->node, d->service, d->hasHints ? &hints : 0, &res);
+
+#ifdef POSIX_SOCKET_DEBUG
+  printf("getaddrinfo(node=%s,service=%s,hasHints=%d,ai_flags=%d,ai_family=%d,ai_socktype=%d,ai_protocol=%d)->%d\n", d->node, d->service, d->hasHints, d->ai_flags, d->ai_family, d->ai_socktype, d->ai_protocol, ret);
+  if (ret != 0) PRINT_ERRNO();
+#endif
+
+  char ai_canonname[MAX_NODE_LEN] = {};
+  int ai_addrTotalLen = 0;
+  int addrCount = 0;
+
+  if (ret == 0)
+  {
+    if (res && res->ai_canonname)
+    {
+      if (strlen(res->ai_canonname) >= MAX_NODE_LEN) printf("Warning: Truncated res->ai_canonname to %d bytes (was %s)\n", MAX_NODE_LEN, res->ai_canonname);
+      strncpy(ai_canonname, res->ai_canonname, MAX_NODE_LEN-1);
+    }
+
+    addrinfo *ai = res;
+    while(ai)
+    {
+      ai_addrTotalLen += ai->ai_addrlen;
+      ++addrCount;
+      ai = ai->ai_next;
+    }
+  }
+
+  struct out_addrinfo
+  {
+    int ai_flags;
+    int ai_family;
+    int ai_socktype;
+    int ai_protocol;
+    int/*socklen_t*/ ai_addrlen;
+    uint8_t /*sockaddr **/ ai_addr[];
+  };
+
+  struct Result {
+    int callId;
+    int ret;
+    int errno_;
+    char ai_canonname[MAX_NODE_LEN];
+    int addrCount;
+    uint8_t /*out_addrinfo[]*/ addr[];
+  };
+
+  int resultSize = sizeof(Result) + sizeof(out_addrinfo)*addrCount + ai_addrTotalLen;
+  Result *r = (Result*)malloc(resultSize);
+
+  memset(r, 0, resultSize);
+  r->callId = d->header.callId;
+  r->ret = ret;
+  r->errno_ = (ret != 0) ? errno : 0;
+  strncpy(r->ai_canonname, ai_canonname, MAX_NODE_LEN-1);
+  r->addrCount = addrCount;
+
+  addrinfo *ai = res;
+  int offset = 0;
+  while(ai)
+  {
+    out_addrinfo *o = (out_addrinfo*)(r->addr + offset);
+    o->ai_flags = ai->ai_flags;
+    o->ai_family = ai->ai_family;
+    o->ai_socktype = ai->ai_socktype;
+    o->ai_protocol = ai->ai_protocol;
+    o->ai_addrlen = ai->ai_addrlen;
+    memcpy(o->ai_addr, ai->ai_addr, ai->ai_addrlen);
+    offset += sizeof(out_addrinfo) + ai->ai_addrlen;
+    ai = ai->ai_next;
+  }
+  if (res) freeaddrinfo(res);
+
+  SendWebSocketMessage(client_fd, r, resultSize);
+
+  free(r);
+}
+
+void Getnameinfo(int client_fd, uint8_t *data, uint64_t numBytes) // int getnameinfo(const struct sockaddr *addr, socklen_t addrlen, char *host, socklen_t hostlen, char *serv, socklen_t servlen, int flags);
+{
+
+}
+
 void ProcessWebSocketMessage(int client_fd, uint8_t *payload, uint64_t numBytes)
 {
   if (numBytes < sizeof(SocketCallHeader))
@@ -659,6 +772,8 @@ void ProcessWebSocketMessage(int client_fd, uint8_t *payload, uint64_t numBytes)
     case POSIX_SOCKET_MSG_RECVMSG: Recvmsg(client_fd, payload, numBytes); break;
     case POSIX_SOCKET_MSG_GETSOCKOPT: Getsockopt(client_fd, payload, numBytes); break;
     case POSIX_SOCKET_MSG_SETSOCKOPT: Setsockopt(client_fd, payload, numBytes); break;
+    case POSIX_SOCKET_MSG_GETADDRINFO: Getaddrinfo(client_fd, payload, numBytes); break;
+    case POSIX_SOCKET_MSG_GETNAMEINFO: Getnameinfo(client_fd, payload, numBytes); break;
     default:
       printf("Unknown POSIX_SOCKET_MSG %u received!\n", header->function);
       break;
