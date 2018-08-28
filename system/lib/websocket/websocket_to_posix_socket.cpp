@@ -292,7 +292,7 @@ int bind(int socket, const struct sockaddr *address, socklen_t address_len)
   struct Data {
     SocketCallHeader header;
     int socket;
-    socklen_t address_len;
+    uint32_t/*socklen_t*/ address_len;
     uint8_t address[];
   };
   int numBytes = sizeof(Data) + address_len;
@@ -304,7 +304,8 @@ int bind(int socket, const struct sockaddr *address, socklen_t address_len)
   d->socket = socket;
   d->address_len = address_len;
   if (address) memcpy(d->address, address, address_len);
-  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d) + address_len - MAX_SOCKADDR_SIZE);
+  else memset(d->address, 0, address_len);
+  emscripten_websocket_send_binary(bridgeSocket, d, numBytes);
 
   wait_for_call_result(b);
   int ret = b->data->ret;
@@ -324,7 +325,7 @@ int connect(int socket, const struct sockaddr *address, socklen_t address_len)
   struct Data {
     SocketCallHeader header;
     int socket;
-    socklen_t address_len;
+    uint32_t/*socklen_t*/ address_len;
     uint8_t address[];
   };
   int numBytes = sizeof(Data) + address_len;
@@ -336,6 +337,7 @@ int connect(int socket, const struct sockaddr *address, socklen_t address_len)
   d->socket = socket;
   d->address_len = address_len;
   if (address) memcpy(d->address, address, address_len);
+  else memset(d->address, 0, address_len);
   emscripten_websocket_send_binary(bridgeSocket, d, numBytes);
 
   wait_for_call_result(b);
@@ -382,7 +384,7 @@ int accept(int socket, struct sockaddr *address, socklen_t *address_len)
   struct {
     SocketCallHeader header;
     int socket;
-    socklen_t address_len;
+    uint32_t/*socklen_t*/ address_len;
   } d;
 
   PosixSocketCallResult *b = allocate_call_result(sizeof(SocketCallResultHeader));
@@ -390,11 +392,13 @@ int accept(int socket, struct sockaddr *address, socklen_t *address_len)
   d.header.function = POSIX_SOCKET_MSG_ACCEPT;
   d.socket = socket;
   d.address_len = *address_len;
-  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d) + *address_len - MAX_SOCKADDR_SIZE);
+  emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d));
 
   wait_for_call_result(b);
   int ret = b->data->ret;
   if (ret < 0) errno = b->data->errno_;
+
+  // TODO: read accept() results
   free_call_result(b);
   return ret;
 }
@@ -408,7 +412,7 @@ int getsockname(int socket, struct sockaddr *address, socklen_t *address_len)
   struct {
     SocketCallHeader header;
     int socket;
-    socklen_t address_len;
+    uint32_t/*socklen_t*/ address_len;
   } d;
 
   struct Result {
@@ -431,8 +435,8 @@ int getsockname(int socket, struct sockaddr *address, socklen_t *address_len)
     Result *r = (Result*)b->data;
     int realAddressLen = MIN(b->bytes - sizeof(Result), r->address_len);
     int copiedAddressLen = MIN(*address_len, realAddressLen);
-    memcpy(address, r->address, copiedAddressLen);
-    *address_len = realAddressLen;
+    if (address) memcpy(address, r->address, copiedAddressLen);
+    if (address_len) *address_len = realAddressLen;
   }
   else
   {
@@ -451,7 +455,7 @@ int getpeername(int socket, struct sockaddr *address, socklen_t *address_len)
   struct {
     SocketCallHeader header;
     int socket;
-    socklen_t address_len;
+    uint32_t/*socklen_t*/ address_len;
   } d;
 
   struct Result {
@@ -474,8 +478,8 @@ int getpeername(int socket, struct sockaddr *address, socklen_t *address_len)
     Result *r = (Result*)b->data;
     int realAddressLen = MIN(b->bytes - sizeof(Result), r->address_len);
     int copiedAddressLen = MIN(*address_len, realAddressLen);
-    memcpy(address, r->address, copiedAddressLen);
-    *address_len = realAddressLen;
+    if (address) memcpy(address, r->address, copiedAddressLen);
+    if (address_len) *address_len = realAddressLen;
   }
   else
   {
@@ -507,7 +511,8 @@ ssize_t send(int socket, const void *message, size_t length, int flags)
   d->socket = socket;
   d->length = length;
   d->flags = flags;
-  memcpy(d->message, message, length);
+  if (message) memcpy(d->message, message, length);
+  else memset(d->message, 0, length);
   emscripten_websocket_send_binary(bridgeSocket, d, sz);
 
   wait_for_call_result(b);
@@ -549,7 +554,7 @@ ssize_t recv(int socket, void *buffer, size_t length, int flags)
       uint8_t data[];
     };
     Result *r = (Result*)b->data;
-    memcpy(buffer, r->data, MIN(ret, length));
+    if (buffer) memcpy(buffer, r->data, MIN(ret, length));
   }
   else
   {
@@ -586,8 +591,9 @@ ssize_t sendto(int socket, const void *message, size_t length, int flags, const 
   d->flags = flags;
   d->dest_len = dest_len;
   memset(d->dest_addr, 0, sizeof(d->dest_addr));
-  memcpy(d->dest_addr, dest_addr, dest_len);
-  memcpy(d->message, message, length);
+  if (dest_addr) memcpy(d->dest_addr, dest_addr, dest_len);
+  if (message) memcpy(d->message, message, length);
+  else memset(d->message, 0, length);
   emscripten_websocket_send_binary(bridgeSocket, d, sz);
 
   wait_for_call_result(b);
@@ -633,7 +639,7 @@ ssize_t recvfrom(int socket, void *buffer, size_t length, int flags, struct sock
       uint8_t data_and_address[];
     };
     Result *r = (Result*)b->data;
-    memcpy(buffer, r->data_and_address, MIN(r->data_len, length));
+    if (buffer) memcpy(buffer, r->data_and_address, MIN(r->data_len, length));
     int copiedAddressLen = MIN((address_len ? *address_len : 0), r->address_len);
     if (address) memcpy(address, r->data_and_address + r->data_len, copiedAddressLen);
     if (address_len) *address_len = r->address_len;
@@ -702,7 +708,7 @@ int getsockopt(int socket, int level, int option_name, void *option_value, sockl
     Result *r = (Result*)b->data;
     int optLen = b->bytes - sizeof(Result);
     if (option_value) memcpy(option_value, r->option_value, MIN(*option_len, optLen));
-    *option_len = optLen;
+    if (option_len) *option_len = optLen;
   }
   else
   {
@@ -735,7 +741,8 @@ int setsockopt(int socket, int level, int option_name, const void *option_value,
   d->socket = socket;
   d->level = level;
   d->option_name = option_name;
-  memcpy(d->option_value, option_value, option_len);
+  if (option_value) memcpy(d->option_value, option_value, option_len);
+  else memset(d->option_value, 0, option_len);
   d->option_len = option_len;
   emscripten_websocket_send_binary(bridgeSocket, d, messageSize);
 
@@ -752,10 +759,6 @@ int setsockopt(int socket, int level, int option_name, const void *option_value,
 
 int getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res)
 {
-#ifdef POSIX_SOCKET_DEBUG
-  printf("getaddrinfo(node=%s,service=%s,hints=%p,res=%p)\n", node, service, hints, res);
-#endif
-
 #define MAX_NODE_LEN 2048
 #define MAX_SERVICE_LEN 128
 
@@ -770,9 +773,21 @@ int getaddrinfo(const char *node, const char *service, const struct addrinfo *hi
     int ai_protocol;
   } d;
 
+  struct ResAddrinfo
+  {
+    int ai_flags;
+    int ai_family;
+    int ai_socktype;
+    int ai_protocol;
+    int/*socklen_t*/ ai_addrlen;
+    uint8_t /*sockaddr **/ ai_addr[];
+  };
+
   struct Result {
     SocketCallResultHeader header;
-    uint8_t option_value[];
+    char ai_canonname[MAX_NODE_LEN];
+    int addrCount;
+    uint8_t /*ResAddrinfo[]*/ addr[];
   };
 
   memset(&d, 0, sizeof(d));
@@ -798,17 +813,48 @@ int getaddrinfo(const char *node, const char *service, const struct addrinfo *hi
     d.ai_protocol = hints->ai_protocol;
   }
 
+#ifdef POSIX_SOCKET_DEBUG
+  printf("getaddrinfo(node=%s,service=%s,hasHints=%d,ai_flags=%d,ai_family=%d,ai_socktype=%d,ai_protocol=%d,hintsPtr=%p,resPtr=%p)\n", node, service, d.hasHints, d.ai_flags, d.ai_family, d.ai_socktype, d.ai_protocol, hints, res);
+#endif
+
   emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d));
 
   wait_for_call_result(b);
   int ret = b->data->ret;
+  printf("getaddrinfo finished, ret=%d\n", ret);
   if (ret == 0)
   {
-    // TODO
+    if (res)
+    {
+      Result *r = (Result*)b->data;
+      uint8_t *raiAddr = (uint8_t*)&r->addr[0];
+      addrinfo *results = (addrinfo*)malloc(sizeof(addrinfo)*r->addrCount);
+      printf("%d results\n", r->addrCount);
+      for(size_t i = 0; i < r->addrCount; ++i)
+      {
+        ResAddrinfo *rai = (ResAddrinfo*)raiAddr;
+        results[i].ai_flags = rai->ai_flags;
+        results[i].ai_family = rai->ai_family;
+        results[i].ai_socktype = rai->ai_socktype;
+        results[i].ai_protocol = rai->ai_protocol;
+        results[i].ai_addrlen = rai->ai_addrlen;
+        results[i].ai_addr = (sockaddr *)malloc(results[i].ai_addrlen);
+        memcpy(results[i].ai_addr, rai->ai_addr, results[i].ai_addrlen);
+        results[i].ai_canonname = (i == 0) ? strdup(r->ai_canonname) : 0;
+        results[i].ai_next = i+1 < r->addrCount ? &results[i+1] : 0;
+        printf("%d: ai_flags=%d, ai_family=%d, ai_socktype=%d, ai_protocol=%d, ai_addrlen=%d, ai_addr=", (int)i, results[i].ai_flags, results[i].ai_family, results[i].ai_socktype, results[i].ai_protocol, results[i].ai_addrlen);
+        for(size_t j = 0; j < results[i].ai_addrlen; ++j)
+          printf(" %02X", ((uint8_t*)results[i].ai_addr)[j]);
+        printf(",ai_canonname=%s, ai_next=%p\n", results[i].ai_canonname, results[i].ai_next);
+        raiAddr += sizeof(ResAddrinfo) + rai->ai_addrlen;
+      }
+      *res = results;
+    }
   }
   else
   {
     errno = b->data->errno_;
+    if (res) *res = 0;
   }
   free_call_result(b);
 
@@ -817,7 +863,12 @@ int getaddrinfo(const char *node, const char *service, const struct addrinfo *hi
 
 void freeaddrinfo(struct addrinfo *res)
 {
-  // TODO
+  for(addrinfo *r = res; r; r = r->ai_next)
+  {
+    free(r->ai_canonname);
+    free(r->ai_addr);
+  }
+  free(res);
 }
 
 int getnameinfo(const struct sockaddr *addr, socklen_t addrlen, char *host, socklen_t hostlen, char *serv, socklen_t servlen, int flags)
