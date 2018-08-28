@@ -395,11 +395,26 @@ int accept(int socket, struct sockaddr *address, socklen_t *address_len)
   d.address_len = *address_len;
   emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d));
 
+  struct Result {
+    SocketCallResultHeader header;
+    int address_len;
+    uint8_t address[];
+  };
+
   wait_for_call_result(b);
   int ret = b->data->ret;
-  if (ret < 0) errno = b->data->errno_;
-
-  // TODO: read accept() results
+  if (ret == 0)
+  {
+    Result *r = (Result*)b->data;
+    int realAddressLen = MIN(b->bytes - sizeof(Result), r->address_len);
+    int copiedAddressLen = MIN(*address_len, realAddressLen);
+    if (address) memcpy(address, r->address, copiedAddressLen);
+    if (address_len) *address_len = realAddressLen;
+  }
+  else
+  {
+    errno = b->data->errno_;
+  }
   free_call_result(b);
   return ret;
 }

@@ -47,6 +47,25 @@ struct SocketCallHeader
   int function;
 };
 
+static char buf_temp_str[2048] = {};
+
+char *BufferToString(const void *buf, size_t len)
+{
+  uint8_t *b = (uint8_t *)buf;
+  if (!b)
+  {
+    sprintf(buf_temp_str, "(null ptr) (%d bytes)", (int)len);
+    return buf_temp_str;
+  }
+
+  for(size_t i = 0; i < len && i*3 + 64 < sizeof(buf_temp_str); ++i)
+  {
+    sprintf(buf_temp_str + i*3, "%02X ", b[i]);
+  }
+  sprintf(buf_temp_str + len*3, " (%d bytes)", (int)len);
+  return buf_temp_str;
+}
+
 void WebSocketMessageUnmaskPayload(uint8_t *payload, uint64_t payloadLength, uint32_t maskingKey)
 {
   uint8_t maskingKey8[4];
@@ -673,7 +692,7 @@ void Bind(int client_fd, uint8_t *data, uint64_t numBytes) // int bind(int socke
 
   int ret = bind(d->socket, (sockaddr*)d->address, d->address_len);
 #ifdef POSIX_SOCKET_DEBUG
-  printf("bind(socket=%d,address=%p,address_len=%d)->%d\n", d->socket, d->address, d->address_len, ret);
+  printf("bind(socket=%d,address=%p,address_len=%d, address=\"%s\")->%d\n", d->socket, d->address, d->address_len, BufferToString(d->address, d->address_len), ret);
   if (ret != 0) PRINT_ERRNO();
 #endif
 
@@ -702,7 +721,7 @@ void Connect(int client_fd, uint8_t *data, uint64_t numBytes) // int connect(int
 
   int ret = connect(d->socket, (sockaddr*)d->address, actualAddressLen);
 #ifdef POSIX_SOCKET_DEBUG
-  printf("connect(socket=%d,address=%p,address_len=%d)->%d\n", d->socket, d->address, d->address_len, ret);
+  printf("connect(socket=%d,address=%p,address_len=%d, address=\"%s\")->%d\n", d->socket, d->address, d->address_len, BufferToString(d->address, actualAddressLen), ret);
   if (ret != 0) PRINT_ERRNO();
 #endif
 
@@ -757,13 +776,13 @@ void Accept(int client_fd, uint8_t *data, uint64_t numBytes) // int accept(int s
   socklen_t addressLen = (socklen_t)d->address_len;
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("accept(socket=%d,address=%p,address_len=%u)\n", d->socket, address, d->address_len);
+  printf("accept(socket=%d,address=%p,address_len=%u, address=\"%s\")\n", d->socket, address, d->address_len, BufferToString(address, addressLen));
 #endif
 
   int ret = accept(d->socket, (sockaddr*)address, &addressLen);
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("accept returned %d\n", ret);
+  printf("accept returned %d (address=\"%s\")\n", ret, BufferToString(address, addressLen));
   if (ret < 0) PRINT_ERRNO();
 #endif
 
@@ -802,7 +821,7 @@ void Getsockname(int client_fd, uint8_t *data, uint64_t numBytes) // int getsock
   int ret = getsockname(d->socket, (sockaddr*)address, &addressLen);
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("getsockname(socket=%d,address=%p,address_len=%u)->%d\n", d->socket, address, d->address_len, ret);
+  printf("getsockname(socket=%d,address=%p,address_len=%u)->%d (ret address: \"%s\")\n", d->socket, address, d->address_len, ret, BufferToString(address, addressLen));
   if (ret != 0) PRINT_ERRNO();
 #endif
 
@@ -840,7 +859,7 @@ void Getpeername(int client_fd, uint8_t *data, uint64_t numBytes) // int getpeer
   int ret = getpeername(d->socket, (sockaddr*)address, &addressLen);
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("getpeername(socket=%d,address=%p,address_len=%u)->%d\n", d->socket, address, d->address_len, ret);
+  printf("getpeername(socket=%d,address=%p,address_len=%u, address=\"%s\")->%d\n", d->socket, address, d->address_len, BufferToString(address, addressLen), ret);
   if (ret != 0) PRINT_ERRNO();
 #endif
 
@@ -978,7 +997,7 @@ void Recvfrom(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int re
   int ret = recvfrom(d->socket, (char *)buffer, d->length, d->flags, (sockaddr*)address, &address_len);
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("recvfrom(socket=%d,buffer=%p,length=%zd,flags=%d,address=%p,address_len=%u)->%d\n", d->socket, buffer, d->length, d->flags, address, d->address_len, ret);
+  printf("recvfrom(socket=%d,buffer=%p,length=%zd,flags=%d,address=%p,address_len=%u, address=\"%s\")->%d\n", d->socket, buffer, d->length, d->flags, address, d->address_len, BufferToString(address, address_len), ret);
   if (ret < 0) PRINT_ERRNO();
 #endif
 
@@ -1046,7 +1065,7 @@ void Getsockopt(int client_fd, uint8_t *data, uint64_t numBytes) // int getsocko
   int ret = getsockopt(d->socket, d->level, d->option_name, (char*)option_value, &option_len);
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("getsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%u)->%d\n", d->socket, d->level, d->option_name, option_value, d->option_len, ret);
+  printf("getsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%u, optionData=\"%s\")->%d\n", d->socket, d->level, d->option_name, option_value, d->option_len, BufferToString(option_value, option_len), ret);
   if (ret != 0) PRINT_ERRNO();
 #endif
 
@@ -1088,7 +1107,7 @@ void Setsockopt(int client_fd, uint8_t *data, uint64_t numBytes) // int setsocko
   int ret = setsockopt(d->socket, d->level, d->option_name, (const char *)d->option_value, actualOptionLen);
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("setsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%d)->%d\n", d->socket, d->level, d->option_name, d->option_value, d->option_len, ret);
+  printf("setsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%d, optionData=\"%s\")->%d\n", d->socket, d->level, d->option_name, d->option_value, d->option_len, BufferToString(d->option_value, actualOptionLen), ret);
   if (ret != 0) PRINT_ERRNO();
 #endif
 
