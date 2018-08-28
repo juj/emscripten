@@ -369,11 +369,75 @@ static int Translate_Socket_Type(int type)
   }
 }
 
+#define MUSL_IPPROTO_IP       0
+#define MUSL_IPPROTO_HOPOPTS  0
+#define MUSL_IPPROTO_ICMP     1
+#define MUSL_IPPROTO_IGMP     2
+#define MUSL_IPPROTO_IPIP     4
+#define MUSL_IPPROTO_TCP      6
+#define MUSL_IPPROTO_EGP      8
+#define MUSL_IPPROTO_PUP      12
+#define MUSL_IPPROTO_UDP      17
+#define MUSL_IPPROTO_IDP      22
+#define MUSL_IPPROTO_TP       29
+#define MUSL_IPPROTO_DCCP     33
+#define MUSL_IPPROTO_IPV6     41
+#define MUSL_IPPROTO_ROUTING  43
+#define MUSL_IPPROTO_FRAGMENT 44
+#define MUSL_IPPROTO_RSVP     46
+#define MUSL_IPPROTO_GRE      47
+#define MUSL_IPPROTO_ESP      50
+#define MUSL_IPPROTO_AH       51
+#define MUSL_IPPROTO_ICMPV6   58
+#define MUSL_IPPROTO_NONE     59
+#define MUSL_IPPROTO_DSTOPTS  60
+#define MUSL_IPPROTO_MTP      92
+#define MUSL_IPPROTO_BEETPH   94
+#define MUSL_IPPROTO_ENCAP    98
+#define MUSL_IPPROTO_PIM      103
+#define MUSL_IPPROTO_COMP     108
+#define MUSL_IPPROTO_SCTP     132
+#define MUSL_IPPROTO_MH       135
+#define MUSL_IPPROTO_UDPLITE  136
+#define MUSL_IPPROTO_MPLS     137
+#define MUSL_IPPROTO_RAW      255
+
 static int Translate_Socket_Protocol(int protocol)
 {
   switch(protocol)
   {
-    case 0: return 0;
+    case MUSL_IPPROTO_IP: return IPPROTO_IP;
+//    case MUSL_IPPROTO_HOPOPTS: return IPPROTO_HOPOPTS;
+    case MUSL_IPPROTO_ICMP: return IPPROTO_ICMP;
+    case MUSL_IPPROTO_IGMP: return IPPROTO_IGMP;
+    case MUSL_IPPROTO_IPIP: return IPPROTO_IPIP;
+    case MUSL_IPPROTO_TCP: return IPPROTO_TCP;
+    case MUSL_IPPROTO_EGP: return IPPROTO_EGP;
+    case MUSL_IPPROTO_PUP: return IPPROTO_PUP;
+    case MUSL_IPPROTO_UDP: return IPPROTO_UDP;
+    case MUSL_IPPROTO_IDP: return IPPROTO_IDP;
+    case MUSL_IPPROTO_TP: return IPPROTO_TP;
+//    case MUSL_IPPROTO_DCCP: return IPPROTO_DCCP;
+    case MUSL_IPPROTO_IPV6: return IPPROTO_IPV6;
+    case MUSL_IPPROTO_ROUTING: return IPPROTO_ROUTING;
+    case MUSL_IPPROTO_FRAGMENT: return IPPROTO_FRAGMENT;
+    case MUSL_IPPROTO_RSVP: return IPPROTO_RSVP;
+    case MUSL_IPPROTO_GRE: return IPPROTO_GRE;
+    case MUSL_IPPROTO_ESP: return IPPROTO_ESP;
+    case MUSL_IPPROTO_AH: return IPPROTO_AH;
+    case MUSL_IPPROTO_ICMPV6: return IPPROTO_ICMPV6;
+    case MUSL_IPPROTO_NONE: return IPPROTO_NONE;
+    case MUSL_IPPROTO_DSTOPTS: return IPPROTO_DSTOPTS;
+    case MUSL_IPPROTO_MTP: return IPPROTO_MTP;
+//    case MUSL_IPPROTO_BEETPH: return IPPROTO_BEETPH;
+    case MUSL_IPPROTO_ENCAP: return IPPROTO_ENCAP;
+    case MUSL_IPPROTO_PIM: return IPPROTO_PIM;
+//    case MUSL_IPPROTO_COMP: return IPPROTO_COMP;
+    case MUSL_IPPROTO_SCTP: return IPPROTO_SCTP;
+//    case MUSL_IPPROTO_MH: return IPPROTO_MH;
+//    case MUSL_IPPROTO_UDPLITE: return IPPROTO_UDPLITE;
+//    case MUSL_IPPROTO_MPLS: return IPPROTO_MPLS;
+    case MUSL_IPPROTO_RAW: return IPPROTO_RAW;
     default:
     fprintf(stderr, "Unrecognized socket protocol %d!\n", protocol);
     return protocol;
