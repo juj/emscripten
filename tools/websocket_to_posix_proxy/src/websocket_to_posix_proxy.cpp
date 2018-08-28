@@ -108,7 +108,7 @@ void SendWebSocketMessage(int client_fd, void *buf, uint64_t numBytes)
     headerBytes += 8;
   }
 
-#if 1
+#if 0
   printf("Sending %llu bytes message (%llu bytes of payload) to WebSocket\n", headerBytes + numBytes, numBytes);
 
   printf("Header:");
@@ -476,6 +476,7 @@ static int Translate_Socket_Level(int level)
   switch(level)
   {
   case MUSL_SOL_SOCKET: return SOL_SOCKET;
+  case MUSL_IPPROTO_TCP: return IPPROTO_TCP;
 //  case MUSL_SOL_IP: return SOL_IP;
 //  case MUSL_SOL_IPV6: return SOL_IPV6;
 //  case MUSL_SOL_ICMPV6: return SOL_ICMPV6;
@@ -1022,10 +1023,11 @@ void Send(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int send(i
   };
   MSG *d = (MSG*)data;
 
-  SEND_RET_TYPE ret = send(d->socket, (const char *)d->message, d->length, d->flags);
+  int actualBytes = MIN(numBytes - sizeof(MSG), d->length);
+  SEND_RET_TYPE ret = send(d->socket, (const char *)d->message, actualBytes, d->flags);
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("send(socket=%d,message=%p,length=%zd,flags=%d)->" SEND_FORMATTING_SPECIFIER "\n", d->socket, d->message, d->length, d->flags, ret);
+  printf("send(socket=%d,message=%p,length=%zd,flags=%d, data=\"%s\")->" SEND_FORMATTING_SPECIFIER "\n", d->socket, d->message, d->length, d->flags, BufferToString(d->message, d->length), ret);
   if (ret < 0) PRINT_ERRNO();
 #endif
 
@@ -1053,12 +1055,12 @@ void Recv(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int recv(i
   uint8_t *buffer = (uint8_t*)malloc(d->length);
   SEND_RET_TYPE ret = recv(d->socket, (char *)buffer, d->length, d->flags);
 
+  int receivedBytes = MAX(ret, 0);
+
 #ifdef POSIX_SOCKET_DEBUG
-  printf("recv(socket=%d,buffer=%p,length=%zd,flags=%d)->" SEND_FORMATTING_SPECIFIER "\n", d->socket, buffer, d->length, d->flags, ret);
+  printf("recv(socket=%d,buffer=%p,length=%zd,flags=%d)->" SEND_FORMATTING_SPECIFIER " received \"%s\"\n", d->socket, buffer, d->length, d->flags, ret, BufferToString(buffer, receivedBytes));
   if (ret < 0) PRINT_ERRNO();
 #endif
-
-  int receivedBytes = MAX(ret, 0);
 
   struct Result {
     int callId;
@@ -1400,4 +1402,5 @@ void ProcessWebSocketMessage(int client_fd, uint8_t *payload, uint64_t numBytes)
       printf("Unknown POSIX_SOCKET_MSG %u received!\n", header->function);
       break;
 	}
+  printf("\n");
 }
