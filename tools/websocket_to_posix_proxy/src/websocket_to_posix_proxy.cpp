@@ -5,7 +5,6 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-#include <netdb.h>
 
 #include "websocket_to_posix_proxy.h"
 
