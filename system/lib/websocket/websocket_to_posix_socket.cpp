@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <emscripten/emscripten.h>
 #include <emscripten/websocket.h>
 #include <emscripten/threading.h>
 #include <pthread.h>
@@ -111,11 +112,11 @@ void wait_for_call_result(PosixSocketCallResult *b)
 
 static EM_BOOL bridge_socket_on_message(int eventType, const EmscriptenWebSocketMessageEvent *websocketEvent, void *userData)
 {
-  printf("POSIX sockets bridge received message on thread %p, size: %d bytes\n", (void*)pthread_self(), websocketEvent->numBytes);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "POSIX sockets bridge received message on thread %p, size: %d bytes\n", (void*)pthread_self(), websocketEvent->numBytes);
 
   if (websocketEvent->numBytes < sizeof(SocketCallResultHeader))
   {
-    printf("Received corrupt WebSocket result message with size %d, not enough space for header, at least %d bytes!\n", (int)websocketEvent->numBytes, (int)sizeof(SocketCallResultHeader));
+    emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "Received corrupt WebSocket result message with size %d, not enough space for header, at least %d bytes!\n", (int)websocketEvent->numBytes, (int)sizeof(SocketCallResultHeader));
     return EM_TRUE;
   }
 
@@ -123,14 +124,14 @@ static EM_BOOL bridge_socket_on_message(int eventType, const EmscriptenWebSocket
   PosixSocketCallResult *b = pop_call_result(header->callId);
   if (!b)
   {
-    printf("Received WebSocket result message to unknown call ID %d!\n", (int)header->callId);
+    emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "Received WebSocket result message to unknown call ID %d!\n", (int)header->callId);
     // TODO: Craft a socket result that signifies a failure, and wake the listening thread
     return EM_TRUE;
   }
 
   if (websocketEvent->numBytes < b->bytes)
   {
-    printf("Received corrupt WebSocket result message with size %d, expected at least %d bytes!\n", (int)websocketEvent->numBytes, b->bytes);
+    emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "Received corrupt WebSocket result message with size %d, expected at least %d bytes!\n", (int)websocketEvent->numBytes, b->bytes);
     // TODO: Craft a socket result that signifies a failure, and wake the listening thread
     return EM_TRUE;
   }
@@ -140,7 +141,7 @@ static EM_BOOL bridge_socket_on_message(int eventType, const EmscriptenWebSocket
 
   if (!b->data)
   {
-    printf("Out of memory, tried to allocate %d bytes!\n", websocketEvent->numBytes);
+    emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "Out of memory, tried to allocate %d bytes!\n", websocketEvent->numBytes);
     return EM_TRUE;
   }
 
@@ -153,7 +154,7 @@ static EM_BOOL bridge_socket_on_message(int eventType, const EmscriptenWebSocket
 EMSCRIPTEN_WEBSOCKET_T emscripten_init_websocket_to_posix_socket_bridge(const char *bridgeUrl)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("emscripten_init_websocket_to_posix_socket_bridge(bridgeUrl=\"%s\")\n", bridgeUrl);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "emscripten_init_websocket_to_posix_socket_bridge(bridgeUrl=\"%s\")\n", bridgeUrl);
 #endif
   EmscriptenWebSocketCreateAttributes attr;
   emscripten_websocket_init_create_attributes(&attr);
@@ -190,7 +191,7 @@ EMSCRIPTEN_WEBSOCKET_T emscripten_init_websocket_to_posix_socket_bridge(const ch
 int socket(int domain, int type, int protocol)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("socket(domain=%d,type=%d,protocol=%d) on thread %p\n", domain, type, protocol, (void*)pthread_self());
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "socket(domain=%d,type=%d,protocol=%d) on thread %p\n", domain, type, protocol, (void*)pthread_self());
 #endif
 
   struct {
@@ -218,7 +219,7 @@ int socket(int domain, int type, int protocol)
 int socketpair(int domain, int type, int protocol, int socket_vector[2])
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("socketpair(domain=%d,type=%d,protocol=%d, socket_vector=[%d,%d])\n", domain, type, protocol, socket_vector[0], socket_vector[1]);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "socketpair(domain=%d,type=%d,protocol=%d, socket_vector=[%d,%d])\n", domain, type, protocol, socket_vector[0], socket_vector[1]);
 #endif
 
   struct {
@@ -260,7 +261,7 @@ int socketpair(int domain, int type, int protocol, int socket_vector[2])
 int shutdown(int socket, int how)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("shutdown(socket=%d,how=%d)\n", socket, how);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "shutdown(socket=%d,how=%d)\n", socket, how);
 #endif
 
   struct {
@@ -286,7 +287,7 @@ int shutdown(int socket, int how)
 int bind(int socket, const struct sockaddr *address, socklen_t address_len)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("bind(socket=%d,address=%p,address_len=%d)\n", socket, address, address_len);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "bind(socket=%d,address=%p,address_len=%d)\n", socket, address, address_len);
 #endif
 
   struct Data {
@@ -319,7 +320,7 @@ int bind(int socket, const struct sockaddr *address, socklen_t address_len)
 int connect(int socket, const struct sockaddr *address, socklen_t address_len)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("connect(socket=%d,address=%p,address_len=%d)\n", socket, address, address_len);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "connect(socket=%d,address=%p,address_len=%d)\n", socket, address, address_len);
 #endif
 
   struct Data {
@@ -352,7 +353,7 @@ int connect(int socket, const struct sockaddr *address, socklen_t address_len)
 int listen(int socket, int backlog)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("listen(socket=%d,backlog=%d)\n", socket, backlog);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "listen(socket=%d,backlog=%d)\n", socket, backlog);
 #endif
   
   struct {
@@ -378,7 +379,7 @@ int listen(int socket, int backlog)
 int accept(int socket, struct sockaddr *address, socklen_t *address_len)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("accept(socket=%d,address=%p,address_len=%p)\n", socket, address, address_len);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "accept(socket=%d,address=%p,address_len=%p)\n", socket, address, address_len);
 #endif
 
   struct {
@@ -406,7 +407,7 @@ int accept(int socket, struct sockaddr *address, socklen_t *address_len)
 int getsockname(int socket, struct sockaddr *address, socklen_t *address_len)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("getsockname(socket=%d,address=%p,address_len=%p)\n", socket, address, address_len);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "getsockname(socket=%d,address=%p,address_len=%p)\n", socket, address, address_len);
 #endif
 
   struct {
@@ -449,7 +450,7 @@ int getsockname(int socket, struct sockaddr *address, socklen_t *address_len)
 int getpeername(int socket, struct sockaddr *address, socklen_t *address_len)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("getpeername(socket=%d,address=%p,address_len=%p)\n", socket, address, address_len);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "getpeername(socket=%d,address=%p,address_len=%p)\n", socket, address, address_len);
 #endif
 
   struct {
@@ -492,7 +493,7 @@ int getpeername(int socket, struct sockaddr *address, socklen_t *address_len)
 ssize_t send(int socket, const void *message, size_t length, int flags)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("send(socket=%d,message=%p,length=%zd,flags=%d)\n", socket, message, length, flags);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "send(socket=%d,message=%p,length=%zd,flags=%d)\n", socket, message, length, flags);
 #endif
 
   struct MSG {
@@ -527,7 +528,7 @@ ssize_t send(int socket, const void *message, size_t length, int flags)
 ssize_t recv(int socket, void *buffer, size_t length, int flags)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("recv(socket=%d,buffer=%p,length=%zd,flags=%d)\n", socket, buffer, length, flags);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "recv(socket=%d,buffer=%p,length=%zd,flags=%d)\n", socket, buffer, length, flags);
 #endif
 
   struct {
@@ -568,7 +569,7 @@ ssize_t recv(int socket, void *buffer, size_t length, int flags)
 ssize_t sendto(int socket, const void *message, size_t length, int flags, const struct sockaddr *dest_addr, socklen_t dest_len)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("sendto(socket=%d,message=%p,length=%zd,flags=%d,dest_addr=%p,dest_len=%d)\n", socket, message, length, flags, dest_addr, dest_len);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "sendto(socket=%d,message=%p,length=%zd,flags=%d,dest_addr=%p,dest_len=%d)\n", socket, message, length, flags, dest_addr, dest_len);
 #endif
 
   struct MSG {
@@ -608,7 +609,7 @@ ssize_t sendto(int socket, const void *message, size_t length, int flags, const 
 ssize_t recvfrom(int socket, void *buffer, size_t length, int flags, struct sockaddr *address, socklen_t *address_len)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("recvfrom(socket=%d,buffer=%p,length=%zd,flags=%d,address=%p,address_len=%p)\n", socket, buffer, length, flags, address, address_len);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "recvfrom(socket=%d,buffer=%p,length=%zd,flags=%d,address=%p,address_len=%p)\n", socket, buffer, length, flags, address, address_len);
 #endif
 
   struct {
@@ -656,7 +657,7 @@ ssize_t recvfrom(int socket, void *buffer, size_t length, int flags, struct sock
 ssize_t sendmsg(int socket, const struct msghdr *message, int flags)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("sendmsg(socket=%d,message=%p,flags=%d)\n", socket, message, flags);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "sendmsg(socket=%d,message=%p,flags=%d)\n", socket, message, flags);
 #endif
 
   exit(1); // TODO
@@ -666,7 +667,7 @@ ssize_t sendmsg(int socket, const struct msghdr *message, int flags)
 ssize_t recvmsg(int socket, struct msghdr *message, int flags)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("recvmsg(socket=%d,message=%p,flags=%d)\n", socket, message, flags);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "recvmsg(socket=%d,message=%p,flags=%d)\n", socket, message, flags);
 #endif
 
   exit(1); // TODO
@@ -676,7 +677,7 @@ ssize_t recvmsg(int socket, struct msghdr *message, int flags)
 int getsockopt(int socket, int level, int option_name, void *option_value, socklen_t *option_len)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("getsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%p)\n", socket, level, option_name, option_value, option_len);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "getsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%p)\n", socket, level, option_name, option_value, option_len);
 #endif
 
   struct {
@@ -721,7 +722,7 @@ int getsockopt(int socket, int level, int option_name, void *option_value, sockl
 int setsockopt(int socket, int level, int option_name, const void *option_value, socklen_t option_len)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  printf("setsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%d)\n", socket, level, option_name, option_value, option_len);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "setsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%d)\n", socket, level, option_name, option_value, option_len);
 #endif
 
   struct MSG {
@@ -814,14 +815,14 @@ int getaddrinfo(const char *node, const char *service, const struct addrinfo *hi
   }
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("getaddrinfo(node=%s,service=%s,hasHints=%d,ai_flags=%d,ai_family=%d,ai_socktype=%d,ai_protocol=%d,hintsPtr=%p,resPtr=%p)\n", node, service, d.hasHints, d.ai_flags, d.ai_family, d.ai_socktype, d.ai_protocol, hints, res);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "getaddrinfo(node=%s,service=%s,hasHints=%d,ai_flags=%d,ai_family=%d,ai_socktype=%d,ai_protocol=%d,hintsPtr=%p,resPtr=%p)\n", node, service, d.hasHints, d.ai_flags, d.ai_family, d.ai_socktype, d.ai_protocol, hints, res);
 #endif
 
   emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d));
 
   wait_for_call_result(b);
   int ret = b->data->ret;
-  printf("getaddrinfo finished, ret=%d\n", ret);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "getaddrinfo finished, ret=%d\n", ret);
   if (ret == 0)
   {
     if (res)
@@ -829,7 +830,7 @@ int getaddrinfo(const char *node, const char *service, const struct addrinfo *hi
       Result *r = (Result*)b->data;
       uint8_t *raiAddr = (uint8_t*)&r->addr[0];
       addrinfo *results = (addrinfo*)malloc(sizeof(addrinfo)*r->addrCount);
-      printf("%d results\n", r->addrCount);
+      emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "%d results\n", r->addrCount);
       for(size_t i = 0; i < r->addrCount; ++i)
       {
         ResAddrinfo *rai = (ResAddrinfo*)raiAddr;
@@ -842,10 +843,10 @@ int getaddrinfo(const char *node, const char *service, const struct addrinfo *hi
         memcpy(results[i].ai_addr, rai->ai_addr, results[i].ai_addrlen);
         results[i].ai_canonname = (i == 0) ? strdup(r->ai_canonname) : 0;
         results[i].ai_next = i+1 < r->addrCount ? &results[i+1] : 0;
-        printf("%d: ai_flags=%d, ai_family=%d, ai_socktype=%d, ai_protocol=%d, ai_addrlen=%d, ai_addr=", (int)i, results[i].ai_flags, results[i].ai_family, results[i].ai_socktype, results[i].ai_protocol, results[i].ai_addrlen);
+        fprintf(stderr, "%d: ai_flags=%d, ai_family=%d, ai_socktype=%d, ai_protocol=%d, ai_addrlen=%d, ai_addr=", (int)i, results[i].ai_flags, results[i].ai_family, results[i].ai_socktype, results[i].ai_protocol, results[i].ai_addrlen);
         for(size_t j = 0; j < results[i].ai_addrlen; ++j)
-          printf(" %02X", ((uint8_t*)results[i].ai_addr)[j]);
-        printf(",ai_canonname=%s, ai_next=%p\n", results[i].ai_canonname, results[i].ai_next);
+          fprintf(stderr, " %02X", ((uint8_t*)results[i].ai_addr)[j]);
+        fprintf(stderr, ",ai_canonname=%s, ai_next=%p\n", results[i].ai_canonname, results[i].ai_next);
         raiAddr += sizeof(ResAddrinfo) + rai->ai_addrlen;
       }
       *res = results;

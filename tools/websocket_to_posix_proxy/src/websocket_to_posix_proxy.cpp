@@ -748,10 +748,15 @@ void Accept(int client_fd, uint8_t *data, uint64_t numBytes) // int accept(int s
   uint8_t address[MAX_SOCKADDR_SIZE];
 
   socklen_t addressLen = (socklen_t)d->address_len;
+
+#ifdef POSIX_SOCKET_DEBUG
+  printf("accept(socket=%d,address=%p,address_len=%u)\n", d->socket, address, d->address_len);
+#endif
+
   int ret = accept(d->socket, (sockaddr*)address, &addressLen);
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("accept(socket=%d,address=%p,address_len=%u)->%d\n", d->socket, address, d->address_len, ret);
+  printf("accept returned %d\n", ret);
   if (ret < 0) PRINT_ERRNO();
 #endif
 
