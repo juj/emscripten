@@ -257,7 +257,9 @@ static int Translate_Socket_Domain(int domain)
 //  case MUSL_PF_MAX: return PF_MAX;
 
   case MUSL_AF_UNSPEC: return AF_UNSPEC;
+#ifdef AF_LOCAL
   case MUSL_AF_LOCAL: return AF_LOCAL;
+#endif
 //  case MUSL_AF_UNIX: return AF_UNIX;
 //  case MUSL_AF_FILE: return AF_FILE;
   case MUSL_AF_INET: return AF_INET;
@@ -293,7 +295,9 @@ static int Translate_Socket_Domain(int domain)
 //  case MUSL_AF_BLUETOOTH: return AF_BLUETOOTH;
 //  case MUSL_AF_IUCV: return AF_IUCV;
 //  case MUSL_AF_RXRPC: return AF_RXRPC;
+#ifdef AF_ISDN
   case MUSL_AF_ISDN: return AF_ISDN;
+#endif
 //  case MUSL_AF_PHONET: return AF_PHONET;
 //  case MUSL_AF_IEEE802154: return AF_IEEE802154;
 //  case MUSL_AF_CAIF: return AF_CAIF;
@@ -492,7 +496,9 @@ static int Translate_SOL_SOCKET_option(int sockopt)
 //  case MUSL_SO_PRIORITY: return SO_PRIORITY;
   case MUSL_SO_LINGER: return SO_LINGER;
 //  case MUSL_SO_BSDCOMPAT: return SO_BSDCOMPAT;
+#ifdef SO_REUSEPORT
   case MUSL_SO_REUSEPORT: return SO_REUSEPORT;
+#endif
 //  case MUSL_SO_PASSCRED: return SO_PASSCRED;
 //  case MUSL_SO_PEERCRED: return SO_PEERCRED;
   case MUSL_SO_RCVLOWAT: return SO_RCVLOWAT;
@@ -511,7 +517,9 @@ static int Translate_SOL_SOCKET_option(int sockopt)
 //  case MUSL_SO_ATTACH_FILTER: return SO_ATTACH_FILTER;
 //  case MUSL_SO_DETACH_FILTER: return SO_DETACH_FILTER;
 //  case MUSL_SO_PEERNAME: return SO_PEERNAME;
+#ifdef SO_TIMESTAMP
   case MUSL_SO_TIMESTAMP: return SO_TIMESTAMP;
+#endif
 //  case MUSL_SO_PEERSEC: return SO_PEERSEC;
 //  case MUSL_SO_PASSSEC: return SO_PASSSEC;
 //  case MUSL_SO_TIMESTAMPNS: return SO_TIMESTAMPNS;
@@ -617,9 +625,9 @@ static int Translate_Shutdown_How(int how)
 {
   switch(how)
   {
-  case MUSL_SHUT_RD: return SHUT_RD;
-  case MUSL_SHUT_WR: return SHUT_WR;
-  case MUSL_SHUT_RDWR: return SHUT_RDWR;
+  case MUSL_SHUT_RD: return SHUTDOWN_READ;
+  case MUSL_SHUT_WR: return SHUTDOWN_WRITE;
+  case MUSL_SHUT_RDWR: return SHUTDOWN_BIDIRECTIONAL;
   default:
     fprintf(stderr, "Unrecognized shutdown() how option %d!\n", how);
     return how;
