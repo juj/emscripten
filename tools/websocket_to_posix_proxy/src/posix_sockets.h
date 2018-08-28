@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <netinet/tcp.h>
 
 #define SHUTDOWN_READ SHUT_RD
 #define SHUTDOWN_WRITE SHUT_WR
