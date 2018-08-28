@@ -200,6 +200,8 @@ int main(int argc, char *argv[])
     printf("WSAStartup failed: %d\n", failed);
     return 1;
   }
+#else
+  signal(SIGPIPE, SIG_IGN);
 #endif
 
   int port = atoi(argv[1]);
@@ -287,7 +289,7 @@ int main(int argc, char *argv[])
       if (header->mask)
         WebSocketMessageUnmaskPayload(payload, payloadLength, WebSocketMessageMaskingKey(&fragmentData[0], neededBytes));
 
-      DumpWebSocketMessage(&fragmentData[0], neededBytes);
+//      DumpWebSocketMessage(&fragmentData[0], neededBytes);
 
       switch(header->opcode)
       {
