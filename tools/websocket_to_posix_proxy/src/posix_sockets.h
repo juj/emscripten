@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <netdb.h>
 
 #define SHUTDOWN_BIDIRECTIONAL SHUT_RDWR
 #define SETSOCKOPT_PTR_TYPE const int*
