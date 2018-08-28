@@ -628,6 +628,71 @@ static int Translate_SOL_SOCKET_option(int sockopt)
   }
 }
 
+#define MUSL_TCP_NODELAY 1
+#define MUSL_TCP_MAXSEG   2
+#define MUSL_TCP_CORK   3
+#define MUSL_TCP_KEEPIDLE   4
+#define MUSL_TCP_KEEPINTVL  5
+#define MUSL_TCP_KEEPCNT  6
+#define MUSL_TCP_SYNCNT   7
+#define MUSL_TCP_LINGER2  8
+#define MUSL_TCP_DEFER_ACCEPT 9
+#define MUSL_TCP_WINDOW_CLAMP 10
+#define MUSL_TCP_INFO   11
+#define MUSL_TCP_QUICKACK   12
+#define MUSL_TCP_CONGESTION   13
+#define MUSL_TCP_MD5SIG   14
+#define MUSL_TCP_THIN_LINEAR_TIMEOUTS 16
+#define MUSL_TCP_THIN_DUPACK  17
+#define MUSL_TCP_USER_TIMEOUT 18
+#define MUSL_TCP_REPAIR       19
+#define MUSL_TCP_REPAIR_QUEUE 20
+#define MUSL_TCP_QUEUE_SEQ    21
+#define MUSL_TCP_REPAIR_OPTIONS 22
+#define MUSL_TCP_FASTOPEN     23
+#define MUSL_TCP_TIMESTAMP    24
+#define MUSL_TCP_NOTSENT_LOWAT 25
+#define MUSL_TCP_CC_INFO      26
+#define MUSL_TCP_SAVE_SYN     27
+#define MUSL_TCP_SAVED_SYN    28
+
+static int Translate_IPPROTO_TCP_option(int sockopt)
+{
+  switch(sockopt)
+  {
+  case MUSL_TCP_NODELAY: return TCP_NODELAY;
+  case MUSL_TCP_MAXSEG: return TCP_MAXSEG;
+//  case MUSL_TCP_CORK: return TCP_CORK;
+//  case MUSL_TCP_KEEPIDLE: return TCP_KEEPIDLE;
+  case MUSL_TCP_KEEPINTVL: return TCP_KEEPINTVL;
+  case MUSL_TCP_KEEPCNT: return TCP_KEEPCNT;
+//  case MUSL_TCP_SYNCNT: return TCP_SYNCNT;
+//  case MUSL_TCP_LINGER2: return TCP_LINGER2;
+//  case MUSL_TCP_DEFER_ACCEPT: return TCP_DEFER_ACCEPT;
+//  case MUSL_TCP_WINDOW_CLAMP: return TCP_WINDOW_CLAMP;
+//  case MUSL_TCP_INFO: return TCP_INFO;
+//  case MUSL_TCP_QUICKACK: return TCP_QUICKACK;
+//  case MUSL_TCP_CONGESTION: return TCP_CONGESTION;
+//  case MUSL_TCP_MD5SIG: return TCP_MD5SIG;
+//  case MUSL_TCP_THIN_LINEAR_TIMEOUTS: return TCP_THIN_LINEAR_TIMEOUTS;
+//  case MUSL_TCP_THIN_DUPACK: return TCP_THIN_DUPACK;
+//  case MUSL_TCP_USER_TIMEOUT: return TCP_USER_TIMEOUT;
+//  case MUSL_TCP_REPAIR: return TCP_REPAIR;
+//  case MUSL_TCP_REPAIR_QUEUE: return TCP_REPAIR_QUEUE;
+//  case MUSL_TCP_QUEUE_SEQ: return TCP_QUEUE_SEQ;
+//  case MUSL_TCP_REPAIR_OPTIONS: return TCP_REPAIR_OPTIONS;
+  case MUSL_TCP_FASTOPEN: return TCP_FASTOPEN;
+//  case MUSL_TCP_TIMESTAMP: return TCP_TIMESTAMP;
+  case MUSL_TCP_NOTSENT_LOWAT: return TCP_NOTSENT_LOWAT;
+//  case MUSL_TCP_CC_INFO: return TCP_CC_INFO;
+//  case MUSL_TCP_SAVE_SYN: return TCP_SAVE_SYN;
+//  case MUSL_TCP_SAVED_SYN: return TCP_SAVED_SYN;
+  default:
+    fprintf(stderr, "Unrecognized IPPROTO_TCP option %d!\n", sockopt);
+    return sockopt;
+  }
+}
+
 void Socket(int client_fd, uint8_t *data, uint64_t numBytes) // int socket(int domain, int type, int protocol);
 {
   struct MSG {
@@ -1167,7 +1232,14 @@ void Setsockopt(int client_fd, uint8_t *data, uint64_t numBytes) // int setsocko
   int actualOptionLen = MIN(d->option_len, (int)(numBytes - sizeof(MSG)));
 
   d->level = Translate_Socket_Level(d->level);
-  d->option_name = Translate_SOL_SOCKET_option(d->option_name);
+  switch(d->level)
+  {
+    case SOL_SOCKET: d->option_name = Translate_SOL_SOCKET_option(d->option_name); break;
+    case IPPROTO_TCP: d->option_name = Translate_IPPROTO_TCP_option(d->option_name); break;
+    default:
+      fprintf(stderr, "Unknown socket level %d, unable to translate socket option\n", d->level);
+      break;
+  }
   int ret = setsockopt(d->socket, d->level, d->option_name, (const char *)d->option_value, actualOptionLen);
 
 #ifdef POSIX_SOCKET_DEBUG
