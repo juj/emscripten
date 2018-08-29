@@ -27,7 +27,7 @@ void base64_encode(void *dst, const void *src, size_t len)
 }
 
 #define BUFFER_SIZE 1024
-#define on_error(...) { fprintf(stderr, __VA_ARGS__); fflush(stderr); exit(1); }
+#define fatal_error(...) { fprintf(stderr, __VA_ARGS__); fflush(stderr); exit(1); }
 
 int GetHttpHeader(const char *headers, const char *header, char *out)
 {
@@ -41,7 +41,7 @@ int GetHttpHeader(const char *headers, const char *header, char *out)
   return end-pos;
 }
 
-void SendHandshake(int fd, const char *request)
+bool SendHandshake(int fd, const char *request)
 {
   char key[128];
   GetHttpHeader(request, "Sec-WebSocket-Key: ", key);
@@ -62,8 +62,13 @@ void SendHandshake(int fd, const char *request)
   base64_encode(strstr(handshakeMsg, "Sec-WebSocket-Accept: ") + strlen("Sec-WebSocket-Accept: "), sha1, 20);
 
   int err = send(fd, handshakeMsg, strlen(handshakeMsg), 0);
-  if (err < 0) on_error("Client write failed\n");
+  if (err < 0)
+  {
+    fprintf(stderr, "Client write failed\n");
+    return false;
+  }
   printf("Sent handshake:\n%s\n", handshakeMsg);
+  return true;
 }
 
 bool WebSocketHasFullHeader(uint8_t *data, uint64_t obtainedNumBytes)
@@ -190,7 +195,7 @@ void DumpWebSocketMessage(uint8_t *data, uint64_t numBytes)
 
 int main(int argc, char *argv[])
 {
-  if (argc < 2) on_error("websocket_to_posix_proxy creates a bridge that allows WebSocket connections on a web page to proxy out to perform TCP/UDP connections.\nUsage: %s [port]\n", argv[0]);
+  if (argc < 2) fatal_error("websocket_to_posix_proxy creates a bridge that allows WebSocket connections on a web page to proxy out to perform TCP/UDP connections.\nUsage: %s [port]\n", argv[0]);
 
 #ifdef _WIN32
   WSADATA wsaData;
@@ -211,7 +216,7 @@ int main(int argc, char *argv[])
   char buf[BUFFER_SIZE];
 
   server_fd = socket(AF_INET, SOCK_STREAM, 0);
-  if (server_fd < 0) on_error("Could not create socket\n");
+  if (server_fd < 0) fatal_error("Could not create socket\n");
 
   server.sin_family = AF_INET;
   server.sin_port = htons(port);
@@ -221,25 +226,27 @@ int main(int argc, char *argv[])
   setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (SETSOCKOPT_PTR_TYPE)&opt_val, sizeof opt_val);
 
   err = bind(server_fd, (struct sockaddr *) &server, sizeof(server));
-  if (err < 0) on_error("Could not bind socket\n");
+  if (err < 0) fatal_error("Could not bind socket\n");
 
   err = listen(server_fd, 128);
-  if (err < 0) on_error("Could not listen on socket\n");
-
-  printf("websocket_to_posix_proxy server is now listening for WebSocket connections to ws://localhost:%d/\n", port);
+  if (err < 0) fatal_error("Could not listen on socket\n");
 
   while (1)
   {
     socklen_t client_len = sizeof(client);
+    printf("websocket_to_posix_proxy server is now listening for an incoming WebSocket connection at ws://localhost:%d/\n", port);
     client_fd = accept(server_fd, (struct sockaddr *) &client, &client_len);
 
-    if (client_fd < 0) on_error("Could not establish new connection\n");
+    if (client_fd < 0) fatal_error("Could not establish new connection\n");
 
     // Waiting for connection upgrade handshake
     int read = recv(client_fd, buf, BUFFER_SIZE, 0);
 
-    if (!read) break; // done reading
-    if (read < 0) on_error("Client read failed\n");
+    if (read <= 0) // if peer closed connection, close it ourselves and start to listen for the next connection.
+    {
+      CloseWebSocket(client_fd);
+      continue;
+    }
 
     printf("Received connection\n");
 #if 0
@@ -251,7 +258,12 @@ int main(int argc, char *argv[])
     printf("\n");
     printf("In text:\n%s\n", buf);
 #endif
-    SendHandshake(client_fd, buf);
+    bool success = SendHandshake(client_fd, buf);
+    if (!success)
+    {
+      CloseWebSocket(client_fd);
+      continue;
+    }
 
 //    printf("Handshake received, entering message loop:\n");
 
@@ -261,9 +273,13 @@ int main(int argc, char *argv[])
     while (connectionAlive)
     {
       int read = recv(client_fd, buf, BUFFER_SIZE, 0);
+      if (read <= 0)
+      {
+        if (read < 0) fprintf(stderr, "Client read failed\n");
+        CloseWebSocket(client_fd);
+        break;
+      }
 
-      if (!read) break; // done reading
-      if (read < 0) on_error("Client read failed\n");
 
 #if 0
       printf("Received:");
