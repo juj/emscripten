@@ -12,7 +12,7 @@
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
-#define POSIX_SOCKET_DEBUG
+// #define POSIX_SOCKET_DEBUG
 
 extern "C"
 {
@@ -837,7 +837,7 @@ int getaddrinfo(const char *node, const char *service, const struct addrinfo *hi
 
   wait_for_call_result(b);
   int ret = b->data->ret;
-  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "getaddrinfo finished, ret=%d\n", ret);
+//  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "getaddrinfo finished, ret=%d\n", ret);
   if (ret == 0)
   {
     if (res)
@@ -845,7 +845,7 @@ int getaddrinfo(const char *node, const char *service, const struct addrinfo *hi
       Result *r = (Result*)b->data;
       uint8_t *raiAddr = (uint8_t*)&r->addr[0];
       addrinfo *results = (addrinfo*)malloc(sizeof(addrinfo)*r->addrCount);
-      emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "%d results\n", r->addrCount);
+//      emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "%d results\n", r->addrCount);
       for(size_t i = 0; i < r->addrCount; ++i)
       {
         ResAddrinfo *rai = (ResAddrinfo*)raiAddr;
@@ -858,10 +858,12 @@ int getaddrinfo(const char *node, const char *service, const struct addrinfo *hi
         memcpy(results[i].ai_addr, rai->ai_addr, results[i].ai_addrlen);
         results[i].ai_canonname = (i == 0) ? strdup(r->ai_canonname) : 0;
         results[i].ai_next = i+1 < r->addrCount ? &results[i+1] : 0;
+        /*
         fprintf(stderr, "%d: ai_flags=%d, ai_family=%d, ai_socktype=%d, ai_protocol=%d, ai_addrlen=%d, ai_addr=", (int)i, results[i].ai_flags, results[i].ai_family, results[i].ai_socktype, results[i].ai_protocol, results[i].ai_addrlen);
         for(size_t j = 0; j < results[i].ai_addrlen; ++j)
           fprintf(stderr, " %02X", ((uint8_t*)results[i].ai_addr)[j]);
         fprintf(stderr, ",ai_canonname=%s, ai_next=%p\n", results[i].ai_canonname, results[i].ai_next);
+        */
         raiAddr += sizeof(ResAddrinfo) + rai->ai_addrlen;
       }
       *res = results;
