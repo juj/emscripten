@@ -819,7 +819,7 @@ void Shutdown(int client_fd, uint8_t *data, uint64_t numBytes) // int shutdown(i
   } r;
   r.callId = d->header.callId;
   r.ret = ret;
-  r.errno_ = (ret != 0) ? errno : 0;
+  r.errno_ = errorCode;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
 }
 
@@ -847,7 +847,7 @@ void Bind(int client_fd, uint8_t *data, uint64_t numBytes) // int bind(int socke
   } r;
   r.callId = d->header.callId;
   r.ret = ret;
-  r.errno_ = (ret != 0) ? errno : 0;
+  r.errno_ = errorCode;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
 }
 
@@ -877,7 +877,7 @@ void Connect(int client_fd, uint8_t *data, uint64_t numBytes) // int connect(int
   } r;
   r.callId = d->header.callId;
   r.ret = ret;
-  r.errno_ = (ret != 0) ? errno : 0;
+  r.errno_ = errorCode;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
 }
 
@@ -904,7 +904,7 @@ void Listen(int client_fd, uint8_t *data, uint64_t numBytes) // int listen(int s
   } r;
   r.callId = d->header.callId;
   r.ret = ret;
-  r.errno_ = (ret != 0) ? errno : 0;
+  r.errno_ = errorCode;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
 }
 
@@ -1043,10 +1043,12 @@ void Send(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int send(i
 
   int actualBytes = MIN((int)numBytes - sizeof(MSG), d->length);
   SEND_RET_TYPE ret = send(d->socket, (const char *)d->message, actualBytes, d->flags);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+  int errorCode = (ret < numBytes) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("send(socket=%d,message=%p,length=%zd,flags=%d, data=\"%s\")->" SEND_FORMATTING_SPECIFIER "\n", d->socket, d->message, d->length, d->flags, BufferToString(d->message, d->length), ret);
+  static uint64_t totalBytesSent = 0;
+  totalBytesSent += MAX(ret, 0);
+  printf("send(socket=%d,message=%p,length=%zd,flags=%d, data=\"%s\")->" SEND_FORMATTING_SPECIFIER " (total bytes sent: %llu)\n", d->socket, d->message, d->length, d->flags, BufferToString(d->message, d->length), ret, totalBytesSent);
   if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
@@ -1057,7 +1059,7 @@ void Send(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int send(i
   } r;
   r.callId = d->header.callId;
   r.ret = (int)ret;
-  r.errno_ = (ret != 0) ? errno : 0;
+  r.errno_ = errorCode;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
 }
 
@@ -1073,12 +1075,14 @@ void Recv(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int recv(i
 
   uint8_t *buffer = (uint8_t*)malloc(d->length);
   SEND_RET_TYPE ret = recv(d->socket, (char *)buffer, d->length, d->flags);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+  int errorCode = (ret < 0) ? GET_SOCKET_ERROR() : 0;
 
   int receivedBytes = MAX(ret, 0);
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("recv(socket=%d,buffer=%p,length=%zd,flags=%d)->" SEND_FORMATTING_SPECIFIER " received \"%s\"\n", d->socket, buffer, d->length, d->flags, ret, BufferToString(buffer, receivedBytes));
+  static uint64_t totalBytesReceived = 0;
+  totalBytesReceived += receivedBytes;
+  printf("recv(socket=%d,buffer=%p,length=%zd,flags=%d)->" SEND_FORMATTING_SPECIFIER " received \"%s\" (total bytes received: %llu)\n", d->socket, buffer, d->length, d->flags, ret, BufferToString(buffer, receivedBytes), totalBytesReceived);
   if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
@@ -1127,7 +1131,7 @@ void Sendto(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int send
   } r;
   r.callId = d->header.callId;
   r.ret = (int)ret;
-  r.errno_ = (ret != 0) ? errno : 0;
+  r.errno_ = errorCode;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
 }
 
@@ -1278,7 +1282,7 @@ void Setsockopt(int client_fd, uint8_t *data, uint64_t numBytes) // int setsocko
   } r;
   r.callId = d->header.callId;
   r.ret = ret;
-  r.errno_ = (ret != 0) ? errno : 0;
+  r.errno_ = errorCode;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
 }
 
@@ -1424,6 +1428,5 @@ void ProcessWebSocketMessage(int client_fd, uint8_t *payload, uint64_t numBytes)
     default:
       printf("Unknown POSIX_SOCKET_MSG %u received!\n", header->function);
       break;
-	}
-  printf("\n");
+  }
 }
