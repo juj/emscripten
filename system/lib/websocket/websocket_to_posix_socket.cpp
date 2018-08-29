@@ -392,7 +392,7 @@ int accept(int socket, struct sockaddr *address, socklen_t *address_len)
   d.header.callId = b->callId;
   d.header.function = POSIX_SOCKET_MSG_ACCEPT;
   d.socket = socket;
-  d.address_len = *address_len;
+  d.address_len = address_len ? *address_len : 0;
   emscripten_websocket_send_binary(bridgeSocket, &d, sizeof(d));
 
   struct Result {

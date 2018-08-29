@@ -125,11 +125,6 @@ void SendWebSocketMessage(int client_fd, void *buf, uint64_t numBytes)
   send(client_fd, (const char*)buf, (int)numBytes, 0); // payload
 }
 
-#define PRINT_ERRNO() do { \
-  int Errno = errno; \
-  printf("Call failed! errno: %s(%d)\n", strerror(Errno), Errno); \
-  } while(0)
-
 #define MUSL_PF_UNSPEC       0
 #define MUSL_PF_LOCAL        1
 #define MUSL_PF_UNIX         PF_LOCAL
@@ -410,27 +405,39 @@ static int Translate_Socket_Protocol(int protocol)
 //    case MUSL_IPPROTO_HOPOPTS: return IPPROTO_HOPOPTS;
     case MUSL_IPPROTO_ICMP: return IPPROTO_ICMP;
     case MUSL_IPPROTO_IGMP: return IPPROTO_IGMP;
+#ifdef IPPROTO_IPIP
     case MUSL_IPPROTO_IPIP: return IPPROTO_IPIP;
+#endif
     case MUSL_IPPROTO_TCP: return IPPROTO_TCP;
     case MUSL_IPPROTO_EGP: return IPPROTO_EGP;
     case MUSL_IPPROTO_PUP: return IPPROTO_PUP;
     case MUSL_IPPROTO_UDP: return IPPROTO_UDP;
     case MUSL_IPPROTO_IDP: return IPPROTO_IDP;
+#ifdef IPPROTO_TP
     case MUSL_IPPROTO_TP: return IPPROTO_TP;
+#endif
 //    case MUSL_IPPROTO_DCCP: return IPPROTO_DCCP;
     case MUSL_IPPROTO_IPV6: return IPPROTO_IPV6;
     case MUSL_IPPROTO_ROUTING: return IPPROTO_ROUTING;
     case MUSL_IPPROTO_FRAGMENT: return IPPROTO_FRAGMENT;
+#ifdef IPPROTO_RSVP
     case MUSL_IPPROTO_RSVP: return IPPROTO_RSVP;
+#endif
+#ifdef IPPROTO_GRE
     case MUSL_IPPROTO_GRE: return IPPROTO_GRE;
+#endif
     case MUSL_IPPROTO_ESP: return IPPROTO_ESP;
     case MUSL_IPPROTO_AH: return IPPROTO_AH;
     case MUSL_IPPROTO_ICMPV6: return IPPROTO_ICMPV6;
     case MUSL_IPPROTO_NONE: return IPPROTO_NONE;
     case MUSL_IPPROTO_DSTOPTS: return IPPROTO_DSTOPTS;
+#ifdef IPPROTO_MTP
     case MUSL_IPPROTO_MTP: return IPPROTO_MTP;
+#endif
 //    case MUSL_IPPROTO_BEETPH: return IPPROTO_BEETPH;
+#ifdef IPPROTO_ENCAP
     case MUSL_IPPROTO_ENCAP: return IPPROTO_ENCAP;
+#endif
     case MUSL_IPPROTO_PIM: return IPPROTO_PIM;
 //    case MUSL_IPPROTO_COMP: return IPPROTO_COMP;
     case MUSL_IPPROTO_SCTP: return IPPROTO_SCTP;
@@ -684,7 +691,9 @@ static int Translate_IPPROTO_TCP_option(int sockopt)
 //  case MUSL_TCP_REPAIR_OPTIONS: return TCP_REPAIR_OPTIONS;
   case MUSL_TCP_FASTOPEN: return TCP_FASTOPEN;
 //  case MUSL_TCP_TIMESTAMP: return TCP_TIMESTAMP;
+#ifdef TCP_NOTSENT_LOWAT
   case MUSL_TCP_NOTSENT_LOWAT: return TCP_NOTSENT_LOWAT;
+#endif
 //  case MUSL_TCP_CC_INFO: return TCP_CC_INFO;
 //  case MUSL_TCP_SAVE_SYN: return TCP_SAVE_SYN;
 //  case MUSL_TCP_SAVED_SYN: return TCP_SAVED_SYN;
@@ -708,10 +717,11 @@ void Socket(int client_fd, uint8_t *data, uint64_t numBytes) // int socket(int d
   d->type = Translate_Socket_Type(d->type);
   d->protocol = Translate_Socket_Protocol(d->protocol);
   int ret = socket(d->domain, d->type, d->protocol);
+  int errorCode = (ret < 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("socket(domain=%d,type=%d,protocol=%d)->%d\n", d->domain, d->type, d->protocol, ret);
-  if (ret < 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct {
@@ -721,7 +731,7 @@ void Socket(int client_fd, uint8_t *data, uint64_t numBytes) // int socket(int d
   } r;
   r.callId = d->header.callId;
   r.ret = ret;
-  r.errno_ = (ret != 0) ? errno : 0;
+  r.errno_ = errorCode;
   SendWebSocketMessage(client_fd, &r, sizeof(r));
 }
 
@@ -740,16 +750,18 @@ void Socketpair(int client_fd, uint8_t *data, uint64_t numBytes) // int socketpa
 #ifdef _MSC_VER
   printf("TODO implement socketpair() on Windows\n");
   int ret = -1;
+  int errorCode = -1;
 #else
   d->domain = Translate_Socket_Domain(d->domain);
   d->type = Translate_Socket_Type(d->type);
   d->protocol = Translate_Socket_Protocol(d->protocol);
   int ret = socketpair(d->domain, d->type, d->protocol, socket_vector);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 #endif
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("socketpair(domain=%d,type=%d,protocol=%d, socket_vector=[%d,%d])->%d\n", d->domain, d->type, d->protocol, socket_vector[0], socket_vector[1], ret);
-  if (ret != 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct {
@@ -760,7 +772,7 @@ void Socketpair(int client_fd, uint8_t *data, uint64_t numBytes) // int socketpa
   } r;
   r.callId = d->header.callId;
   r.ret = ret;
-  r.errno_ = (ret != 0) ? errno : 0;
+  r.errno_ = errorCode;
   r.sv[0] = socket_vector[0];
   r.sv[1] = socket_vector[1];
   SendWebSocketMessage(client_fd, &r, sizeof(r));
@@ -794,9 +806,10 @@ void Shutdown(int client_fd, uint8_t *data, uint64_t numBytes) // int shutdown(i
 
   d->how = Translate_Shutdown_How(d->how);
   int ret = shutdown(d->socket, d->how);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 #ifdef POSIX_SOCKET_DEBUG
   printf("shutdown(socket=%d,how=%d)->%d\n", d->socket, d->how, ret);
-  if (ret != 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct {
@@ -821,9 +834,10 @@ void Bind(int client_fd, uint8_t *data, uint64_t numBytes) // int bind(int socke
   MSG *d = (MSG*)data;
 
   int ret = bind(d->socket, (sockaddr*)d->address, d->address_len);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 #ifdef POSIX_SOCKET_DEBUG
   printf("bind(socket=%d,address=%p,address_len=%d, address=\"%s\")->%d\n", d->socket, d->address, d->address_len, BufferToString(d->address, d->address_len), ret);
-  if (ret != 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct {
@@ -850,9 +864,10 @@ void Connect(int client_fd, uint8_t *data, uint64_t numBytes) // int connect(int
   int actualAddressLen = MIN(d->address_len, (uint32_t)numBytes - sizeof(MSG));
 
   int ret = connect(d->socket, (sockaddr*)d->address, actualAddressLen);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 #ifdef POSIX_SOCKET_DEBUG
   printf("connect(socket=%d,address=%p,address_len=%d, address=\"%s\")->%d\n", d->socket, d->address, d->address_len, BufferToString(d->address, actualAddressLen), ret);
-  if (ret != 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct {
@@ -876,9 +891,10 @@ void Listen(int client_fd, uint8_t *data, uint64_t numBytes) // int listen(int s
   MSG *d = (MSG*)data;
 
   int ret = listen(d->socket, d->backlog);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 #ifdef POSIX_SOCKET_DEBUG
   printf("listen(socket=%d,backlog=%d)->%d\n", d->socket, d->backlog, ret);
-  if (ret != 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct {
@@ -901,19 +917,19 @@ void Accept(int client_fd, uint8_t *data, uint64_t numBytes) // int accept(int s
   };
   MSG *d = (MSG*)data;
 
-  uint8_t address[MAX_SOCKADDR_SIZE];
-
-  socklen_t addressLen = (socklen_t)d->address_len;
+  uint8_t address[MAX_SOCKADDR_SIZE] = {};
+  socklen_t addressLen = (socklen_t)MAX(0, MIN(d->address_len, MAX_SOCKADDR_SIZE));
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("accept(socket=%d,address=%p,address_len=%u, address=\"%s\")\n", d->socket, address, d->address_len, BufferToString(address, addressLen));
 #endif
 
-  int ret = accept(d->socket, (sockaddr*)address, &addressLen);
+  int ret = accept(d->socket, d->address_len ? (sockaddr*)address : 0, d->address_len ? &addressLen : 0);
+  int errorCode = (ret < 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("accept returned %d (address=\"%s\")\n", ret, BufferToString(address, addressLen));
-  if (ret < 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct Result {
@@ -929,7 +945,7 @@ void Accept(int client_fd, uint8_t *data, uint64_t numBytes) // int accept(int s
   Result *r = (Result*)malloc(resultSize);
   r->callId = d->header.callId;
   r->ret = ret;
-  r->errno_ = (ret < 0) ? errno : 0;
+  r->errno_ = errorCode;
   r->address_len = addressLen;
   memcpy(r->address, address, actualAddressLen);
   SendWebSocketMessage(client_fd, r, resultSize);
@@ -949,10 +965,11 @@ void Getsockname(int client_fd, uint8_t *data, uint64_t numBytes) // int getsock
 
   socklen_t addressLen = (socklen_t)d->address_len;
   int ret = getsockname(d->socket, (sockaddr*)address, &addressLen);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("getsockname(socket=%d,address=%p,address_len=%u)->%d (ret address: \"%s\")\n", d->socket, address, d->address_len, ret, BufferToString(address, addressLen));
-  if (ret != 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct Result {
@@ -967,7 +984,7 @@ void Getsockname(int client_fd, uint8_t *data, uint64_t numBytes) // int getsock
   Result *r = (Result*)malloc(resultSize);
   r->callId = d->header.callId;
   r->ret = ret;
-  r->errno_ = (ret != 0) ? errno : 0;
+  r->errno_ = errorCode;
   r->address_len = addressLen;
   memcpy(r->address, address, actualAddressLen);
   SendWebSocketMessage(client_fd, r, resultSize);
@@ -987,10 +1004,11 @@ void Getpeername(int client_fd, uint8_t *data, uint64_t numBytes) // int getpeer
 
   socklen_t addressLen = (socklen_t)d->address_len;
   int ret = getpeername(d->socket, (sockaddr*)address, &addressLen);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("getpeername(socket=%d,address=%p,address_len=%u, address=\"%s\")->%d\n", d->socket, address, d->address_len, BufferToString(address, addressLen), ret);
-  if (ret != 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct Result {
@@ -1005,7 +1023,7 @@ void Getpeername(int client_fd, uint8_t *data, uint64_t numBytes) // int getpeer
   Result *r = (Result*)malloc(resultSize);
   r->callId = d->header.callId;
   r->ret = ret;
-  r->errno_ = (ret != 0) ? errno : 0;
+  r->errno_ = errorCode;
   r->address_len = addressLen;
   memcpy(r->address, address, actualAddressLen);
   SendWebSocketMessage(client_fd, r, resultSize);
@@ -1023,12 +1041,13 @@ void Send(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int send(i
   };
   MSG *d = (MSG*)data;
 
-  int actualBytes = MIN(numBytes - sizeof(MSG), d->length);
+  int actualBytes = MIN((int)numBytes - sizeof(MSG), d->length);
   SEND_RET_TYPE ret = send(d->socket, (const char *)d->message, actualBytes, d->flags);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("send(socket=%d,message=%p,length=%zd,flags=%d, data=\"%s\")->" SEND_FORMATTING_SPECIFIER "\n", d->socket, d->message, d->length, d->flags, BufferToString(d->message, d->length), ret);
-  if (ret < 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct {
@@ -1054,12 +1073,13 @@ void Recv(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int recv(i
 
   uint8_t *buffer = (uint8_t*)malloc(d->length);
   SEND_RET_TYPE ret = recv(d->socket, (char *)buffer, d->length, d->flags);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
   int receivedBytes = MAX(ret, 0);
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("recv(socket=%d,buffer=%p,length=%zd,flags=%d)->" SEND_FORMATTING_SPECIFIER " received \"%s\"\n", d->socket, buffer, d->length, d->flags, ret, BufferToString(buffer, receivedBytes));
-  if (ret < 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct Result {
@@ -1072,7 +1092,7 @@ void Recv(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int recv(i
   Result *r = (Result *)malloc(resultSize);
   r->callId = d->header.callId;
   r->ret = (int)ret;
-  r->errno_ = (ret != 0) ? errno : 0;
+  r->errno_ = errorCode;
   memcpy(r->data, buffer, receivedBytes);
   free(buffer);
   SendWebSocketMessage(client_fd, r, resultSize);
@@ -1093,10 +1113,11 @@ void Sendto(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int send
   MSG *d = (MSG*)data;
 
   SEND_RET_TYPE ret = sendto(d->socket, (const char *)d->message, d->length, d->flags, (sockaddr*)d->dest_addr, d->dest_len);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("sendto(socket=%d,message=%p,length=%zd,flags=%d,dest_addr=%p,dest_len=%d)->" SEND_FORMATTING_SPECIFIER "\n", d->socket, d->message, d->length, d->flags, d->dest_addr, d->dest_len, ret);
-  if (ret < 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct {
@@ -1126,10 +1147,11 @@ void Recvfrom(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int re
 
   socklen_t address_len = (socklen_t)d->address_len;
   int ret = recvfrom(d->socket, (char *)buffer, d->length, d->flags, (sockaddr*)address, &address_len);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("recvfrom(socket=%d,buffer=%p,length=%zd,flags=%d,address=%p,address_len=%u, address=\"%s\")->%d\n", d->socket, buffer, d->length, d->flags, address, d->address_len, BufferToString(address, address_len), ret);
-  if (ret < 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   int receivedBytes = MAX(ret, 0);
@@ -1147,7 +1169,7 @@ void Recvfrom(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int re
   Result *r = (Result *)malloc(resultSize);
   r->callId = d->header.callId;
   r->ret = (int)ret;
-  r->errno_ = (ret != 0) ? errno : 0;
+  r->errno_ = errorCode;
   r->data_len = receivedBytes;
   r->address_len = d->address_len; // How many bytes would have been needed to fit the whole sender address, not the actual size provided
   memcpy(r->data_and_address, buffer, receivedBytes);
@@ -1161,7 +1183,6 @@ void Sendmsg(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int sen
 	printf("TODO implement sendmsg()\n");
 #ifdef POSIX_SOCKET_DEBUG
 //  printf("sendmsg(socket=%d,message=%p,flags=%d)\n", d->socket, d->message, d->flags);
-//  if (ret < 0) PRINT_ERRNO();
 #endif
 
   // TODO
@@ -1172,7 +1193,6 @@ void Recvmsg(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int rec
 	printf("TODO implement recvmsg()\n");
 #ifdef POSIX_SOCKET_DEBUG
 //  printf("recvmsg(socket=%d,message=%p,flags=%d)\n", d->socket, d->message, d->flags);
-//  if (ret < 0) PRINT_ERRNO();
 #endif
 }
 
@@ -1194,10 +1214,11 @@ void Getsockopt(int client_fd, uint8_t *data, uint64_t numBytes) // int getsocko
 
   socklen_t option_len = (socklen_t)d->option_len;
   int ret = getsockopt(d->socket, d->level, d->option_name, (char*)option_value, &option_len);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("getsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%u, optionData=\"%s\")->%d\n", d->socket, d->level, d->option_name, option_value, d->option_len, BufferToString(option_value, option_len), ret);
-  if (ret != 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct Result {
@@ -1213,7 +1234,7 @@ void Getsockopt(int client_fd, uint8_t *data, uint64_t numBytes) // int getsocko
   Result *r = (Result*)malloc(resultSize);
   r->callId = d->header.callId;
   r->ret = ret;
-  r->errno_ = (ret != 0) ? errno : 0;
+  r->errno_ = errorCode;
   r->option_len = option_len;
   memcpy(r->option_value, option_value, actualOptionLen);
   SendWebSocketMessage(client_fd, r, resultSize);
@@ -1243,10 +1264,11 @@ void Setsockopt(int client_fd, uint8_t *data, uint64_t numBytes) // int setsocko
       break;
   }
   int ret = setsockopt(d->socket, d->level, d->option_name, (const char *)d->option_value, actualOptionLen);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("setsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%d, optionData=\"%s\")->%d\n", d->socket, d->level, d->option_name, d->option_value, d->option_len, BufferToString(d->option_value, actualOptionLen), ret);
-  if (ret != 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   struct {
@@ -1287,10 +1309,11 @@ void Getaddrinfo(int client_fd, uint8_t *data, uint64_t numBytes) // int getaddr
 
   addrinfo *res = 0;
   int ret = getaddrinfo(d->node, d->service, d->hasHints ? &hints : 0, &res);
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
   printf("getaddrinfo(node=%s,service=%s,hasHints=%d,ai_flags=%d,ai_family=%d,ai_socktype=%d,ai_protocol=%d)->%d\n", d->node, d->service, d->hasHints, d->ai_flags, d->ai_family, d->ai_socktype, d->ai_protocol, ret);
-  if (ret != 0) PRINT_ERRNO();
+  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
   char ai_canonname[MAX_NODE_LEN] = {};
@@ -1339,7 +1362,7 @@ void Getaddrinfo(int client_fd, uint8_t *data, uint64_t numBytes) // int getaddr
   memset(r, 0, resultSize);
   r->callId = d->header.callId;
   r->ret = ret;
-  r->errno_ = (ret != 0) ? errno : 0;
+  r->errno_ = errorCode;
   strncpy(r->ai_canonname, ai_canonname, MAX_NODE_LEN-1);
   r->addrCount = addrCount;
 
