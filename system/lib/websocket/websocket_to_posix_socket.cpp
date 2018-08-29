@@ -112,7 +112,7 @@ void wait_for_call_result(PosixSocketCallResult *b)
 
 static EM_BOOL bridge_socket_on_message(int eventType, const EmscriptenWebSocketMessageEvent *websocketEvent, void *userData)
 {
-  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "POSIX sockets bridge received message on thread %p, size: %d bytes\n", (void*)pthread_self(), websocketEvent->numBytes);
+//  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "POSIX sockets bridge received message on thread %p, size: %d bytes\n", (void*)pthread_self(), websocketEvent->numBytes);
 
   if (websocketEvent->numBytes < sizeof(SocketCallResultHeader))
   {

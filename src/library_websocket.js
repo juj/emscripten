@@ -214,8 +214,8 @@ var LibraryWebSocket = {
     console.error('emscripten_websocket_set_onmessage_callback(socketId='+socketId+',userData='+userData+',callbackFunc='+callbackFunc+')');
 #endif
     socket.onmessage = function(e) {
-#if WEBSOCKET_DEBUG
-      console.error('websocket event "message": socketId='+socketId+',userData='+userData+',callbackFunc='+callbackFunc+')');
+#if WEBSOCKET_DEBUG == 2
+//    console.error('websocket event "message": socketId='+socketId+',userData='+userData+',callbackFunc='+callbackFunc+')');
 #endif
       HEAPU32[WS.socketEvent>>2] = socketId;
       if (typeof e.data === 'string') {
@@ -223,7 +223,8 @@ var LibraryWebSocket = {
         var buf = _malloc(len);
         stringToUTF8(e.data, buf, len);
 #if WEBSOCKET_DEBUG
-        console.error('data: "' + e.data +'", ' + e.data.length + ' chars, ' + len + ' bytes encoded as UTF-8');
+        var s = (e.data.length < 256) ? e.data : (e.data.substr(0, 256) + ' (' + (e.data.length-256) + ' more characters)');
+        console.error('WebSocket onmessage, received data: "' + e.data + '", ' + e.data.length + ' chars, ' + len + ' bytes encoded as UTF-8: "' + s + '"');
 #endif
         HEAPU32[(WS.socketEvent+12)>>2] = 1; // text data
       } else {
@@ -231,7 +232,14 @@ var LibraryWebSocket = {
         var buf = _malloc(len);
         HEAP8.set(new Uint8Array(e.data), buf);
 #if WEBSOCKET_DEBUG
-        console.error('data: ' + len + ' bytes of binary');
+        var s = 'WebSocket onmessage, received data: ' + len + ' bytes of binary:';
+        for(var i = 0; i < Math.min(len, 256); ++i) s += ' ' + HEAPU8[buf+i].toString(16);
+        s += ', "';
+        for(var i = 0; i < Math.min(len, 256); ++i) s += (HEAPU8[buf+i] >= 32 && HEAPU8[buf+i] <= 127) ? String.fromCharCode(HEAPU8[buf+i]) : '\uFFFD';
+        s += '"';
+        if (len > 256) s + ' ... (' + (len - 256) + ' more bytes)';
+
+        console.error(s);
 #endif
         HEAPU32[(WS.socketEvent+12)>>2] = 0; // binary data
       }
@@ -292,7 +300,7 @@ var LibraryWebSocket = {
     console.error('emscripten_websocket_send_utf8_text(socketId='+socketId+',textData='+ str.length + ' chars, "' + str +'")');
 #else
 #if WEBSOCKET_DEBUG
-    console.error('emscripten_websocket_send_utf8_text(socketId='+socketId+',textData='+ str.length + ' chars, "' + ((str.length > 8) ? (str.substring(0,8) + '...') ? str) + '")');
+    console.error('emscripten_websocket_send_utf8_text(socketId='+socketId+',textData='+ str.length + ' chars, "' + ((str.length > 8) ? (str.substring(0,8) + '...') : str) + '")');
 #endif
 #endif
     socket.send(str);
@@ -311,7 +319,14 @@ var LibraryWebSocket = {
     }
 
 #if WEBSOCKET_DEBUG
-    console.error('emscripten_websocket_send_binary(socketId='+socketId+',binaryData='+binaryData+ ',dataLength='+dataLength+')');
+    var s = 'data: ' + dataLength + ' bytes of binary:';
+    for(var i = 0; i < Math.min(dataLength, 256); ++i) s += ' '+ HEAPU8[binaryData+i].toString(16);
+    s += ', "';
+    for(var i = 0; i < Math.min(dataLength, 256); ++i) s += (HEAPU8[binaryData+i] >= 32 && HEAPU8[binaryData+i] <= 127) ? String.fromCharCode(HEAPU8[binaryData+i]) : '\uFFFD';
+    s += '"';
+    if (dataLength > 256) s + ' ... (' + (dataLength - 256) + ' more bytes)';
+
+    console.error('emscripten_websocket_send_binary(socketId='+socketId+',binaryData='+binaryData+ ',dataLength='+dataLength+'), ' + s);
 #endif
 #if USE_PTHREADS
     // TODO: This is temporary to cast a shared Uint8Array to a non-shared Uint8Array. This could be removed if WebSocket API is improved
