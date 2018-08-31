@@ -12,6 +12,8 @@
 #include <emscripten/emscripten.h>
 #include <math.h>
 
+extern "C" {
+
 // Uncomment the following and clear the cache with emcc --clear-cache to rebuild this file to enable internal debugging.
 // #define FETCH_DEBUG
 
@@ -172,12 +174,13 @@ EMSCRIPTEN_RESULT emscripten_fetch_wait(emscripten_fetch_t *fetch, double timeou
 #ifdef FETCH_DEBUG
 	EM_ASM(console.log('fetch: emscripten_fetch_wait..'));
 #endif
-	// TODO: timeoutMsecs is currently ignored. Return EMSCRIPTEN_RESULT_TIMED_OUT on timeout.
+	if (timeoutMsecs <= 0) return EMSCRIPTEN_RESULT_TIMED_OUT;
 	while(proxyState == 1/*sent to proxy worker*/)
 	{
 		if (!emscripten_is_main_browser_thread())
 		{
-			emscripten_futex_wait(&fetch->__proxyState, proxyState, 100 /*TODO HACK:Sleep sometimes doesn't wake up?*/);//timeoutMsecs);
+			int ret = emscripten_futex_wait(&fetch->__proxyState, proxyState, timeoutMsecs);
+			if (ret == -ETIMEDOUT) return EMSCRIPTEN_RESULT_TIMED_OUT;
 			proxyState = emscripten_atomic_load_u32(&fetch->__proxyState);
 		}
 		else 
@@ -242,3 +245,5 @@ static void fetch_free(emscripten_fetch_t *fetch)
 	free((void*)fetch->__attributes.overriddenMimeType);
 	free(fetch);
 }
+
+} // extern "C"
