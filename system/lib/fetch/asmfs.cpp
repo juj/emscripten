@@ -13,6 +13,7 @@
 #include <string.h>
 #include <emscripten/emscripten.h>
 #include <emscripten/fetch.h>
+#include <emscripten/threading.h>
 #include <math.h>
 #include <libc/fcntl.h>
 #include <time.h>
@@ -851,7 +852,22 @@ static long open(const char *pathname, int flags, int mode)
 		if (node->type == INODE_DIR && (flags & O_TRUNC)) RETURN_ERRNO(EISDIR, "pathname refers to a directory and the access flags specified invalid flag O_TRUNC");
 
 		// A current download exists to the file? Then wait for it to complete.
-		if (node->fetch) emscripten_fetch_wait(node->fetch, INFINITY);
+		if (node->fetch)
+		{
+			// On the main thread, the fetch must have already completed before we come here. If not, we cannot stop to wait for it to finish, and must return a failure (file not found)
+			if (emscripten_is_main_browser_thread())
+			{
+				if (emscripten_fetch_wait(node->fetch, 0) != EMSCRIPTEN_RESULT_SUCCESS)
+				{
+					RETURN_ERRNO(ENOENT, "Attempted to open a file that is still downloading on the main browser thread. Could not block to wait! (try preloading the file to the filesystem before application start)");
+				}
+			}
+			else
+			{
+				// On worker threads, we can pause to wait for the fetch.
+				emscripten_fetch_wait(node->fetch, INFINITY);
+			}
+		}
 	}
 
 	if ((flags & O_CREAT) && ((flags & O_TRUNC) || (flags & O_EXCL)))
@@ -886,6 +902,11 @@ static long open(const char *pathname, int flags, int mode)
 			if (node && !node->data && __emscripten_asmfs_file_open_behavior_mode == EMSCRIPTEN_ASMFS_OPEN_MEMORY)
 			{
 				RETURN_ERRNO(ENOENT, "O_CREAT is not set, the named file exists, but file data is not synchronously available in memory (EMSCRIPTEN_ASMFS_OPEN_MEMORY specified)");
+			}
+
+			if (emscripten_is_main_browser_thread())
+			{
+				RETURN_ERRNO(ENOENT, "O_CREAT is not set, the named file exists, but file data is not synchronously available in memory, and file open is attempted on the main thread which cannot synchronously open files! (try preloading the file to the filesystem before application start)");
 			}
 
 			// Kick off the file download, either from IndexedDB or via an XHR.
@@ -936,7 +957,7 @@ static long open(const char *pathname, int flags, int mode)
 			if (fetch) emscripten_fetch_close(fetch);
 			RETURN_ERRNO(ENOENT, "O_CREAT is not set and the named file does not exist");
 		}
-		node->size = node->fetch->totalBytes;
+		node->size = fetch ? node->fetch->totalBytes : 0;
 	}
 
 	FileDescriptor *desc = (FileDescriptor*)malloc(sizeof(FileDescriptor));
@@ -977,7 +998,11 @@ static long close(int fd)
 
 	if (desc->node && desc->node->fetch)
 	{
-		emscripten_fetch_wait(desc->node->fetch, INFINITY); // TODO: This should not be necessary- test this out
+		if (!emscripten_is_main_browser_thread())
+		{
+			// TODO: This should not be necessary, but do it for now for consistency (test this out)
+			emscripten_fetch_wait(desc->node->fetch, INFINITY);
+		}
 		emscripten_fetch_close(desc->node->fetch);
 		desc->node->fetch = 0;
 	}
@@ -1384,7 +1409,18 @@ long __syscall140(int which, ...) // llseek
 	FileDescriptor *desc = (FileDescriptor*)fd;
 	if (!desc || desc->magic != EM_FILEDESCRIPTOR_MAGIC) RETURN_ERRNO(EBADF, "fd isn't a valid open file descriptor");
 
-	if (desc->node->fetch) emscripten_fetch_wait(desc->node->fetch, INFINITY);
+	if (desc->node->fetch)
+	{
+		if (emscripten_is_main_browser_thread())
+		{
+			if (emscripten_fetch_wait(desc->node->fetch, 0) != EMSCRIPTEN_RESULT_SUCCESS)
+			{
+				RETURN_ERRNO(ENOENT, "Attempted to seek a file that is still downloading on the main browser thread. Could not block to wait! (try preloading the file to the filesystem before application start)");
+			}
+		}
+		else
+			emscripten_fetch_wait(desc->node->fetch, INFINITY);
+	}
 
 // TODO: The following does not work, for some reason seek is getting called with 32-bit signed offsets?
 //	int64_t offset = (int64_t)(((uint64_t)offset_high << 32) | (uint64_t)offset_low);
@@ -1433,7 +1469,18 @@ long __syscall145(int which, ...) // readv
 	// TODO: if (node->type == INODE_FILE && desc has O_NONBLOCK && read would block) RETURN_ERRNO(EAGAIN, "The file descriptor fd refers to a file other than a socket and has been marked nonblocking (O_NONBLOCK), and the read would block");
 	// TODO: if (node->type == socket && desc has O_NONBLOCK && read would block) RETURN_ERRNO(EWOULDBLOCK, "The file descriptor fd refers to a socket and has been marked nonblocking (O_NONBLOCK), and the read would block");
 
-	if (node->fetch) emscripten_fetch_wait(node->fetch, INFINITY);
+	if (node->fetch)
+	{
+		if (emscripten_is_main_browser_thread())
+		{
+			if (emscripten_fetch_wait(node->fetch, 0) != EMSCRIPTEN_RESULT_SUCCESS)
+			{
+				RETURN_ERRNO(ENOENT, "Attempted to read a file that is still downloading on the main browser thread. Could not block to wait! (try preloading the file to the filesystem before application start)");
+			}
+		}
+		else
+			emscripten_fetch_wait(node->fetch, INFINITY);
+	}
 
 	if (node->size > 0 && !node->data && (!node->fetch || !node->fetch->data)) RETURN_ERRNO(-1, "ASMFS internal error: no file data available");
 	if (iovcnt < 0) RETURN_ERRNO(EINVAL, "The vector count, iovcnt, is less than zero");
