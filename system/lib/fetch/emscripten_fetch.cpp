@@ -11,6 +11,7 @@
 #include <emscripten/threading.h>
 #include <emscripten/emscripten.h>
 #include <math.h>
+#include <bits/errno.h>
 
 extern "C" {
 
@@ -196,11 +197,15 @@ EMSCRIPTEN_RESULT emscripten_fetch_wait(emscripten_fetch_t *fetch, double timeou
 	if (proxyState == 2) return EMSCRIPTEN_RESULT_SUCCESS;
 	else return EMSCRIPTEN_RESULT_FAILED;
 #else
-
+	if (fetch->readyState >= 4/*XMLHttpRequest.readyState.DONE*/) return EMSCRIPTEN_RESULT_SUCCESS; // already finished.
+	if (timeoutMsecs == 0) return EMSCRIPTEN_RESULT_TIMED_OUT/*Main thread testing completion with sleep=0msecs*/;
+	else
+	{
 #ifdef FETCH_DEBUG
-	EM_ASM(console.error('fetch: emscripten_fetch_wait is not available when building without pthreads!'));
+		EM_ASM(console.error('fetch: emscripten_fetch_wait() cannot stop to wait when building without pthreads!'));
 #endif
-	return EMSCRIPTEN_RESULT_FAILED;
+		return EMSCRIPTEN_RESULT_FAILED/*Main thread cannot block to wait*/;
+	}
 #endif
 }
 
