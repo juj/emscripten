@@ -58,6 +58,18 @@ this.addEventListener('error', function(e) {
   console.error(e.error);
 });
 
+console.log = function() {
+  var text = Array.prototype.slice.call(arguments).join(' ');
+  if (text.indexOf('.js:') == -1) text += '\n' + new Error().stack.toString(); // Hack: if the given text does not already print a callstack, add it to the message ourselves
+  postMessage({cmd: 'print', text: text, threadId: selfThreadId});
+}
+
+console.error = function() {
+  var text = Array.prototype.slice.call(arguments).join(' ');
+  if (text.indexOf('.js:') == -1) text += '\n' + new Error().stack.toString(); // Hack: if the given text does not already print a callstack, add it to the message ourselves
+  postMessage({cmd: 'printErr', text: text, threadId: selfThreadId});
+}
+
 function threadPrint() {
   var text = Array.prototype.slice.call(arguments).join(' ');
   console.log(text);
