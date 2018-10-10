@@ -254,6 +254,9 @@ var LibraryJSEvents = {
 #if USE_PTHREADS
       targetThread = JSEvents.getTargetThreadForEventCallback(targetThread);
 #endif
+      target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+
       if (!JSEvents.keyEvent) JSEvents.keyEvent = _malloc( {{{ C_STRUCTS.EmscriptenKeyboardEvent.__size__ }}} );
 
       var keyEventHandlerFunc = function(event) {
@@ -287,7 +290,7 @@ var LibraryJSEvents = {
       };
 
       var eventHandler = {
-        target: JSEvents.findEventTarget(target),
+        target: target,
         allowsDeferredCalls: JSEvents.isInternetExplorer() ? false : true, // MSIE doesn't allow fullscreen and pointerlock requests from key handlers, others do.
         eventTypeString: eventTypeString,
         callbackfunc: callbackfunc,
@@ -295,6 +298,7 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     getBoundingClientRectOrZeros: function(target) {
@@ -351,6 +355,7 @@ var LibraryJSEvents = {
 #endif
       if (!JSEvents.mouseEvent) JSEvents.mouseEvent = _malloc( {{{ C_STRUCTS.EmscriptenMouseEvent.__size__ }}} );
       target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
       var mouseEventHandlerFunc = function(event) {
         var e = event || window.event;
@@ -379,6 +384,7 @@ var LibraryJSEvents = {
       // In IE, mousedown events don't either allow deferred calls to be run!
       if (JSEvents.isInternetExplorer() && eventTypeString == 'mousedown') eventHandler.allowsDeferredCalls = false;
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     registerWheelEventCallback: function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString, targetThread) {
@@ -387,7 +393,7 @@ var LibraryJSEvents = {
 #endif
       if (!JSEvents.wheelEvent) JSEvents.wheelEvent = _malloc( {{{ C_STRUCTS.EmscriptenWheelEvent.__size__ }}} );
       target = JSEvents.findEventTarget(target);
-
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
       // The DOM Level 3 events spec event 'wheel'
       var wheelHandlerFunc = function(event) {
@@ -437,6 +443,7 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     pageScrollPos: function() {
@@ -459,6 +466,7 @@ var LibraryJSEvents = {
       } else {
         target = JSEvents.findEventTarget(target);
       }
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
       var uiEventHandlerFunc = function(event) {
         var e = event || window.event;
@@ -501,6 +509,7 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     getNodeNameForTarget: function(target) {
@@ -514,6 +523,9 @@ var LibraryJSEvents = {
 #if USE_PTHREADS
       targetThread = JSEvents.getTargetThreadForEventCallback(targetThread);
 #endif
+      target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+
       if (!JSEvents.focusEvent) JSEvents.focusEvent = _malloc( {{{ C_STRUCTS.EmscriptenFocusEvent.__size__ }}} );
 
       var focusEventHandlerFunc = function(event) {
@@ -527,8 +539,8 @@ var LibraryJSEvents = {
 #else
         var f = JSEvents.focusEvent;
 #endif
-        stringToUTF8(nodeName, focusEvent + {{{ C_STRUCTS.EmscriptenFocusEvent.nodeName }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
-        stringToUTF8(id, focusEvent + {{{ C_STRUCTS.EmscriptenFocusEvent.id }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
+        stringToUTF8(nodeName, f + {{{ C_STRUCTS.EmscriptenFocusEvent.nodeName }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
+        stringToUTF8(id, f + {{{ C_STRUCTS.EmscriptenFocusEvent.id }}}, {{{ cDefine('EM_HTML5_LONG_STRING_LEN_BYTES') }}});
 
 #if USE_PTHREADS
         if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, f, userData);
@@ -538,7 +550,7 @@ var LibraryJSEvents = {
       };
 
       var eventHandler = {
-        target: JSEvents.findEventTarget(target),
+        target: target,
         allowsDeferredCalls: false,
         eventTypeString: eventTypeString,
         callbackfunc: callbackfunc,
@@ -546,6 +558,7 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     tick: function() {
@@ -565,6 +578,9 @@ var LibraryJSEvents = {
 #if USE_PTHREADS
       targetThread = JSEvents.getTargetThreadForEventCallback(targetThread);
 #endif
+      target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+
       if (!JSEvents.deviceOrientationEvent) JSEvents.deviceOrientationEvent = _malloc( {{{ C_STRUCTS.EmscriptenDeviceOrientationEvent.__size__ }}} );
 
       var deviceOrientationEventHandlerFunc = function(event) {
@@ -583,7 +599,7 @@ var LibraryJSEvents = {
       };
 
       var eventHandler = {
-        target: JSEvents.findEventTarget(target),
+        target: target,
         allowsDeferredCalls: false,
         eventTypeString: eventTypeString,
         callbackfunc: callbackfunc,
@@ -591,6 +607,7 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     fillDeviceMotionEventData: function(s, e, target) {
@@ -610,6 +627,10 @@ var LibraryJSEvents = {
 #if USE_PTHREADS
       targetThread = JSEvents.getTargetThreadForEventCallback(targetThread);
 #endif
+
+      target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+
       if (!JSEvents.deviceMotionEvent) JSEvents.deviceMotionEvent = _malloc( {{{ C_STRUCTS.EmscriptenDeviceMotionEvent.__size__ }}} );
 
       var deviceMotionEventHandlerFunc = function(event) {
@@ -628,7 +649,7 @@ var LibraryJSEvents = {
       };
 
       var eventHandler = {
-        target: JSEvents.findEventTarget(target),
+        target: target,
         allowsDeferredCalls: false,
         eventTypeString: eventTypeString,
         callbackfunc: callbackfunc,
@@ -636,6 +657,7 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     screenOrientation: function() {
@@ -659,10 +681,11 @@ var LibraryJSEvents = {
 #if USE_PTHREADS
       targetThread = JSEvents.getTargetThreadForEventCallback(targetThread);
 #endif
-      if (!JSEvents.orientationChangeEvent) JSEvents.orientationChangeEvent = _malloc( {{{ C_STRUCTS.EmscriptenOrientationChangeEvent.__size__ }}} );
-
       if (!target) target = window.screen; // Orientation events need to be captured from 'window.screen' instead of 'window'
       else target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+
+      if (!JSEvents.orientationChangeEvent) JSEvents.orientationChangeEvent = _malloc( {{{ C_STRUCTS.EmscriptenOrientationChangeEvent.__size__ }}} );
 
       var orientationChangeEventHandlerFunc = function(event) {
         var e = event || window.event;
@@ -695,6 +718,7 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     fullscreenEnabled: function() {
@@ -726,10 +750,11 @@ var LibraryJSEvents = {
 #if USE_PTHREADS
       targetThread = JSEvents.getTargetThreadForEventCallback(targetThread);
 #endif
-      if (!JSEvents.fullscreenChangeEvent) JSEvents.fullscreenChangeEvent = _malloc( {{{ C_STRUCTS.EmscriptenFullscreenChangeEvent.__size__ }}} );
-
       if (!target) target = document; // Fullscreen change events need to be captured from 'document' by default instead of 'window'
       else target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+
+      if (!JSEvents.fullscreenChangeEvent) JSEvents.fullscreenChangeEvent = _malloc( {{{ C_STRUCTS.EmscriptenFullscreenChangeEvent.__size__ }}} );
 
       var fullscreenChangeEventhandlerFunc = function(event) {
         var e = event || window.event;
@@ -758,6 +783,7 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     resizeCanvasForFullscreen: function(target, strategy) {
@@ -867,10 +893,11 @@ var LibraryJSEvents = {
 #if USE_PTHREADS
       targetThread = JSEvents.getTargetThreadForEventCallback(targetThread);
 #endif
-      if (!JSEvents.pointerlockChangeEvent) JSEvents.pointerlockChangeEvent = _malloc( {{{ C_STRUCTS.EmscriptenPointerlockChangeEvent.__size__ }}} );
-
       if (!target) target = document; // Pointer lock change events need to be captured from 'document' by default instead of 'window'
       else target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+
+      if (!JSEvents.pointerlockChangeEvent) JSEvents.pointerlockChangeEvent = _malloc( {{{ C_STRUCTS.EmscriptenPointerlockChangeEvent.__size__ }}} );
 
       var pointerlockChangeEventHandlerFunc = function(event) {
         var e = event || window.event;
@@ -898,11 +925,13 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     registerPointerlockErrorEventCallback: function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString) {
       if (!target) target = document; // Pointer lock events need to be captured from 'document' by default instead of 'window'
       else target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
       var pointerlockErrorEventHandlerFunc = function(event) {
         var e = event || window.event;
@@ -923,6 +952,7 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     requestPointerLock: function(target) {
@@ -955,10 +985,11 @@ var LibraryJSEvents = {
 #if USE_PTHREADS
       targetThread = JSEvents.getTargetThreadForEventCallback(targetThread);
 #endif
-      if (!JSEvents.visibilityChangeEvent) JSEvents.visibilityChangeEvent = _malloc( {{{ C_STRUCTS.EmscriptenVisibilityChangeEvent.__size__ }}} );
-
       if (!target) target = document; // Visibility change events need to be captured from 'document' by default instead of 'window'
       else target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+
+      if (!JSEvents.visibilityChangeEvent) JSEvents.visibilityChangeEvent = _malloc( {{{ C_STRUCTS.EmscriptenVisibilityChangeEvent.__size__ }}} );
 
       var visibilityChangeEventHandlerFunc = function(event) {
         var e = event || window.event;
@@ -987,15 +1018,17 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     registerTouchEventCallback: function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString, targetThread) {
 #if USE_PTHREADS
       targetThread = JSEvents.getTargetThreadForEventCallback(targetThread);
 #endif
-      if (!JSEvents.touchEvent) JSEvents.touchEvent = _malloc( {{{ C_STRUCTS.EmscriptenTouchEvent.__size__ }}} );
-
       target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+
+      if (!JSEvents.touchEvent) JSEvents.touchEvent = _malloc( {{{ C_STRUCTS.EmscriptenTouchEvent.__size__ }}} );
 
       var touchEventHandlerFunc = function(event) {
         var e = event || window.event;
@@ -1018,37 +1051,37 @@ var LibraryJSEvents = {
 #else
         var touchEvent = JSEvents.touchEvent;
 #endif
-        var t = touchEvent;
-        {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchEvent.ctrlKey, 'e.ctrlKey', 'i32') }}};
-        {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchEvent.shiftKey, 'e.shiftKey', 'i32') }}};
-        {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchEvent.altKey, 'e.altKey', 'i32') }}};
-        {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchEvent.metaKey, 'e.metaKey', 'i32') }}};
-        t += {{{ C_STRUCTS.EmscriptenTouchEvent.touches }}}; // Advance to the start of the touch array.
+        var v = touchEvent;
+        {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchEvent.ctrlKey, 'e.ctrlKey', 'i32') }}};
+        {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchEvent.shiftKey, 'e.shiftKey', 'i32') }}};
+        {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchEvent.altKey, 'e.altKey', 'i32') }}};
+        {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchEvent.metaKey, 'e.metaKey', 'i32') }}};
+        v += {{{ C_STRUCTS.EmscriptenTouchEvent.touches }}}; // Advance to the start of the touch array.
         var canvasRect = Module['canvas'] ? Module['canvas'].getBoundingClientRect() : undefined;
         var targetRect = JSEvents.getBoundingClientRectOrZeros(target);
         var numTouches = 0;
         for(var i in touches) {
           var t = touches[i];
-          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.identifier, 't.identifier', 'i32') }}};
-          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.screenX, 't.screenX', 'i32') }}};
-          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.screenY, 't.screenY', 'i32') }}};
-          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.clientX, 't.clientX', 'i32') }}};
-          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.clientY, 't.clientY', 'i32') }}};
-          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.pageX, 't.pageX', 'i32') }}};
-          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.pageY, 't.pageY', 'i32') }}};
-          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.isChanged, 't.changed', 'i32') }}};
-          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.onTarget, 't.onTarget', 'i32') }}};
+          {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.identifier, 't.identifier', 'i32') }}};
+          {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.screenX, 't.screenX', 'i32') }}};
+          {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.screenY, 't.screenY', 'i32') }}};
+          {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.clientX, 't.clientX', 'i32') }}};
+          {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.clientY, 't.clientY', 'i32') }}};
+          {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.pageX, 't.pageX', 'i32') }}};
+          {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.pageY, 't.pageY', 'i32') }}};
+          {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.isChanged, 't.changed', 'i32') }}};
+          {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.onTarget, 't.onTarget', 'i32') }}};
           if (canvasRect) {
-            {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.canvasX, 't.clientX - canvasRect.left', 'i32') }}};
-            {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.canvasY, 't.clientY - canvasRect.top', 'i32') }}};
+            {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.canvasX, 't.clientX - canvasRect.left', 'i32') }}};
+            {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.canvasY, 't.clientY - canvasRect.top', 'i32') }}};
           } else {
-            {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.canvasX, '0', 'i32') }}};
-            {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.canvasY, '0', 'i32') }}};            
+            {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.canvasX, '0', 'i32') }}};
+            {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.canvasY, '0', 'i32') }}};            
           }
-          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.targetX, 't.clientX - targetRect.left', 'i32') }}};
-          {{{ makeSetValue('t', C_STRUCTS.EmscriptenTouchPoint.targetY, 't.clientY - targetRect.top', 'i32') }}};
-          t += {{{ C_STRUCTS.EmscriptenTouchPoint.__size__ }}};
-          if (++numTouches >= 32) break;
+          {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.targetX, 't.clientX - targetRect.left', 'i32') }}};
+          {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.targetY, 't.clientY - targetRect.top', 'i32') }}};
+          v += {{{ C_STRUCTS.EmscriptenTouchPoint.__size__ }}};
+          if (++numTouches > 31) break;
         }
         {{{ makeSetValue('touchEvent', C_STRUCTS.EmscriptenTouchEvent.numTouches, 'numTouches', 'i32') }}};
 
@@ -1068,6 +1101,7 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     fillGamepadEventData: function(s, e) {
@@ -1093,6 +1127,9 @@ var LibraryJSEvents = {
 #if USE_PTHREADS
       targetThread = JSEvents.getTargetThreadForEventCallback(targetThread);
 #endif
+      target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+
       if (!JSEvents.gamepadEvent) JSEvents.gamepadEvent = _malloc( {{{ C_STRUCTS.EmscriptenGamepadEvent.__size__ }}} );
 
       var gamepadEventHandlerFunc = function(event) {
@@ -1113,7 +1150,7 @@ var LibraryJSEvents = {
       };
 
       var eventHandler = {
-        target: JSEvents.findEventTarget(target),
+        target: target,
         allowsDeferredCalls: true,
         eventTypeString: eventTypeString,
         callbackfunc: callbackfunc,
@@ -1121,9 +1158,13 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     registerBeforeUnloadEventCallback: function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString) {
+      target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+
       var beforeUnloadEventHandlerFunc = function(event) {
         var e = event || window.event;
 
@@ -1141,7 +1182,7 @@ var LibraryJSEvents = {
       };
 
       var eventHandler = {
-        target: JSEvents.findEventTarget(target),
+        target: target,
         allowsDeferredCalls: false,
         eventTypeString: eventTypeString,
         callbackfunc: callbackfunc,
@@ -1149,6 +1190,7 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     battery: function() { return navigator.battery || navigator.mozBattery || navigator.webkitBattery; },
@@ -1164,6 +1206,9 @@ var LibraryJSEvents = {
 #if USE_PTHREADS
       targetThread = JSEvents.getTargetThreadForEventCallback(targetThread);
 #endif
+      target = JSEvents.findEventTarget(target);
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
+
       if (!JSEvents.batteryEvent) JSEvents.batteryEvent = _malloc( {{{ C_STRUCTS.EmscriptenBatteryEvent.__size__ }}} );
 
       var batteryEventHandlerFunc = function(event) {
@@ -1184,7 +1229,7 @@ var LibraryJSEvents = {
       };
 
       var eventHandler = {
-        target: JSEvents.findEventTarget(target),
+        target: target,
         allowsDeferredCalls: false,
         eventTypeString: eventTypeString,
         callbackfunc: callbackfunc,
@@ -1192,13 +1237,16 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
 
     registerWebGlEventCallback: function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString, targetThread) {
 #if USE_PTHREADS
       targetThread = JSEvents.getTargetThreadForEventCallback(targetThread);
 #endif
-      if (!target) target = Module['canvas'];
+      if (target) target = JSEvents.findEventTarget(target);
+      else target = Module['canvas'];
+      if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
       var webGlEventHandlerFunc = function(event) {
         var e = event || window.event;
@@ -1211,7 +1259,7 @@ var LibraryJSEvents = {
       };
 
       var eventHandler = {
-        target: JSEvents.findEventTarget(target),
+        target: target,
         allowsDeferredCalls: false,
         eventTypeString: eventTypeString,
         callbackfunc: callbackfunc,
@@ -1219,91 +1267,80 @@ var LibraryJSEvents = {
         useCapture: useCapture
       };
       JSEvents.registerOrRemoveHandler(eventHandler);
+      return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
     },
   },
 
   emscripten_set_keypress_callback_on_thread__proxy: 'sync',
   emscripten_set_keypress_callback_on_thread__sig: 'iiiiii',
   emscripten_set_keypress_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_KEYPRESS') }}}, "keypress", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_KEYPRESS') }}}, "keypress", targetThread);
   },
 
   emscripten_set_keydown_callback_on_thread__proxy: 'sync',
   emscripten_set_keydown_callback_on_thread__sig: 'iiiiii',
   emscripten_set_keydown_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_KEYDOWN') }}}, "keydown", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_KEYDOWN') }}}, "keydown", targetThread);
   },
 
   emscripten_set_keyup_callback_on_thread__proxy: 'sync',
   emscripten_set_keyup_callback_on_thread__sig: 'iiiiii',
   emscripten_set_keyup_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_KEYUP') }}}, "keyup", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_KEYUP') }}}, "keyup", targetThread);
   },
 
   emscripten_set_click_callback_on_thread__proxy: 'sync',
   emscripten_set_click_callback_on_thread__sig: 'iiiiii',
   emscripten_set_click_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_CLICK') }}}, "click", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_CLICK') }}}, "click", targetThread);
   },
 
   emscripten_set_mousedown_callback_on_thread__proxy: 'sync',
   emscripten_set_mousedown_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mousedown_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEDOWN') }}}, "mousedown", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEDOWN') }}}, "mousedown", targetThread);
   },
 
   emscripten_set_mouseup_callback_on_thread__proxy: 'sync',
   emscripten_set_mouseup_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mouseup_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEUP') }}}, "mouseup", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEUP') }}}, "mouseup", targetThread);
   },
 
   emscripten_set_dblclick_callback_on_thread__proxy: 'sync',
   emscripten_set_dblclick_callback_on_thread__sig: 'iiiiii',
   emscripten_set_dblclick_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_DBLCLICK') }}}, "dblclick", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_DBLCLICK') }}}, "dblclick", targetThread);
   },
 
   emscripten_set_mousemove_callback_on_thread__proxy: 'sync',
   emscripten_set_mousemove_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mousemove_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEMOVE') }}}, "mousemove", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEMOVE') }}}, "mousemove", targetThread);
   },
 
   emscripten_set_mouseenter_callback_on_thread__proxy: 'sync',
   emscripten_set_mouseenter_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mouseenter_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEENTER') }}}, "mouseenter", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEENTER') }}}, "mouseenter", targetThread);
   },
 
   emscripten_set_mouseleave_callback_on_thread__proxy: 'sync',
   emscripten_set_mouseleave_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mouseleave_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSELEAVE') }}}, "mouseleave", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSELEAVE') }}}, "mouseleave", targetThread);
   },
 
   emscripten_set_mouseover_callback_on_thread__proxy: 'sync',
   emscripten_set_mouseover_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mouseover_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEOVER') }}}, "mouseover", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEOVER') }}}, "mouseover", targetThread);
   },
 
   emscripten_set_mouseout_callback_on_thread__proxy: 'sync',
   emscripten_set_mouseout_callback_on_thread__sig: 'iiiiii',
   emscripten_set_mouseout_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEOUT') }}}, "mouseout", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_MOUSEOUT') }}}, "mouseout", targetThread);
   },
 
   emscripten_get_mouse_status__proxy: 'sync',
@@ -1335,50 +1372,43 @@ var LibraryJSEvents = {
   emscripten_set_resize_callback_on_thread__proxy: 'sync',
   emscripten_set_resize_callback_on_thread__sig: 'iiiiii',
   emscripten_set_resize_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerUiEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_RESIZE') }}}, "resize", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerUiEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_RESIZE') }}}, "resize", targetThread);
   },
 
   emscripten_set_scroll_callback_on_thread__proxy: 'sync',
   emscripten_set_scroll_callback_on_thread__sig: 'iiiiii',
   emscripten_set_scroll_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerUiEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_SCROLL') }}}, "scroll", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerUiEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_SCROLL') }}}, "scroll", targetThread);
   },
 
   emscripten_set_blur_callback_on_thread__proxy: 'sync',
   emscripten_set_blur_callback_on_thread__sig: 'iiiiii',
   emscripten_set_blur_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BLUR') }}}, "blur", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BLUR') }}}, "blur", targetThread);
   },
 
   emscripten_set_focus_callback_on_thread__proxy: 'sync',
   emscripten_set_focus_callback_on_thread__sig: 'iiiiii',
   emscripten_set_focus_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FOCUS') }}}, "focus", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FOCUS') }}}, "focus", targetThread);
   },
 
   emscripten_set_focusin_callback_on_thread__proxy: 'sync',
   emscripten_set_focusin_callback_on_thread__sig: 'iiiiii',
   emscripten_set_focusin_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FOCUSIN') }}}, "focusin", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FOCUSIN') }}}, "focusin", targetThread);
   },
 
   emscripten_set_focusout_callback_on_thread__proxy: 'sync',
   emscripten_set_focusout_callback_on_thread__sig: 'iiiiii',
   emscripten_set_focusout_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FOCUSOUT') }}}, "focusout", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerFocusEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FOCUSOUT') }}}, "focusout", targetThread);
   },
 
   emscripten_set_deviceorientation_callback_on_thread__proxy: 'sync',
   emscripten_set_deviceorientation_callback_on_thread__sig: 'iiiii',
   emscripten_set_deviceorientation_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerDeviceOrientationEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_DEVICEORIENTATION') }}}, "deviceorientation", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerDeviceOrientationEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_DEVICEORIENTATION') }}}, "deviceorientation", targetThread);
   },
 
   emscripten_get_deviceorientation_status__proxy: 'sync',
@@ -1395,8 +1425,7 @@ var LibraryJSEvents = {
   emscripten_set_devicemotion_callback_on_thread__proxy: 'sync',
   emscripten_set_devicemotion_callback_on_thread__sig: 'iiiii',
   emscripten_set_devicemotion_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerDeviceMotionEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_DEVICEMOTION') }}}, "devicemotion", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerDeviceMotionEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_DEVICEMOTION') }}}, "devicemotion", targetThread);
   },
 
   emscripten_get_devicemotion_status__proxy: 'sync',
@@ -1414,16 +1443,14 @@ var LibraryJSEvents = {
   emscripten_set_orientationchange_callback_on_thread__sig: 'iiiii',
   emscripten_set_orientationchange_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
     if (!window.screen || !window.screen.addEventListener) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
-    JSEvents.registerOrientationChangeEventCallback(window.screen, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_ORIENTATIONCHANGE') }}}, "orientationchange", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerOrientationChangeEventCallback(window.screen, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_ORIENTATIONCHANGE') }}}, "orientationchange", targetThread);
   },
   
   emscripten_get_orientation_status__proxy: 'sync',
   emscripten_get_orientation_status__sig: 'ii',
   emscripten_get_orientation_status: function(orientationChangeEvent) {
     if (!JSEvents.screenOrientation() && typeof window.orientation === 'undefined') return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
-    JSEvents.fillOrientationChangeEventData(orientationChangeEvent);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.fillOrientationChangeEventData(orientationChangeEvent);
   },
 
   emscripten_lock_orientation__proxy: 'sync',
@@ -1464,11 +1491,11 @@ var LibraryJSEvents = {
       target = JSEvents.findEventTarget(target);
       if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
     }
-    JSEvents.registerFullscreenChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FULLSCREENCHANGE') }}}, "fullscreenchange", targetThread);
-    JSEvents.registerFullscreenChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FULLSCREENCHANGE') }}}, "mozfullscreenchange", targetThread);
-    JSEvents.registerFullscreenChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FULLSCREENCHANGE') }}}, "webkitfullscreenchange", targetThread);
-    JSEvents.registerFullscreenChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FULLSCREENCHANGE') }}}, "msfullscreenchange", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    var ret = JSEvents.registerFullscreenChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FULLSCREENCHANGE') }}}, "fullscreenchange", targetThread);
+    ret = ret || JSEvents.registerFullscreenChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FULLSCREENCHANGE') }}}, "mozfullscreenchange", targetThread);
+    ret = ret || JSEvents.registerFullscreenChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FULLSCREENCHANGE') }}}, "webkitfullscreenchange", targetThread);
+    ret = ret || JSEvents.registerFullscreenChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_FULLSCREENCHANGE') }}}, "msfullscreenchange", targetThread);
+    return ret;
   },
 
   emscripten_get_fullscreen_status__proxy: 'sync',
@@ -1829,11 +1856,11 @@ var LibraryJSEvents = {
       target = JSEvents.findEventTarget(target);
       if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
     }
-    JSEvents.registerPointerlockChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKCHANGE') }}}, "pointerlockchange", targetThread);
-    JSEvents.registerPointerlockChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKCHANGE') }}}, "mozpointerlockchange", targetThread);
-    JSEvents.registerPointerlockChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKCHANGE') }}}, "webkitpointerlockchange", targetThread);
-    JSEvents.registerPointerlockChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKCHANGE') }}}, "mspointerlockchange", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    var ret = JSEvents.registerPointerlockChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKCHANGE') }}}, "pointerlockchange", targetThread);
+    ret = ret || JSEvents.registerPointerlockChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKCHANGE') }}}, "mozpointerlockchange", targetThread);
+    ret = ret || JSEvents.registerPointerlockChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKCHANGE') }}}, "webkitpointerlockchange", targetThread);
+    ret = ret || JSEvents.registerPointerlockChangeEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKCHANGE') }}}, "mspointerlockchange", targetThread);
+    return ret;
   },
 
   emscripten_set_pointerlockerror_callback_on_thread__proxy: 'sync',
@@ -1848,11 +1875,11 @@ var LibraryJSEvents = {
       target = JSEvents.findEventTarget(target);
       if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
     }
-    JSEvents.registerPointerlockErrorEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKERROR') }}}, "pointerlockerror", targetThread);
-    JSEvents.registerPointerlockErrorEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKERROR') }}}, "mozpointerlockerror", targetThread);
-    JSEvents.registerPointerlockErrorEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKERROR') }}}, "webkitpointerlockerror", targetThread);
-    JSEvents.registerPointerlockErrorEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKERROR') }}}, "mspointerlockerror", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    var ret = JSEvents.registerPointerlockErrorEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKERROR') }}}, "pointerlockerror", targetThread);
+    ret = ret || JSEvents.registerPointerlockErrorEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKERROR') }}}, "mozpointerlockerror", targetThread);
+    ret = ret || JSEvents.registerPointerlockErrorEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKERROR') }}}, "webkitpointerlockerror", targetThread);
+    ret = ret || JSEvents.registerPointerlockErrorEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_POINTERLOCKERROR') }}}, "mspointerlockerror", targetThread);
+    return ret;
   },
 
   emscripten_get_pointerlock_status__proxy: 'sync',
@@ -1930,8 +1957,7 @@ var LibraryJSEvents = {
   emscripten_set_visibilitychange_callback_on_thread__proxy: 'sync',
   emscripten_set_visibilitychange_callback_on_thread__sig: 'iiiii',
   emscripten_set_visibilitychange_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerVisibilityChangeEventCallback(document, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_VISIBILITYCHANGE') }}}, "visibilitychange", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerVisibilityChangeEventCallback(document, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_VISIBILITYCHANGE') }}}, "visibilitychange", targetThread);
   },
 
   emscripten_get_visibility_status__proxy: 'sync',
@@ -1947,45 +1973,39 @@ var LibraryJSEvents = {
   emscripten_set_touchstart_callback_on_thread__proxy: 'sync',
   emscripten_set_touchstart_callback_on_thread__sig: 'iiiiii',
   emscripten_set_touchstart_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHSTART') }}}, "touchstart", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHSTART') }}}, "touchstart", targetThread);
   },
   
   emscripten_set_touchend_callback_on_thread__proxy: 'sync',
   emscripten_set_touchend_callback_on_thread__sig: 'iiiiii',
   emscripten_set_touchend_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHEND') }}}, "touchend", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHEND') }}}, "touchend", targetThread);
   },
   
   emscripten_set_touchmove_callback_on_thread__proxy: 'sync',
   emscripten_set_touchmove_callback_on_thread__sig: 'iiiiii',
   emscripten_set_touchmove_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHMOVE') }}}, "touchmove", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHMOVE') }}}, "touchmove", targetThread);
   },
   
   emscripten_set_touchcancel_callback_on_thread__proxy: 'sync',
   emscripten_set_touchcancel_callback_on_thread__sig: 'iiiiii',
   emscripten_set_touchcancel_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHCANCEL') }}}, "touchcancel", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_TOUCHCANCEL') }}}, "touchcancel", targetThread);
   },
   
   emscripten_set_gamepadconnected_callback_on_thread__proxy: 'sync',
   emscripten_set_gamepadconnected_callback_on_thread__sig: 'iiiii',
   emscripten_set_gamepadconnected_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
     if (!navigator.getGamepads && !navigator.webkitGetGamepads) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
-    JSEvents.registerGamepadEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_GAMEPADCONNECTED') }}}, "gamepadconnected", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerGamepadEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_GAMEPADCONNECTED') }}}, "gamepadconnected", targetThread);
   },
   
   emscripten_set_gamepaddisconnected_callback_on_thread__proxy: 'sync',
   emscripten_set_gamepaddisconnected_callback_on_thread__sig: 'iiiii',
   emscripten_set_gamepaddisconnected_callback_on_thread: function(userData, useCapture, callbackfunc, targetThread) {
     if (!navigator.getGamepads && !navigator.webkitGetGamepads) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}};
-    JSEvents.registerGamepadEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_GAMEPADDISCONNECTED') }}}, "gamepaddisconnected", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerGamepadEventCallback(window, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_GAMEPADDISCONNECTED') }}}, "gamepaddisconnected", targetThread);
  },
   
   _emscripten_sample_gamepad_data: function() {
@@ -2038,24 +2058,21 @@ var LibraryJSEvents = {
     // beforeunload callback can only be registered on the main browser thread, because the page will go away immediately after returning from the handler,
     // and there is no time to start proxying it anywhere.
     if (targetThread !== {{{ cDefine('EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD') }}}) return {{{ cDefine('EMSCRIPTEN_RESULT_INVALID_PARAM') }}};
-    JSEvents.registerBeforeUnloadEventCallback(window, userData, true, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BEFOREUNLOAD') }}}, "beforeunload"); 
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerBeforeUnloadEventCallback(window, userData, true, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BEFOREUNLOAD') }}}, "beforeunload"); 
   },
   
   emscripten_set_batterychargingchange_callback_on_thread__proxy: 'sync',
   emscripten_set_batterychargingchange_callback_on_thread__sig: 'iii',
   emscripten_set_batterychargingchange_callback_on_thread: function(userData, callbackfunc, targetThread) {
     if (!JSEvents.battery()) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}}; 
-    JSEvents.registerBatteryEventCallback(JSEvents.battery(), userData, true, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BATTERYCHARGINGCHANGE') }}}, "chargingchange", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerBatteryEventCallback(JSEvents.battery(), userData, true, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BATTERYCHARGINGCHANGE') }}}, "chargingchange", targetThread);
   },
 
   emscripten_set_batterylevelchange_callback_on_thread__proxy: 'sync',
   emscripten_set_batterylevelchange_callback_on_thread__sig: 'iii',
   emscripten_set_batterylevelchange_callback_on_thread: function(userData, callbackfunc, targetThread) {
     if (!JSEvents.battery()) return {{{ cDefine('EMSCRIPTEN_RESULT_NOT_SUPPORTED') }}}; 
-    JSEvents.registerBatteryEventCallback(JSEvents.battery(), userData, true, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BATTERYLEVELCHANGE') }}}, "levelchange", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerBatteryEventCallback(JSEvents.battery(), userData, true, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_BATTERYLEVELCHANGE') }}}, "levelchange", targetThread);
   },
   
   emscripten_get_battery_status__proxy: 'sync',
@@ -2360,15 +2377,13 @@ var LibraryJSEvents = {
   emscripten_set_webglcontextlost_callback_on_thread__proxy: 'sync',
   emscripten_set_webglcontextlost_callback_on_thread__sig: 'iiiiii',
   emscripten_set_webglcontextlost_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerWebGlEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_WEBGLCONTEXTLOST') }}}, "webglcontextlost", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerWebGlEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_WEBGLCONTEXTLOST') }}}, "webglcontextlost", targetThread);
   },
 
   emscripten_set_webglcontextrestored_callback_on_thread__proxy: 'sync',
   emscripten_set_webglcontextrestored_callback_on_thread__sig: 'iiiiii',
   emscripten_set_webglcontextrestored_callback_on_thread: function(target, userData, useCapture, callbackfunc, targetThread) {
-    JSEvents.registerWebGlEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_WEBGLCONTEXTRESTORED') }}}, "webglcontextrestored", targetThread);
-    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+    return JSEvents.registerWebGlEventCallback(target, userData, useCapture, callbackfunc, {{{ cDefine('EMSCRIPTEN_EVENT_WEBGLCONTEXTRESTORED') }}}, "webglcontextrestored", targetThread);
   },
 
   emscripten_is_webgl_context_lost__proxy: 'sync',
