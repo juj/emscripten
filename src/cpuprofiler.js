@@ -260,6 +260,22 @@ var emscriptenCpuProfiler = {
 
   // Installs the startup hooks and periodic UI update timer.
   initialize: function initialize() {
+
+    if (!window.realRequestAnimationFrame) {
+      window.realRequestAnimationFrame = window.requestAnimationFrame;
+      window.requestAnimationFrame = function(cb) {
+        function hookedCb(p) {
+          console.log('asdf');
+          if (typeof Module !== 'undefined' && !Module['TOTAL_MEMORY'] && Module['preMainLoop']) Module['preMainLoop'](); // If we are running a non-Emscripten app, pump pre/post main loop handlers for cpu profiler (Module.TOTAL_MEMORY hints if this was Emscripten or not)
+          if (typeof Module !== 'undefined' && Module['referenceTestPreTick']) Module['referenceTestPreTick']();
+          cb(performance.now());
+          if (typeof Module !== 'undefined' && Module['referenceTestTick']) Module['referenceTestTick']();
+          if (typeof Module !== 'undefined' && !Module['TOTAL_MEMORY'] && Module['postMainLoop']) Module['postMainLoop']();
+        }
+        return window.realRequestAnimationFrame(hookedCb);
+      }
+    }
+
     // Create the UI display if it doesn't yet exist. If you want to customize the location/style of the cpuprofiler UI,
     // you can manually create this beforehand.
     cpuprofiler = document.getElementById('cpuprofiler');
