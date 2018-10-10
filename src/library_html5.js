@@ -2324,6 +2324,29 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+  emscripten_webgl_get_context_attributes: function(c, a) {
+    c = GL.contexts[c];
+    if (!c) return {{{ cDefine('EMSCRIPTEN_RESULT_INVALID_TARGET') }}};
+    var t = c.GLctx;
+    if (!t) return {{{ cDefine('EMSCRIPTEN_RESULT_INVALID_TARGET') }}};
+    t = t.getContextAttributes();
+
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.alpha, 't.alpha', 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.depth, 't.depth', 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.stencil, 't.stencil', 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.antialias, 't.antialias', 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.premultipliedAlpha, 't.premultipliedAlpha', 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.preserveDrawingBuffer, 't.preserveDrawingBuffer', 'i32') }}};
+    var power = (t.powerPreference == 'high-performance') ? 2 : (t.powerPreference == 'low-power' ? 1 : 0);
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.preferLowPowerToHighPerformance, 'power', 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.failIfMajorPerformanceCaveat, 't.failIfMajorPerformanceCaveat', 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.majorVersion, 'c.version', 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.minorVersion, 0, 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.enableExtensionsByDefault, 'c.attributes["enableExtensionsByDefault"]', 'i32') }}};
+    {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.explicitSwapControl, 'c.attributes["explicitSwapControl"]', 'i32') }}};
+    return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
+  },
+
   emscripten_webgl_destroy_context_calling_thread: function(contextHandle) {
     if (GL.currentContext == contextHandle) GL.currentContext = 0;
     GL.deleteContext(contextHandle);
