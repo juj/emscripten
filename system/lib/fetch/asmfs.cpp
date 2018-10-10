@@ -133,12 +133,42 @@ static void inode_abspath(inode *node, char *dst, int dstLen)
 	}
 }
 
+// Deletes the given inode. Ignores (orphans) any children there might be
 static void delete_inode(inode *node)
 {
-	if (node)
+	if (!node) return;
+	if (node == filesystem_root()) return; // As special case, do not allow deleting the filesystem root directory
+#ifdef ASMFS_DEBUG
+	EM_ASM(err('delete_inode: ' + Pointer_stringify($0)), node->name);
+#endif
+	if (node->fetch) emscripten_fetch_close(node->fetch);
+	free(node->remoteurl);
+	free(node);
+}
+
+// Deletes the given inode and its subtree
+static void delete_inode_tree(inode *node)
+{
+	if (!node) return;
+#ifdef ASMFS_DEBUG
+	EM_ASM(err('delete_inode_tree: ' + Pointer_stringify($0)), node->name);
+#endif
+	inode *child = node->child;
+	while(child)
 	{
-		free(node->remoteurl);
-		free(node);
+		inode *sibling = child->sibling;
+		delete_inode_tree(child->child);
+		delete_inode(child);
+		child = sibling;
+	}
+	if (node != filesystem_root()) // As special case, do not allow deleting the filesystem root directory
+	{
+		delete_inode(node);
+	}
+	else
+	{
+		// For filesystem root, just make sure all children are gone.
+		node->child = 0;
 	}
 }
 
@@ -346,14 +376,6 @@ static inode *create_directory_hierarchy_for_file(inode *root, const char *path_
 		root = node;
 	}
 	return root;
-}
-// Same as above, but the root node is deduced from 'path'. (either absolute if path starts with "/", or relative)
-static inode *create_directory_hierarchy_for_file(const char *path, unsigned int mode)
-{
-	inode *root;
-	if (path[0] == '/') root = filesystem_root(), ++path;
-	else root = get_cwd();
-	return create_directory_hierarchy_for_file(root, path, mode);
 }
 
 #define RETURN_NODE_AND_ERRNO(node, errno) do { *out_errno = (errno); return (node); } while(0)
@@ -663,7 +685,7 @@ void emscripten_dump_fs_tree(inode *root, char *path)
 			1, // number of links to this file
 			child->uid,
 			child->gid,
-			child->size,
+			child->size ? child->size : (child->fetch ? (int)child->fetch->numBytes : 0),
 			child->name,
 			child->type == INODE_DIR ? '/' : ' ');
 		EM_ASM(out(Pointer_stringify($0)), str);
@@ -689,11 +711,30 @@ void emscripten_dump_fs_tree(inode *root, char *path)
 	}
 }
 
-void emscripten_dump_fs_root()
+void EMSCRIPTEN_KEEPALIVE emscripten_asmfs_dump()
 {
-	EM_ASM({ err('emscripten_dump_fs_root()') });
+	EM_ASM({ err('emscripten_asmfs_dump()') });
 	char path[PATH_MAX] = "/";
 	emscripten_dump_fs_tree(filesystem_root(), path);
+}
+
+void EMSCRIPTEN_KEEPALIVE emscripten_asmfs_discard_tree(const char *path)
+{
+#ifdef ASMFS_DEBUG
+	emscripten_asmfs_dump();
+	EM_ASM(err('emscripten_asmfs_discard_tree: ' + Pointer_stringify($0)), path);
+#endif
+	int err;
+	inode *node = find_inode(path, &err);
+	if (node && !err)
+	{
+		unlink_inode(node);
+		delete_inode_tree(node);
+	}
+#ifdef ASMFS_DEBUG
+	else EM_ASM(err('emscripten_asmfs_discard_tree failed, error ' + $0), err);
+	emscripten_asmfs_dump();
+#endif
 }
 
 #ifdef ASMFS_DEBUG
@@ -782,6 +823,13 @@ void emscripten_asmfs_set_file_open_behavior(emscripten_asmfs_open_t behavior)
 emscripten_asmfs_open_t emscripten_asmfs_get_file_open_behavior()
 {
 	return __emscripten_asmfs_file_open_behavior_mode;
+}
+
+// Returns true if the given file can be synchronously read by the main browser thread.
+static bool emscripten_asmfs_file_is_synchronously_accessible(inode *node)
+{
+	return node->data // If file was created from memory without XHR, e.g. via fopen("foo.txt", "w"), it will have node->data ptr backing.
+		|| (node->fetch && node->fetch->data); // If the file was downloaded, it will be backed here.
 }
 
 static long open(const char *pathname, int flags, int mode)
@@ -904,7 +952,7 @@ static long open(const char *pathname, int flags, int mode)
 				RETURN_ERRNO(ENOENT, "O_CREAT is not set, the named file exists, but file data is not synchronously available in memory (EMSCRIPTEN_ASMFS_OPEN_MEMORY specified)");
 			}
 
-			if (emscripten_is_main_browser_thread())
+			if (emscripten_is_main_browser_thread() && (!node || !emscripten_asmfs_file_is_synchronously_accessible(node)))
 			{
 				RETURN_ERRNO(ENOENT, "O_CREAT is not set, the named file exists, but file data is not synchronously available in memory, and file open is attempted on the main thread which cannot synchronously open files! (try preloading the file to the filesystem before application start)");
 			}
@@ -1003,8 +1051,19 @@ static long close(int fd)
 			// TODO: This should not be necessary, but do it for now for consistency (test this out)
 			emscripten_fetch_wait(desc->node->fetch, INFINITY);
 		}
-		emscripten_fetch_close(desc->node->fetch);
-		desc->node->fetch = 0;
+
+// TODO: What to do to a XHRed/IndexedDB-backed unmodified file in memory when closing the file?
+//       free() or keep in memory?
+//       If user intends to reopen the file later (possibly often?), it is faster to keep the file in memory. (but it will consume more memory)
+//       If running on the main thread, the file cannot be loaded back synchronously if we let go of it, so things would break if the file
+//       is attempted to be loaded up again afterwards.
+//       Currently use a heuristic that if a file is closed on the main browser thread, do not free its backing storage. This can work for many
+//		 cases, but some kind of custom API might be best to add in the future? (e.g. emscripten_fclose_and_retain() vs emscripten_fclose_and_free()?)
+		if (!emscripten_is_main_browser_thread())
+		{
+			emscripten_fetch_close(desc->node->fetch);
+			desc->node->fetch = 0;
+		}
 	}
 	desc->magic = 0;
 	free(desc);
@@ -1021,6 +1080,84 @@ void EMSCRIPTEN_KEEPALIVE emscripten_asmfs_populate(const char *pathname, int mo
 		close(fd);
 	}
 	emscripten_asmfs_set_file_open_behavior(prevBehavior);
+}
+
+EMSCRIPTEN_RESULT EMSCRIPTEN_KEEPALIVE emscripten_asmfs_preload_file(const char *url, const char *pathname, int mode, emscripten_fetch_attr_t *options)
+{
+	if (!options)
+	{
+#ifdef ASMFS_DEBUG
+		EM_ASM(err('emscripten_asmfs_preload_file: options not specified!'));
+#endif
+		return EMSCRIPTEN_RESULT_INVALID_PARAM;
+	}
+
+	if (!pathname)
+	{
+#ifdef ASMFS_DEBUG
+		EM_ASM(err('emscripten_asmfs_preload_file: pathname not specified!'));
+#endif
+		return EMSCRIPTEN_RESULT_INVALID_PARAM;
+	}
+
+	// Find if this file exists already in the filesystem?
+	inode *root = (pathname[0] == '/') ? filesystem_root() : get_cwd();
+	const char *relpath = (pathname[0] == '/') ? pathname+1 : pathname;
+
+	int err;
+	inode *node = find_inode(root, relpath, &err);
+	// Filesystem traversal error?
+	if (err && err != ENOENT)
+	{
+#ifdef ASMFS_DEBUG
+		EM_ASM(err('emscripten_asmfs_preload_file: find_inode error ' + $0 + '!'), err);
+#endif
+		return EMSCRIPTEN_RESULT_INVALID_TARGET;
+	}
+
+	if (node && emscripten_asmfs_file_is_synchronously_accessible(node))
+	{
+		// The file already exists, and its contents have already been preloaded - immediately fire the success callback
+		if (options->onsuccess) options->onsuccess(0);
+		return EMSCRIPTEN_RESULT_SUCCESS;
+	}
+
+	// Kick off the file download, either from IndexedDB or via an XHR.
+	emscripten_fetch_attr_t attr;
+	memcpy(&attr, options, sizeof(emscripten_fetch_attr_t));
+	if (strlen(attr.requestMethod) == 0) strcpy(attr.requestMethod, "GET");
+	// In order for the file data to be synchronously accessible to the main browser thread, must load it directly to memory.
+	attr.attributes |= EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
+	// The following attributes cannot be present for preloading.
+#ifdef ASMFS_DEBUG
+	if ((attr.attributes & (EMSCRIPTEN_FETCH_SYNCHRONOUS | EMSCRIPTEN_FETCH_STREAM_DATA | EMSCRIPTEN_FETCH_WAITABLE)) != 0)
+		EM_ASM(err('emscripten_asmfs_preload_file: cannot specify EMSCRIPTEN_FETCH_SYNCHRONOUS, EMSCRIPTEN_FETCH_STREAM_DATA or EMSCRIPTEN_FETCH_WAITABLE flags when preloading!'));
+#endif
+	attr.attributes &= ~(EMSCRIPTEN_FETCH_SYNCHRONOUS | EMSCRIPTEN_FETCH_STREAM_DATA | EMSCRIPTEN_FETCH_WAITABLE);
+	// Default to EMSCRIPTEN_FETCH_APPEND if not specified.
+	if (!(attr.attributes & (EMSCRIPTEN_FETCH_APPEND | EMSCRIPTEN_FETCH_REPLACE)))
+		attr.attributes |= EMSCRIPTEN_FETCH_APPEND;
+
+	emscripten_fetch_t *fetch;
+	if (url)
+		fetch = emscripten_fetch(&attr, url);
+	else
+	{
+		char remoteUrl[3*PATH_MAX+4]; // times 3 because uri-encoding can expand the filename at most 3x.
+		emscripten_asmfs_remote_url(pathname, remoteUrl, 3*PATH_MAX+4);
+		fetch = emscripten_fetch(&attr, remoteUrl);
+	}
+
+	if (!node)
+	{
+		inode *directory = create_directory_hierarchy_for_file(root, relpath, mode);
+		node = create_inode(INODE_FILE, mode);
+		strcpy(node->name, basename_part(pathname));
+		link_inode(node, directory);
+	}
+	node->fetch = fetch;
+
+	return EMSCRIPTEN_RESULT_SUCCESS;
 }
 
 long __syscall6(int which, ...) // close
@@ -1043,6 +1180,8 @@ long __syscall9(int which, ...) // link
 #ifdef ASMFS_DEBUG
 	EM_ASM(err('link(oldpath="' + Pointer_stringify($0) + '", newpath="' + Pointer_stringify($1) + '")'), oldpath, newpath);
 #endif
+	((void)oldpath);
+	((void)newpath);
 
 	RETURN_ERRNO(ENOTSUP, "TODO: link() is a stub and not yet implemented in ASMFS");
 }
@@ -1086,7 +1225,8 @@ long __syscall10(int which, ...) // unlink
 
 	if (node->child) RETURN_ERRNO(EISDIR, "directory is not empty"); // Linux quirk: Return EISDIR error if not being able to delete a nonempty directory.
 
-	unlink_inode(node);
+	unlink_inode(node); // Detach this from parent
+	delete_inode_tree(node); // And delete the whole subtree
 
 	return 0;
 }
@@ -1130,6 +1270,9 @@ long __syscall14(int which, ...) // mknod
 #ifdef ASMFS_DEBUG
 	EM_ASM(err('mknod(pathname="' + Pointer_stringify($0) + '", mode=0' + ($1).toString(8) + ', dev=' + $2 + ')'), pathname, mode, dev);
 #endif
+	(void)pathname;
+	(void)mode;
+	(void)dev;
 
 	RETURN_ERRNO(ENOTSUP, "TODO: mknod() is a stub and not yet implemented in ASMFS");
 }
@@ -1208,6 +1351,7 @@ long __syscall36(int which, ...) // sync
 #ifdef ASMFS_DEBUG
 	EM_ASM(err('sync()'));
 #endif
+	((void)which);
 
 	// Spec mandates that "sync() is always successful".
 	return 0;
@@ -1361,6 +1505,10 @@ long __syscall54(int which, ...) // ioctl/sysctl
 #ifdef ASMFS_DEBUG
 	EM_ASM(err('ioctl(fd=' + $0 + ', request=' + $1 + ', argp=0x' + $2 + ')'), fd, request, argp);
 #endif
+	(void)fd;
+	(void)request;
+	(void)argp;
+
 	RETURN_ERRNO(ENOTSUP, "TODO: ioctl() is a stub and not yet implemented in ASMFS");
 }
 
@@ -1496,12 +1644,16 @@ long __syscall145(int which, ...) // readv
 
 	size_t offset = desc->file_pos;
 	uint8_t *data = node->data ? node->data : (node->fetch ? (uint8_t *)node->fetch->data : 0);
+	size_t size = node->data ? node->size : (node->fetch ? node->fetch->numBytes : 0);
 	for(int i = 0; i < iovcnt; ++i)
 	{
-		ssize_t dataLeft = node->size - offset;
+		ssize_t dataLeft = size - offset;
 		if (dataLeft <= 0) break;
 		size_t bytesToCopy = (size_t)dataLeft < iov[i].iov_len ? dataLeft : iov[i].iov_len;
 		memcpy(iov[i].iov_base, &data[offset], bytesToCopy);
+#ifdef ASMFS_DEBUG
+		EM_ASM(err('readv requested to read ' + $0 + ', read  ' + $1 + ' bytes from offset ' + $2 + ', new offset: ' + $3 + ' (file size: ' + $4 + ')'), (int)iov[i].iov_len, (int)bytesToCopy, (int)offset, (int)(offset + bytesToCopy), (int)size);
+#endif
 		offset += bytesToCopy;
 	}
 	ssize_t numRead = offset - desc->file_pos;
@@ -1633,7 +1785,7 @@ static long __stat64(inode *node, struct stat *buf)
 	buf->st_gid = node->gid;
 	buf->st_rdev = 1; // Device ID (if special file) No meaning right now for Emscripten.
 	buf->st_size = node->fetch ? node->fetch->totalBytes : 0;
-	if (node->size > buf->st_size) buf->st_size = node->size;
+	if (node->size > (size_t)buf->st_size) buf->st_size = node->size;
 	buf->st_blocks = (buf->st_size + 511) / 512; // The syscall docs state this is hardcoded to # of 512 byte blocks.
 	buf->st_blksize = 1024*1024; // Specifies the preferred blocksize for efficient disk I/O.
 	buf->st_atim.tv_sec = node->atime;
@@ -1726,7 +1878,6 @@ long __syscall197(int which, ...) // SYS_fstat64
 	FileDescriptor *desc = (FileDescriptor*)fd;
 	if (!desc || desc->magic != EM_FILEDESCRIPTOR_MAGIC) RETURN_ERRNO(EBADF, "fd isn't a valid open file descriptor");
 
-	int err;
 	inode *node = desc->node;
 	if (!node) RETURN_ERRNO(ENOENT, "A component of pathname does not exist");
 
