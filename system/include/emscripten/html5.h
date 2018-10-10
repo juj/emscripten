@@ -432,7 +432,10 @@ typedef struct EmscriptenWebGLContextAttributes {
   EM_BOOL antialias;
   EM_BOOL premultipliedAlpha;
   EM_BOOL preserveDrawingBuffer;
-  EM_BOOL preferLowPowerToHighPerformance;
+  union {
+    EM_BOOL preferLowPowerToHighPerformance;
+    int powerPreference; // 0 - "default", 1 - "low-power", 2 - "high-performance"
+  };
   EM_BOOL failIfMajorPerformanceCaveat;
 
   int majorVersion;
@@ -453,6 +456,8 @@ extern EMSCRIPTEN_RESULT emscripten_webgl_make_context_current(EMSCRIPTEN_WEBGL_
 extern EMSCRIPTEN_WEBGL_CONTEXT_HANDLE emscripten_webgl_get_current_context(void);
 
 extern EMSCRIPTEN_RESULT emscripten_webgl_get_drawing_buffer_size(EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context, int *width, int *height);
+
+extern EMSCRIPTEN_RESULT emscripten_webgl_get_context_attributes(EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context, EmscriptenWebGLContextAttributes *outAttributes);
 
 extern EMSCRIPTEN_RESULT emscripten_webgl_destroy_context(EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context);
 
@@ -530,10 +535,34 @@ extern void emscripten_html5_remove_all_event_listeners(void);
 #define emscripten_set_webglcontextlost_callback(target, userData, useCapture, callback)      emscripten_set_webglcontextlost_callback_on_thread(     (target), (userData), (useCapture), (callback), EM_CALLBACK_THREAD_CONTEXT_CALLING_THREAD)
 #define emscripten_set_webglcontextrestored_callback(target, userData, useCapture, callback)  emscripten_set_webglcontextrestored_callback_on_thread( (target), (userData), (useCapture), (callback), EM_CALLBACK_THREAD_CONTEXT_CALLING_THREAD)
 
-typedef void (*em_request_animation_frame_callback)(double time, void *userData);
+// Callback type for emscripten_request_animation_frame*() functions
+typedef EM_BOOL (*em_request_animation_frame_callback)(double time, void *userData);
 
+// Performs a single requestAnimationFrame() callback call on the given function
 extern long emscripten_request_animation_frame(em_request_animation_frame_callback cb, void *userData);
+
+// Cancels the registered callback before it is run
 extern void emscripten_cancel_animation_frame(long requestAnimationFrameId);
+
+// Initializes a requestAnimationFrame() loop on the given function. The specified callback function 'cb'
+// needs to keep returning EM_TRUE as long as the animation loop should continue to run. When the function
+// returns false, the animation frame loop will stop.
+extern void emscripten_request_animation_frame_loop(em_request_animation_frame_callback cb, void *userData);
+
+// Initializes a setImmediate() loop on the given function. The specified callback function 'cb'
+// needs to keep returning EM_TRUE as long as the animation loop should continue to run. When the function
+// returns false, the setImmediate() loop will stop.
+extern void emscripten_setimmediate_loop(em_request_animation_frame_callback cb, void *userData);
+
+// Initializes a setTimeout() loop on the given function. The specified callback function 'cb'
+// needs to keep returning EM_TRUE as long as the animation loop should continue to run. When the function
+// returns false, the setTimeout() loop will stop.
+extern void emscripten_settimeout_loop(em_request_animation_frame_callback cb, double msecs, void *userData);
+
+// Initializes a setInterval() loop on the given function. The specified callback function 'cb'
+// needs to keep returning EM_TRUE as long as the animation loop should continue to run. When the function
+// returns false, the setInterval() loop will stop.
+//extern void emscripten_setinterval(em_request_animation_frame_callback cb, double msecs, void *userData);
 
 #ifdef __cplusplus
 } // ~extern "C"
