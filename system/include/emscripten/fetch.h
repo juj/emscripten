@@ -205,9 +205,19 @@ emscripten_asmfs_open_t emscripten_asmfs_get_file_open_behavior();
 
 void emscripten_asmfs_set_remote_url(const char *filename, const char *remoteUrl);
 
+// Given a filename, outputs the remote URL address that file can be located in.
 void emscripten_asmfs_remote_url(const char *filename, char *outRemoteUrl, int maxBytesToWrite);
 
 void emscripten_asmfs_unload_data(const char *pathname);
+
+// Starts an asynchronous preload of a file from the given URL to the local filesystem to destination path 'pathname' for synchronous
+// access on the main thread. Specify a onsuccess callback in options structure to be notified of when the transfer finishes.
+// The resulting download will always be performed with the flag EMSCRIPTEN_FETCH_LOAD_TO_MEMORY and without the flags
+// EMSCRIPTEN_FETCH_SYNCHRONOUS | EMSCRIPTEN_FETCH_WAITABLE | EMSCRIPTEN_FETCH_STREAM_DATA. The remaining flags
+// EMSCRIPTEN_FETCH_NO_DOWNLOAD, EMSCRIPTEN_FETCH_PERSIST_FILE, EMSCRIPTEN_FETCH_APPEND/REPLACE are
+// customizable in the options field. In particular, if EMSCRIPTEN_FETCH_NO_DOWNLOAD is passed, then the file is loaded to memory for
+// synchronous access by looking at IndexedDB only.
+EMSCRIPTEN_RESULT emscripten_asmfs_preload_file(const char *url, const char *pathname, int mode, emscripten_fetch_attr_t *options);
 
 // Computes the total amount of bytes in memory utilized by the filesystem at the moment.
 // Note: This function can be slow since it walks through the whole filesystem.
