@@ -102,13 +102,13 @@ static void inode_abspath(inode *node, char *dst, int dstLen)
 {
 	if (!node)
 	{
-		assert(dstLen >= strlen("(null)")+1);
+		assert(dstLen >= (int)strlen("(null)")+1);
 		strcpy(dst, "(null)");
 		return;
 	}
 	if (node == filesystem_root())
 	{
-		assert(dstLen >= strlen("/")+1);
+		assert(dstLen >= (int)strlen("/")+1);
 		strcpy(dst, "/");
 		return;
 	}
