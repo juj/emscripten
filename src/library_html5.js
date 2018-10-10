@@ -2624,8 +2624,8 @@ var LibraryJSEvents = {
 
     if (target.getBoundingClientRect) {
       var rect = target.getBoundingClientRect();
-      {{{ makeSetValue('width', '0', 'rect.right - rect.left', 'double') }}};
-      {{{ makeSetValue('height', '0', 'rect.bottom - rect.top', 'double') }}};
+      {{{ makeSetValue('width', '0', 'rect.width', 'double') }}};
+      {{{ makeSetValue('height', '0', 'rect.height', 'double') }}};
     } else {
       {{{ makeSetValue('width', '0', 'target.clientWidth', 'double') }}};
       {{{ makeSetValue('height', '0', 'target.clientHeight', 'double') }}};
