@@ -217,6 +217,12 @@ var SIMD = 0;
 // Whether closure compiling is being run on this output
 var USE_CLOSURE_COMPILER = 0;
 
+// If set to 1, each asm.js/wasm module export is individually listed out to the
+// outside scope. This increases code size, and it is preferred to keep this disabled
+// when optimizing for smallest code size. If set to 0, module exports are copied
+// to parent scope via a short foreach loop.
+var DECLARE_ASM_MODULE_EXPORTS = 0;
+
 // Ignore closure warnings and errors (like on duplicate definitions)
 var IGNORE_CLOSURE_COMPILER_ERRORS = 0;
 
@@ -1282,3 +1288,8 @@ var ENVIRONMENT_MAY_BE_WEB_OR_WORKER = 1;
 // JS -> asm.js import names. Controlled by optimization level, enabled
 // at -O1 and higher, but disabled at -g2 and higher.
 var MINIFY_ASMJS_IMPORT_NAMES = 0;
+
+// Internal: points to a file that lists all asm.js/wasm module exports, annotated
+// with suppressions for Closure compiler, that can be passed as an --externs file
+// to Closure.
+var MODULE_EXPORTS = [];
