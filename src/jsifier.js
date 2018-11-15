@@ -279,6 +279,12 @@ function JSify(data, functionsOnly) {
       if (typeof snippet === 'string') {
         var target = LibraryManager.library[snippet];
         if (target) {
+          if (LibraryManager.library[snippet + '__asm'] && !LibraryManager.library[ident + '__asm']) {
+            error('A non-asm.js/wasm function "' + snippet + '" cannot be constructed as an alias of an asm.js/wasm function "' + ident + '"! (create a helper function to call into asm.js if you want to keep the alias)');
+          }
+          if (!LibraryManager.library[snippet + '__asm'] && LibraryManager.library[ident + '__asm']) {
+            error('An asm.js/wasm function "' + snippet + '" cannot be constructed as an alias of a non-asm.js/wasm function "' + ident + '"! (the JS function needs to be imported to asm.js/wasm)');
+          }
           // Redirection for aliases. We include the parent, and at runtime make ourselves equal to it.
           // This avoid having duplicate functions with identical content.
           redirectedIdent = snippet;
