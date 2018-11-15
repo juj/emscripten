@@ -320,7 +320,7 @@ function allocate(slab, types, allocator, ptr) {
   if (allocator == ALLOC_NONE) {
     ret = ptr;
   } else {
-    ret = [typeof _malloc === 'function' ? _malloc : staticAlloc, stackAlloc, staticAlloc, dynamicAlloc][allocator === undefined ? ALLOC_STATIC : allocator](Math.max(size, singleType ? 1 : types.length));
+    ret = [typeof _malloc === 'function' ? _malloc : staticAlloc, typeof stackAlloc == 'function' ? stackAlloc : 0, staticAlloc, dynamicAlloc][allocator === undefined ? ALLOC_STATIC : allocator](Math.max(size, singleType ? 1 : types.length));
   }
 
   if (zeroinit) {
