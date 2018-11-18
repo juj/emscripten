@@ -559,6 +559,9 @@ extern void emscripten_setimmediate_loop(em_request_animation_frame_callback cb,
 // returns false, the setTimeout() loop will stop.
 extern void emscripten_settimeout_loop(em_request_animation_frame_callback cb, double msecs, void *userData);
 
+// Returns performance.now() called in JavaScript.
+extern double emscripten_performance_now(void);
+
 // Initializes a setInterval() loop on the given function. The specified callback function 'cb'
 // needs to keep returning EM_TRUE as long as the animation loop should continue to run. When the function
 // returns false, the setInterval() loop will stop.
