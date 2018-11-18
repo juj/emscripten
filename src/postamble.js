@@ -222,7 +222,7 @@ Module['callMain'] = function callMain() {
         toLog = [e, e.stack];
       }
       err('exception thrown: ' + toLog);
-      Module['quit'](1, e);
+      throw e;
     }
   } finally {
     calledMain = true;
@@ -385,7 +385,7 @@ function exit(status, implicit) {
     if (Module['onExit']) Module['onExit'](status);
   }
 
-  Module['quit'](status, new ExitStatus(status));
+  throw status;
 }
 
 var abortDecorators = [];
