@@ -86,7 +86,7 @@ var LibraryJSEvents = {
       // since DOM events mostly can default to that. Specific callback registrations
       // override their own defaults.
       if (!target) return window;
-      if (typeof target === "number") target = Pointer_stringify(target);
+      if (typeof target === "number") target = UTF8ToString(target);
       if (target === '#window') return window;
       else if (target === '#document') return document;
       else if (target === '#screen') return window.screen;
@@ -102,7 +102,7 @@ var LibraryJSEvents = {
   // Like findEventTarget, but looks for OffscreenCanvas elements first
   _findCanvasEventTarget__deps: ['_findEventTarget'],
   _findCanvasEventTarget: function(target) {
-    if (typeof target === 'number') target = Pointer_stringify(target);
+    if (typeof target === 'number') target = UTF8ToString(target);
     if (!target || target === '#canvas') {
       if (typeof GL !== 'undefined' && GL.offscreenCanvases['canvas']) return GL.offscreenCanvases['canvas']; // TODO: Remove this line, target '#canvas' should refer only to Module['canvas'], not to GL.offscreenCanvases['canvas'] - but need stricter tests to be able to remove this line.
       return Module['canvas'];
@@ -1187,7 +1187,7 @@ var LibraryJSEvents = {
       var confirmationMessage = Module['dynCall_iiii'](callbackfunc, eventTypeId, 0, userData);
       
       if (confirmationMessage) {
-        confirmationMessage = Pointer_stringify(confirmationMessage);
+        confirmationMessage = UTF8ToString(confirmationMessage);
       }
       if (confirmationMessage) {
         e.preventDefault();
@@ -2412,7 +2412,7 @@ var LibraryJSEvents = {
 
   emscripten_webgl_enable_extension_calling_thread: function(contextHandle, extension) {
     var context = GL.getContext(contextHandle);
-    var extString = Pointer_stringify(extension);
+    var extString = UTF8ToString(extension);
     if (extString.indexOf('GL_') == 0) extString = extString.substr(3); // Allow enabling extensions both with "GL_" prefix and without.
     var ext = context.GLctx.getExtension(extString);
     return !!ext;
@@ -2518,7 +2518,7 @@ var LibraryJSEvents = {
     var varargs = stackAlloc(12);
 
     // TODO: This could be optimized a bit (basically a dumb encoding agnostic strdup)
-    var targetStr = targetCanvas ? Pointer_stringify(targetCanvas) : 0;
+    var targetStr = targetCanvas ? UTF8ToString(targetCanvas) : 0;
     var targetStrHeap = targetStr ? _malloc(targetStr.length+1) : 0;
     if (targetStrHeap) stringToUTF8(targetStr, targetStrHeap, targetStr.length+1);
 

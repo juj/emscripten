@@ -139,7 +139,7 @@ static void delete_inode(inode *node)
 	if (!node) return;
 	if (node == filesystem_root()) return; // As special case, do not allow deleting the filesystem root directory
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('delete_inode: ' + Pointer_stringify($0)), node->name);
+	EM_ASM(err('delete_inode: ' + UTF8ToString($0)), node->name);
 #endif
 	if (node->fetch) emscripten_fetch_close(node->fetch);
 	free(node->remoteurl);
@@ -151,7 +151,7 @@ static void delete_inode_tree(inode *node)
 {
 	if (!node) return;
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('delete_inode_tree: ' + Pointer_stringify($0)), node->name);
+	EM_ASM(err('delete_inode_tree: ' + UTF8ToString($0)), node->name);
 #endif
 	inode *child = node->child;
 	while(child)
@@ -178,7 +178,7 @@ static void link_inode(inode *node, inode *parent)
 	char parentName[PATH_MAX];
 	inode_abspath(parent, parentName, PATH_MAX);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('link_inode: node "' + Pointer_stringify($0) + '" to parent "' + Pointer_stringify($1) + '".'), node->name, parentName);
+	EM_ASM(err('link_inode: node "' + UTF8ToString($0) + '" to parent "' + UTF8ToString($1) + '".'), node->name, parentName);
 #endif
 	// When linking a node, it can't be part of the filesystem tree (but it can have children of its own)
 	assert(!node->parent);
@@ -212,7 +212,7 @@ static inode *find_predecessor_sibling(inode *node, inode *parent)
 static void unlink_inode(inode *node)
 {
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('unlink_inode: node ' + Pointer_stringify($0) + ' from its parent ' + Pointer_stringify($1) + '.'), node->name, node->parent->name);
+	EM_ASM(err('unlink_inode: node ' + UTF8ToString($0) + ' from its parent ' + UTF8ToString($1) + '.'), node->name, node->parent->name);
 #endif
 	inode *parent = node->parent;
 	if (!parent) return;
@@ -326,7 +326,7 @@ static inode *create_directory_hierarchy_for_file(inode *root, const char *path_
 		bool is_directory = false;
 		const char *child_path = path_cmp(path_to_file, node->name, &is_directory);
 #ifdef ASMFS_DEBUG
-		EM_ASM_INT( { err('path_cmp ' + Pointer_stringify($0) + ', ' + Pointer_stringify($1) + ', ' + Pointer_stringify($2) + ' .') }, path_to_file, node->name, child_path);
+		EM_ASM_INT( { err('path_cmp ' + UTF8ToString($0) + ', ' + UTF8ToString($1) + ', ' + UTF8ToString($2) + ' .') }, path_to_file, node->name, child_path);
 #endif
 		if (child_path)
 		{
@@ -361,8 +361,8 @@ static inode *create_directory_hierarchy_for_file(inode *root, const char *path_
 	}
 	const char *basename_pos = basename_part(path_to_file);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('path_to_file ' + Pointer_stringify($0) + ' .'), path_to_file);
-	EM_ASM(err('basename_pos ' + Pointer_stringify($0) + ' .'), basename_pos);
+	EM_ASM(err('path_to_file ' + UTF8ToString($0) + ' .'), path_to_file);
+	EM_ASM(err('basename_pos ' + UTF8ToString($0) + ' .'), basename_pos);
 #endif
 	while(*path_to_file && path_to_file < basename_pos)
 	{
@@ -370,7 +370,7 @@ static inode *create_directory_hierarchy_for_file(inode *root, const char *path_
 		path_to_file += strcpy_inodename(node->name, path_to_file) + 1;
 		link_inode(node, root);
 #ifdef ASMFS_DEBUG
-		EM_ASM(out('create_directory_hierarchy_for_file: created directory ' + Pointer_stringify($0) + ' under parent ' + Pointer_stringify($1) + '.'), 
+		EM_ASM(out('create_directory_hierarchy_for_file: created directory ' + UTF8ToString($0) + ' under parent ' + UTF8ToString($1) + '.'), 
 			node->name, node->parent->name);
 #endif
 		root = node;
@@ -387,7 +387,7 @@ static inode *find_parent_inode(inode *root, const char *path, int *out_errno)
 	char rootName[PATH_MAX];
 	inode_abspath(root, rootName, PATH_MAX);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('find_parent_inode(root="' + Pointer_stringify($0) + '", path="' + Pointer_stringify($1) + '")'), rootName, path);
+	EM_ASM(err('find_parent_inode(root="' + UTF8ToString($0) + '", path="' + UTF8ToString($1) + '")'), rootName, path);
 #endif
 
 	assert(out_errno); // Passing in error is mandatory.
@@ -466,7 +466,7 @@ static inode *find_inode(inode *root, const char *path, int *out_errno)
 	char rootName[PATH_MAX];
 	inode_abspath(root, rootName, PATH_MAX);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('find_inode(root="' + Pointer_stringify($0) + '", path="' + Pointer_stringify($1) + '")'), rootName, path);
+	EM_ASM(err('find_inode(root="' + UTF8ToString($0) + '", path="' + UTF8ToString($1) + '")'), rootName, path);
 #endif
 
 	assert(out_errno); // Passing in error is mandatory.
@@ -567,7 +567,7 @@ void EMSCRIPTEN_KEEPALIVE emscripten_asmfs_set_file_data(const char *filename, c
 	node->data = (uint8_t*)data;
 	node->size = node->capacity = size;
 
-//	EM_ASM_INT( { Module['print']('Node ' + Pointer_stringify($0) + ' (' + Pointer_stringify($1) + ') got file data ptr ' + $1 + ', size ' + $2) }, node->name, filename, node->data, node->size);
+//	EM_ASM_INT( { Module['print']('Node ' + UTF8ToString($0) + ' (' + UTF8ToString($1) + ') got file data ptr ' + $1 + ', size ' + $2) }, node->name, filename, node->data, node->size);
 }
 
 char *find_last_occurrence(char *str, char ch)
@@ -662,7 +662,7 @@ void emscripten_dump_fs_tree(inode *root, char *path)
 {
 	char str[256];
 	sprintf(str,"%s:", path);
-	EM_ASM(out(Pointer_stringify($0)), str);
+	EM_ASM(out(UTF8ToString($0)), str);
 
 	// Print out:
 	// file mode | number of links | owner name | group name | file size in bytes | file last modified time | path name
@@ -688,14 +688,14 @@ void emscripten_dump_fs_tree(inode *root, char *path)
 			child->size ? child->size : (child->fetch ? (int)child->fetch->numBytes : 0),
 			child->name,
 			child->type == INODE_DIR ? '/' : ' ');
-		EM_ASM(out(Pointer_stringify($0)), str);
+		EM_ASM(out(UTF8ToString($0)), str);
 
 		totalSize += child->size;
 		child = child->sibling;
 	}
 
 	sprintf(str, "total %llu bytes\n", totalSize);
-	EM_ASM(out(Pointer_stringify($0)), str);
+	EM_ASM(out(UTF8ToString($0)), str);
 
 	child = root->child;
 	char *path_end = path + strlen(path);
@@ -722,7 +722,7 @@ void EMSCRIPTEN_KEEPALIVE emscripten_asmfs_discard_tree(const char *path)
 {
 #ifdef ASMFS_DEBUG
 	emscripten_asmfs_dump();
-	EM_ASM(err('emscripten_asmfs_discard_tree: ' + Pointer_stringify($0)), path);
+	EM_ASM(err('emscripten_asmfs_discard_tree: ' + UTF8ToString($0)), path);
 #endif
 	int err;
 	inode *node = find_inode(path, &err);
@@ -740,7 +740,7 @@ void EMSCRIPTEN_KEEPALIVE emscripten_asmfs_discard_tree(const char *path)
 #ifdef ASMFS_DEBUG
 
 #define RETURN_ERRNO(errno, error_reason) do { \
-		EM_ASM(err(Pointer_stringify($0) + '() returned errno ' + #errno + '(' + $1 + '): ' + error_reason + '!'), __FUNCTION__, errno); \
+		EM_ASM(err(UTF8ToString($0) + '() returned errno ' + #errno + '(' + $1 + '): ' + error_reason + '!'), __FUNCTION__, errno); \
 		return -errno; \
 	} while(0)
 #else
@@ -771,7 +771,7 @@ static void print_stream(void *bytes, int numBytes, bool stdout)
 		if (buffer[i] == '\n')
 		{
 			buffer[i] = 0;
-			EM_ASM_INT( { out(Pointer_stringify($0)) }, buffer+new_buffer_start);
+			EM_ASM_INT( { out(UTF8ToString($0)) }, buffer+new_buffer_start);
 			new_buffer_start = i+1;
 		}
 	}
@@ -835,7 +835,7 @@ static bool emscripten_asmfs_file_is_synchronously_accessible(inode *node)
 static long open(const char *pathname, int flags, int mode)
 {
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('open(pathname="' + Pointer_stringify($0) + '", flags=0x' + ($1).toString(16) + ', mode=0' + ($2).toString(8) + ')'),
+	EM_ASM(err('open(pathname="' + UTF8ToString($0) + '", flags=0x' + ($1).toString(16) + ', mode=0' + ($2).toString(8) + ')'),
 		pathname, flags, mode);
 #endif
 
@@ -851,7 +851,7 @@ static long open(const char *pathname, int flags, int mode)
 	// However existing earlier unit tests in Emscripten expect that O_EXCL is simply ignored when O_CREAT was not passed. So do that for now.
 	if ((flags & O_EXCL) && !(flags & O_CREAT)) {
 #ifdef ASMFS_DEBUG
-		EM_ASM(err('warning: open(pathname="' + Pointer_stringify($0) + '", flags=0x' + ($1).toString(16) + ', mode=0' + ($2).toString(8) + ': flag O_EXCL should always be paired with O_CREAT. Ignoring O_EXCL)'), pathname, flags, mode);
+		EM_ASM(err('warning: open(pathname="' + UTF8ToString($0) + '", flags=0x' + ($1).toString(16) + ', mode=0' + ($2).toString(8) + ': flag O_EXCL should always be paired with O_CREAT. Ignoring O_EXCL)'), pathname, flags, mode);
 #endif
 		flags &= ~O_EXCL;
 	}
@@ -1178,7 +1178,7 @@ long __syscall9(int which, ...) // link
 	const char *newpath = va_arg(vl, const char *);
 	va_end(vl);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('link(oldpath="' + Pointer_stringify($0) + '", newpath="' + Pointer_stringify($1) + '")'), oldpath, newpath);
+	EM_ASM(err('link(oldpath="' + UTF8ToString($0) + '", newpath="' + UTF8ToString($1) + '")'), oldpath, newpath);
 #endif
 	((void)oldpath);
 	((void)newpath);
@@ -1193,7 +1193,7 @@ long __syscall10(int which, ...) // unlink
 	const char *pathname = va_arg(vl, const char *);
 	va_end(vl);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('unlink(pathname="' + Pointer_stringify($0) + '")'), pathname);
+	EM_ASM(err('unlink(pathname="' + UTF8ToString($0) + '")'), pathname);
 #endif
 
 	int len = strlen(pathname);
@@ -1238,7 +1238,7 @@ long __syscall12(int which, ...) // chdir
 	const char *pathname = va_arg(vl, const char *);
 	va_end(vl);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('chdir(pathname="' + Pointer_stringify($0) + '")'), pathname);
+	EM_ASM(err('chdir(pathname="' + UTF8ToString($0) + '")'), pathname);
 #endif
 
 	int len = strlen(pathname);
@@ -1268,7 +1268,7 @@ long __syscall14(int which, ...) // mknod
 	int dev = va_arg(vl, int);
 	va_end(vl);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('mknod(pathname="' + Pointer_stringify($0) + '", mode=0' + ($1).toString(8) + ', dev=' + $2 + ')'), pathname, mode, dev);
+	EM_ASM(err('mknod(pathname="' + UTF8ToString($0) + '", mode=0' + ($1).toString(8) + ', dev=' + $2 + ')'), pathname, mode, dev);
 #endif
 	(void)pathname;
 	(void)mode;
@@ -1285,7 +1285,7 @@ long __syscall15(int which, ...) // chmod
 	int mode = va_arg(vl, int);
 	va_end(vl);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('chmod(pathname="' + Pointer_stringify($0) + '", mode=0' + ($1).toString(8) + ')'), pathname, mode);
+	EM_ASM(err('chmod(pathname="' + UTF8ToString($0) + '", mode=0' + ($1).toString(8) + ')'), pathname, mode);
 #endif
 
 	int len = strlen(pathname);
@@ -1316,7 +1316,7 @@ long __syscall33(int which, ...) // access
 	int mode = va_arg(vl, int);
 	va_end(vl);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('access(pathname="' + Pointer_stringify($0) + '", mode=0' + ($1).toString(8) + ')'), pathname, mode);
+	EM_ASM(err('access(pathname="' + UTF8ToString($0) + '", mode=0' + ($1).toString(8) + ')'), pathname, mode);
 #endif
 
 	int len = strlen(pathname);
@@ -1362,7 +1362,7 @@ long __syscall36(int which, ...) // sync
 long EMSCRIPTEN_KEEPALIVE emscripten_asmfs_mkdir(const char *pathname, mode_t mode)
 {
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('mkdir(pathname="' + Pointer_stringify($0) + '", mode=0' + ($1).toString(8) + ')'), pathname, mode);
+	EM_ASM(err('mkdir(pathname="' + UTF8ToString($0) + '", mode=0' + ($1).toString(8) + ')'), pathname, mode);
 #endif
 
 	int len = strlen(pathname);
@@ -1440,7 +1440,7 @@ long __syscall40(int which, ...) // rmdir
 	const char *pathname = va_arg(vl, const char *);
 	va_end(vl);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('rmdir(pathname="' + Pointer_stringify($0) + '")'), pathname);
+	EM_ASM(err('rmdir(pathname="' + UTF8ToString($0) + '")'), pathname);
 #endif
 
 	int len = strlen(pathname);
@@ -1802,7 +1802,7 @@ long __syscall195(int which, ...) // SYS_stat64
 	struct stat *buf = va_arg(vl, struct stat *);
 	va_end(vl);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('SYS_stat64(pathname="' + Pointer_stringify($0) + '", buf=0x' + ($1).toString(16) + ')'), pathname, buf);
+	EM_ASM(err('SYS_stat64(pathname="' + UTF8ToString($0) + '", buf=0x' + ($1).toString(16) + ')'), pathname, buf);
 #endif
 
 	int len = strlen(pathname);
@@ -1841,7 +1841,7 @@ long __syscall196(int which, ...) // SYS_lstat64
 	struct stat *buf = va_arg(vl, struct stat *);
 	va_end(vl);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('SYS_lstat64(pathname="' + Pointer_stringify($0) + '", buf=0x' + ($1).toString(16) + ')'), pathname, buf);
+	EM_ASM(err('SYS_lstat64(pathname="' + UTF8ToString($0) + '", buf=0x' + ($1).toString(16) + ')'), pathname, buf);
 #endif
 
 	int len = strlen(pathname);
@@ -1872,7 +1872,7 @@ long __syscall197(int which, ...) // SYS_fstat64
 	struct stat *buf = va_arg(vl, struct stat *);
 	va_end(vl);
 #ifdef ASMFS_DEBUG
-	EM_ASM(err('SYS_fstat64(fd="' + Pointer_stringify($0) + '", buf=0x' + ($1).toString(16) + ')'), fd, buf);
+	EM_ASM(err('SYS_fstat64(fd="' + UTF8ToString($0) + '", buf=0x' + ($1).toString(16) + ')'), fd, buf);
 #endif
 
 	FileDescriptor *desc = (FileDescriptor*)fd;

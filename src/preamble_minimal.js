@@ -106,43 +106,6 @@ function assert(condition, text) {
   if (!condition) throw text;
 }
 
-var globalScope = this;
-
-/** @type {function(number, number=)} */
-function Pointer_stringify(ptr, length) {
-  if (length === 0 || !ptr) return '';
-  // Find the length, and check for UTF while doing so
-  var hasUtf = 0;
-  var t;
-  var i = 0;
-  while (1) {
-#if ASSERTIONS
-    assert(ptr + i < TOTAL_MEMORY);
-#endif
-    t = {{{ makeGetValue('ptr', 'i', 'i8', 0, 1) }}};
-    hasUtf |= t;
-    if (t == 0 && !length) break;
-    i++;
-    if (length && i == length) break;
-  }
-  if (!length) length = i;
-
-  var ret = '';
-
-  if (hasUtf < 128) {
-    var MAX_CHUNK = 1024; // split up into chunks, because .apply on a huge string can overflow the stack
-    var curr;
-    while (length > 0) {
-      curr = String.fromCharCode.apply(String, HEAPU8.subarray(ptr, ptr + Math.min(length, MAX_CHUNK)));
-      ret = ret ? ret + curr : curr;
-      ptr += MAX_CHUNK;
-      length -= MAX_CHUNK;
-    }
-    return ret;
-  }
-  return UTF8ToString(ptr);
-}
-
 // Given a pointer 'ptr' to a null-terminated ASCII-encoded string in the emscripten HEAP, returns
 // a copy of that string as a Javascript String object.
 
@@ -533,7 +496,7 @@ function demangle(func) {
     var status = _malloc(4);
     var ret = __cxa_demangle_func(buf, 0, 0, status);
     if ({{{ makeGetValue('status', '0', 'i32') }}} === 0 && ret) {
-      return Pointer_stringify(ret);
+      return UTF8ToString(ret);
     }
     // otherwise, libcxxabi failed
   } catch(e) {
