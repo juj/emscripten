@@ -1323,26 +1323,6 @@ var LibraryBrowser = {
     exit(status);
   },
 
-  emscripten_get_device_pixel_ratio__proxy: 'sync',
-  emscripten_get_device_pixel_ratio__sig: 'd',
-  emscripten_get_device_pixel_ratio: function() {
-    return window.devicePixelRatio || 1.0;
-  },
-
-  emscripten_hide_mouse__proxy: 'sync',
-  emscripten_hide_mouse__sig: 'v',
-  emscripten_hide_mouse: function() {
-    var styleSheet = document.styleSheets[0];
-    var rules = styleSheet.cssRules;
-    for (var i = 0; i < rules.length; i++) {
-      if (rules[i].cssText.substr(0, 6) == 'canvas') {
-        styleSheet.deleteRule(i);
-        i--;
-      }
-    }
-    styleSheet.insertRule('canvas.emscripten { border: 1px solid black; cursor: none; }', 0);
-  },
-
   emscripten_set_canvas_size__proxy: 'sync',
   emscripten_set_canvas_size__sig: 'vii',
   emscripten_set_canvas_size: function(width, height) {
