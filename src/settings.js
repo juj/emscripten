@@ -417,6 +417,11 @@ var GL_EXTENSIONS_IN_PREFIXED_FORMAT = 1;
 // you will need to manually enable the extensions you need.
 var GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS = 1;
 
+// If set to 0, Emscripten GLES2->WebGL translation layer does not track the kind
+// of GL errors that exist in GLES2 but do not exist in WebGL. Settings this to 0
+// saves code size. (Good to keep at 1 for development)
+var GL_TRACK_ERRORS = 1;
+
 // Some old Android WeChat (Chromium 37?) browser has a WebGL bug that it ignores
 // the offset of a typed array view pointing to an ArrayBuffer. Set this to
 // 1 to enable a polyfill that works around the issue when it appears. This
