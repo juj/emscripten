@@ -1124,6 +1124,10 @@ var buffer;
 /**
  * @suppress {duplicate}
  */
+var global;
+/**
+ * @suppress {duplicate}
+ */
 var fs;
 /**
  * @suppress {undefinedVars}
