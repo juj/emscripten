@@ -92,15 +92,6 @@ function ftfault() {
 // Runtime essentials
 //========================================
 
-// whether we are quitting the application. no code should run after this.
-// set in exit() and abort()
-var ABORT = false;
-
-// set by exit() and abort().  Passed to 'onExit' handler.
-// NOTE: This is also used as the process return code code in shell environments
-// but only when noExitRuntime is false.
-var EXITSTATUS = 0;
-
 /** @type {function(*, string=)} */
 function assert(condition, text) {
   if (!condition) throw text;
