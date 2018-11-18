@@ -48,8 +48,6 @@ for (key in Module) {
   }
 }
 
-Module['postRun'] = [];
-
 // Determine the runtime environment we are in. You can customize this by
 // setting the ENVIRONMENT setting at compile time (see settings.js).
 
@@ -276,8 +274,6 @@ if (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER) {
     xhr.onerror = onerror;
     xhr.send(null);
   };
-
-  Module['setWindowTitle'] = function(title) { document.title = title };
 } else
 #endif // ENVIRONMENT_MAY_BE_WEB_OR_WORKER
 {
