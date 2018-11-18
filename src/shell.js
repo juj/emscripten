@@ -43,7 +43,6 @@ for (key in Module) {
   }
 }
 
-Module['arguments'] = [];
 Module['thisProgram'] = './this.program';
 Module['quit'] = function(status, toThrow) {
   throw toThrow;
@@ -164,8 +163,6 @@ if (ENVIRONMENT_IS_NODE) {
     Module['thisProgram'] = process['argv'][1].replace(/\\/g, '/');
   }
 
-  Module['arguments'] = process['argv'].slice(2);
-
 #if MODULARIZE
   // MODULARIZE will export the module in the proper place outside, we don't need to export here
 #else
@@ -229,12 +226,6 @@ if (ENVIRONMENT_IS_SHELL) {
     assert(typeof data === 'object');
     return data;
   };
-
-  if (typeof scriptArgs != 'undefined') {
-    Module['arguments'] = scriptArgs;
-  } else if (typeof arguments != 'undefined') {
-    Module['arguments'] = arguments;
-  }
 
   if (typeof quit === 'function') {
     Module['quit'] = function(status) {

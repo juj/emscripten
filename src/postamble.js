@@ -164,23 +164,13 @@ dependenciesFulfilled = function runCaller() {
 }
 
 #if HAS_MAIN
-Module['callMain'] = function callMain(args) {
+Module['callMain'] = function callMain() {
 #if ASSERTIONS
   assert(runDependencies == 0, 'cannot call main when async dependencies remain! (listen on __ATMAIN__)');
   assert(__ATPRERUN__.length == 0, 'cannot call main when preRun functions remain to be called');
 #endif
 
-  args = args || [];
-
   ensureInitRuntime();
-
-  var argc = args.length+1;
-  var argv = stackAlloc((argc + 1) * {{{ Runtime.POINTER_SIZE }}});
-  HEAP32[argv >> 2] = allocateUTF8OnStack(Module['thisProgram']);
-  for (var i = 1; i < argc; i++) {
-    HEAP32[(argv >> 2) + i] = allocateUTF8OnStack(args[i - 1]);
-  }
-  HEAP32[(argv >> 2) + argc] = 0;
 
 #if EMTERPRETIFY_ASYNC
   var initialEmtStackTop = Module['emtStackSave']();
@@ -194,9 +184,9 @@ Module['callMain'] = function callMain(args) {
 #if PROXY_TO_PTHREAD
     // User requested the PROXY_TO_PTHREAD option, so call a stub main which pthread_create()s a new thread
     // that will call the user's real main() for the application.
-    var ret = Module['_proxy_main'](argc, argv, 0);
+    var ret = Module['_proxy_main']();
 #else
-    var ret = Module['_main'](argc, argv, 0);
+    var ret = Module['_main']();
 #endif
 
 #if BENCHMARK
@@ -244,9 +234,7 @@ Module['callMain'] = function callMain(args) {
 {{GLOBAL_VARS}}
 
 /** @type {function(Array=)} */
-function run(args) {
-  args = args || Module['arguments'];
-
+function run() {
   if (runDependencies > 0) {
 #if RUNTIME_LOGGING
     err('run() called, but dependencies remain, so not running');
@@ -276,7 +264,7 @@ function run(args) {
     if (Module['onRuntimeInitialized']) Module['onRuntimeInitialized']();
 
 #if HAS_MAIN
-    if (Module['_main'] && shouldRunNow) Module['callMain'](args);
+    if (Module['_main'] && shouldRunNow) Module['callMain']();
 #else
 #if ASSERTIONS
     assert(!Module['_main'], 'compiled without a main, but one is present. if you added it from JS, use Module["onRuntimeInitialized"]');
