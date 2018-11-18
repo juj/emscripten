@@ -71,7 +71,6 @@ var LibraryGL = {
 #endif
     tempFixedLengthArray: [],
 
-    packAlignment: 4,   // default alignment is 4 bytes
     unpackAlignment: 4, // default alignment is 4 bytes
 
     init: function() {
@@ -968,9 +967,7 @@ var LibraryGL = {
 
   glPixelStorei__sig: 'vii',
   glPixelStorei: function(pname, param) {
-    if (pname == 0x0D05 /* GL_PACK_ALIGNMENT */) {
-      GL.packAlignment = param;
-    } else if (pname == 0x0cf5 /* GL_UNPACK_ALIGNMENT */) {
+    if (pname == 0x0cf5 /* GL_UNPACK_ALIGNMENT */) {
       GL.unpackAlignment = param;
     }
     GLctx.pixelStorei(pname, param);
