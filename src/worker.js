@@ -126,9 +126,9 @@ this.onmessage = function(e) {
       // Module and memory were sent from main thread
       Module['wasmModule'] = e.data.wasmModule;
       Module['wasmMemory'] = e.data.wasmMemory;
-      buffer = Module['buffer'] = Module['wasmMemory'].buffer;
+      buffer = Module['wasmMemory'].buffer;
 #else
-      buffer = Module['buffer'] = e.data.buffer;
+      buffer = e.data.buffer;
 
 #if SEPARATE_ASM != 0
       // load the separated-out asm.js
