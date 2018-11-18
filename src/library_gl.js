@@ -10,6 +10,7 @@
 
 var LibraryGL = {
   $GL__postset: 'var GLctx; GL.init()',
+  $GL__deps: ['_removeAllHandlersOnTarget'],
   $GL: {
 #if GL_DEBUG
     debug: true,

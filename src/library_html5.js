@@ -59,10 +59,10 @@ var LibraryJSEvents = {
     }
   },
 #endif
-
+  _removeAllEventListeners__deps: ['_eventHandlers', '_removeHandler'],
   _removeAllEventListeners: function() {
     for(var i = __eventHandlers.length-1; i >= 0; --i) {
-      ___removeHandler(i);
+      __removeHandler(i);
     }
     __eventHandlers = [];
     __deferredCalls = [];
@@ -180,21 +180,24 @@ var LibraryJSEvents = {
   _isInternetExplorer: function() { return navigator.userAgent.indexOf('MSIE') !== -1 || navigator.appVersion.indexOf('Trident/') > 0; },
 
   // Removes all event handlers on the given DOM element of the given type. Pass in eventTypeString == undefined/null to remove all event handlers regardless of the type.
+  _removeAllHandlersOnTarget__deps: ['_eventHandlers', '_removeHandler'],
   _removeAllHandlersOnTarget: function(target, eventTypeString) {
     for(var i = 0; i < __eventHandlers.length; ++i) {
       if (__eventHandlers[i].target == target && 
         (!eventTypeString || eventTypeString == __eventHandlers[i].eventTypeString)) {
-         ___removeHandler(i--);
+         __removeHandler(i--);
        }
     }
   },
 
+  _removeHandler__deps: ['_eventHandlers'],
   _removeHandler: function(i) {
     var h = __eventHandlers[i];
     h.target.removeEventListener(h.eventTypeString, h.eventListenerFunc, h.useCapture);
     __eventHandlers.splice(i, 1);
   },
   
+  _registerOrRemoveHandler__deps: ['_eventHandlers', '_removeHandler'],
   _registerOrRemoveHandler: function(eventHandler) {
     var jsEventHandler = function jsEventHandler(event) {
       // Increment nesting count for the event handler.
@@ -219,7 +222,7 @@ var LibraryJSEvents = {
       for(var i = 0; i < __eventHandlers.length; ++i) {
         if (__eventHandlers[i].target == eventHandler.target
          && __eventHandlers[i].eventTypeString == eventHandler.eventTypeString) {
-           ___removeHandler(i--);
+           __removeHandler(i--);
          }
       }
     }
