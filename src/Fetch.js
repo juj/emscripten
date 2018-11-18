@@ -74,7 +74,7 @@ var Fetch = {
 #if USE_PTHREADS
   initFetchWorker: function() {
     var stackSize = 128*1024;
-    var stack = allocate(stackSize>>2, "i32*", ALLOC_DYNAMIC);
+    var stack = _malloc(stackSize>>2);
     Fetch.worker.postMessage({cmd: 'init', TOTAL_MEMORY: TOTAL_MEMORY, DYNAMICTOP_PTR: DYNAMICTOP_PTR, STACKTOP: stack, STACK_MAX: stack + stackSize, queuePtr: _fetch_work_queue, buffer: HEAPU8.buffer});
   },
 #endif
