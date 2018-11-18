@@ -926,26 +926,6 @@ HEAP16[1] = 0x6373;
 if (HEAPU8[2] !== 0x73 || HEAPU8[3] !== 0x63) throw 'Runtime error: expected the system to be little-endian!';
 #endif // ASSERTIONS
 
-function callRuntimeCallbacks(callbacks) {
-  while(callbacks.length > 0) {
-    var callback = callbacks.shift();
-    if (typeof callback == 'function') {
-      callback();
-      continue;
-    }
-    var func = callback.func;
-    if (typeof func === 'number') {
-      if (callback.arg === undefined) {
-        Module['dynCall_v'](func);
-      } else {
-        Module['dynCall_vi'](func, callback.arg);
-      }
-    } else {
-      func(callback.arg === undefined ? null : callback.arg);
-    }
-  }
-}
-
 var __ATINIT__    = []; // functions called during startup
 
 #if ASSERTIONS
@@ -974,7 +954,7 @@ function ensureInitRuntime() {
   _emscripten_register_main_browser_thread_id(PThread.mainThreadBlock);
 #endif
 
-  callRuntimeCallbacks(__ATINIT__);
+  for(var i in __ATINIT__) __ATINIT__[i].func();
 }
 
 {{{ unSign }}}
