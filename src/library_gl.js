@@ -752,9 +752,11 @@ var LibraryGL = {
       // Store the created context object so that we can access the context given a canvas without having to pass the parameters again.
       if (ctx.canvas) ctx.canvas.GLctxObject = context;
       GL.contexts[handle] = context;
+#if GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS
       if (typeof webGLContextAttributes['enableExtensionsByDefault'] === 'undefined' || webGLContextAttributes['enableExtensionsByDefault']) {
         GL.initExtensions(context);
       }
+#endif
 
 #if FULL_ES2
       context.maxVertexAttribs = context.GLctx.getParameter(context.GLctx.MAX_VERTEX_ATTRIBS);
@@ -969,7 +971,9 @@ var LibraryGL = {
         var gl_exts = [];
         for (var i = 0; i < exts.length; ++i) {
           gl_exts.push(exts[i]);
+#if GL_EXTENSIONS_IN_PREFIXED_FORMAT
           gl_exts.push("GL_" + exts[i]);
+#endif
         }
         ret = allocate(intArrayFromString(gl_exts.join(' ')), 'i8', ALLOC_NORMAL);
         break;
@@ -1071,7 +1075,11 @@ var LibraryGL = {
           return;
         }
         var exts = GLctx.getSupportedExtensions();
+#if GL_EXTENSIONS_IN_PREFIXED_FORMAT
         ret = 2 * exts.length; // each extension is duplicated, first in unprefixed WebGL form, and then a second time with "GL_" prefix.
+#else
+        ret = exts.length;
+#endif
         break;
       case 0x821B: // GL_MAJOR_VERSION
       case 0x821C: // GL_MINOR_VERSION
@@ -1190,10 +1198,12 @@ var LibraryGL = {
       case 0x1F03 /* GL_EXTENSIONS */:
         var exts = GLctx.getSupportedExtensions();
         var gl_exts = [];
-        // each extension is duplicated, first in unprefixed WebGL form, and then a second time with "GL_" prefix.
         for (var i = 0; i < exts.length; ++i) {
           gl_exts.push(allocate(intArrayFromString(exts[i]), 'i8', ALLOC_NORMAL));
+#if GL_EXTENSIONS_IN_PREFIXED_FORMAT
+          // each extension is duplicated, first in unprefixed WebGL form, and then a second time with "GL_" prefix.
           gl_exts.push(allocate(intArrayFromString("GL_" + exts[i]), 'i8', ALLOC_NORMAL));
+#endif
         }
         stringiCache = GL.stringiCache[name] = gl_exts;
         if (index < 0 || index >= stringiCache.length) {
