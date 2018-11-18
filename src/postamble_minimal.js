@@ -187,17 +187,7 @@ function run() {
     Module['callMain']();
   }
 
-  if (Module['setStatus']) {
-    Module['setStatus']('Running...');
-    setTimeout(function() {
-      setTimeout(function() {
-        Module['setStatus']('');
-      }, 1);
-      doRun();
-    }, 1);
-  } else {
-    doRun();
-  }
+  doRun();
 #if STACK_OVERFLOW_CHECK
   checkStackCookie();
 #endif
