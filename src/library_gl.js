@@ -491,19 +491,6 @@ var LibraryGL = {
 #endif
     // Returns the context handle to the new context.
     createContext: function(canvas, webGLContextAttributes) {
-      if (typeof webGLContextAttributes['majorVersion'] === 'undefined' && typeof webGLContextAttributes['minorVersion'] === 'undefined') {
-#if USE_WEBGL2
-        // If caller did not specify a context, initialize the best one that is possibly available.
-        // To explicitly create a WebGL 1 or a WebGL 2 context, call this function with a specific
-        // majorVersion set.
-        if (typeof WebGL2RenderingContext !== 'undefined') webGLContextAttributes['majorVersion'] = 2;
-        else webGLContextAttributes['majorVersion'] = 1;
-#else
-        webGLContextAttributes['majorVersion'] = 1;
-#endif
-        webGLContextAttributes['minorVersion'] = 0;
-      }
-
 #if OFFSCREEN_FRAMEBUFFER
       // In proxied operation mode, rAF()/setTimeout() functions do not delimit frame boundaries, so can't have WebGL implementation
       // try to detect when it's ok to discard contents of the rendered backbuffer.
