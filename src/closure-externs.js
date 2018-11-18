@@ -836,11 +836,6 @@ SIMD.Bool32x4.fromFloat64x2 = function() {};
 SIMD.Bool64x2.fromFloat64x2 = function() {};
 
 /**
- * @suppress {duplicate}
- */
-var GLctx = {};
-
-/**
  * @const
  */
 var WebAssembly = {};
@@ -1282,14 +1277,6 @@ var _emscripten_glDisableVertexAttribArray;
  */
 var _emscripten_glVertexAttribPointer;
 
-/**
- * @suppress {duplicate, undefinedVars}
- */
-var _glDrawArrays;
-/**
- * @suppress {duplicate, undefinedVars}
- */
-var _glDrawElements;
 /**
  * @suppress {duplicate, undefinedVars}
  */
