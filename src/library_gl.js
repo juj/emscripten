@@ -9,6 +9,12 @@
  */
 
 var LibraryGL = {
+
+  // For functions such as glDrawBuffers, glInvalidateFramebuffer and glInvalidateSubFramebuffer that need to pass a short array to the WebGL API,
+  // create a set of short fixed-length arrays to avoid having to generate any garbage when calling those functions.
+  _tempFixedLengthArray__postset: 'for (var i = 0; i < 32; i++) __tempFixedLengthArray.push(new Array(i));',
+  _tempFixedLengthArray: [],
+
   $GL__postset: 'var GLctx; GL.init()',
   $GL__deps: ['_removeAllHandlersOnTarget'],
   $GL: {
@@ -72,7 +78,6 @@ var LibraryGL = {
 #if USE_WEBGL2
     stringiCache: {},
 #endif
-    tempFixedLengthArray: [],
 
     unpackAlignment: 4, // default alignment is 4 bytes
 
@@ -86,11 +91,6 @@ var LibraryGL = {
         GL.miniTempBufferViews[i] = GL.miniTempBuffer.subarray(0, i+1);
       }
 #endif
-      // For functions such as glDrawBuffers, glInvalidateFramebuffer and glInvalidateSubFramebuffer that need to pass a short array to the WebGL API,
-      // create a set of short fixed-length arrays to avoid having to generate any garbage when calling those functions.
-      for (var i = 0; i < 32; i++) {
-        GL.tempFixedLengthArray.push(new Array(i));
-      }
     },
 
     // Records a GL error condition that occurred, stored until user calls glGetError() to fetch it. As per GLES2 spec, only the first error
@@ -2112,12 +2112,13 @@ var LibraryGL = {
 #endif
 
 #if USE_WEBGL2
+  glInvalidateFramebuffer__deps: ['_tempFixedLengthArray'],
   glInvalidateFramebuffer__sig: 'viii',
   glInvalidateFramebuffer: function(target, numAttachments, attachments) {
 #if GL_ASSERTIONS
-    assert(numAttachments < GL.tempFixedLengthArray.length, 'Invalid count of numAttachments=' + numAttachments + ' passed to glInvalidateFramebuffer (that many attachment points do not exist in GL)');
+    assert(numAttachments < __tempFixedLengthArray.length, 'Invalid count of numAttachments=' + numAttachments + ' passed to glInvalidateFramebuffer (that many attachment points do not exist in GL)');
 #endif
-    var list = GL.tempFixedLengthArray[numAttachments];
+    var list = __tempFixedLengthArray[numAttachments];
     for (var i = 0; i < numAttachments; i++) {
       list[i] = {{{ makeGetValue('attachments', 'i*4', 'i32') }}};
     }
@@ -2125,12 +2126,13 @@ var LibraryGL = {
     GLctx['invalidateFramebuffer'](target, list);
   },
 
+  glInvalidateSubFramebuffer__deps: ['_tempFixedLengthArray'],
   glInvalidateSubFramebuffer__sig: 'viiiiiii',
   glInvalidateSubFramebuffer: function(target, numAttachments, attachments, x, y, width, height) {
 #if GL_ASSERTIONS
-    assert(numAttachments < GL.tempFixedLengthArray.length, 'Invalid count of numAttachments=' + numAttachments + ' passed to glInvalidateSubFramebuffer (that many attachment points do not exist in GL)');
+    assert(numAttachments < __tempFixedLengthArray.length, 'Invalid count of numAttachments=' + numAttachments + ' passed to glInvalidateSubFramebuffer (that many attachment points do not exist in GL)');
 #endif
-    var list = GL.tempFixedLengthArray[numAttachments];
+    var list = __tempFixedLengthArray[numAttachments];
     for (var i = 0; i < numAttachments; i++) {
       list[i] = {{{ makeGetValue('attachments', 'i*4', 'i32') }}};
     }
@@ -7879,16 +7881,17 @@ var LibraryGL = {
   glDrawElementsInstancedANGLE: 'glDrawElementsInstanced',
 
 
+  glDrawBuffers__deps: ['_tempFixedLengthArray'],
   glDrawBuffers__sig: 'vii',
   glDrawBuffers: function(n, bufs) {
 #if GL_ASSERTIONS
     assert(GLctx['drawBuffers'], 'Must have WebGL2 or WEBGL_draw_buffers extension to use drawBuffers');
 #endif
 #if GL_ASSERTIONS
-    assert(n < GL.tempFixedLengthArray.length, 'Invalid count of numBuffers=' + n + ' passed to glDrawBuffers (that many draw buffer points do not exist in GL)');
+    assert(n < __tempFixedLengthArray.length, 'Invalid count of numBuffers=' + n + ' passed to glDrawBuffers (that many draw buffer points do not exist in GL)');
 #endif
 
-    var bufArray = GL.tempFixedLengthArray[n];
+    var bufArray = __tempFixedLengthArray[n];
     for (var i = 0; i < n; i++) {
       bufArray[i] = {{{ makeGetValue('bufs', 'i*4', 'i32') }}};
     }
