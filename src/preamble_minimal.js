@@ -149,7 +149,7 @@ function UTF8ArrayToString(u8Array, idx) {
     return UTF8Decoder.decode(u8Array.subarray(idx, endPtr));
   } else {
 #endif
-    var u0, u1, u2, u3, u4, u5;
+    var u0, u1, u2, u3;
 
     var str = '';
     while (1) {
