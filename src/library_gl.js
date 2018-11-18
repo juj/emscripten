@@ -1439,30 +1439,31 @@ var LibraryGL = {
       return;
     }
     var bytes = __computeUnpackAlignedImageSize(width, height, sizePerPixel, GL.unpackAlignment);
+    var end = pixels + bytes;
     switch(type) {
 #if USE_WEBGL2
       case 0x1400 /* GL_BYTE */:
-        return {{{ makeHEAPView('8', 'pixels', 'pixels+bytes') }}};
+        return HEAP8.subarray(pixels, end);
 #endif
       case 0x1401 /* GL_UNSIGNED_BYTE */:
-        return {{{ makeHEAPView('U8', 'pixels', 'pixels+bytes') }}};
+        return HEAPU8.subarray(pixels, end);
 #if USE_WEBGL2
       case 0x1402 /* GL_SHORT */:
 #if GL_ASSERTIONS
         assert((pixels & 1) == 0, 'Pointer to int16 data passed to texture get function must be aligned to two bytes!');
 #endif
-        return {{{ makeHEAPView('16', 'pixels', 'pixels+bytes') }}};
+        return HEAP16.subarray(pixels>>1, end>>1);
       case 0x1404 /* GL_INT */:
 #if GL_ASSERTIONS
         assert((pixels & 3) == 0, 'Pointer to integer data passed to texture get function must be aligned to four bytes!');
 #endif
-        return {{{ makeHEAPView('32', 'pixels', 'pixels+bytes') }}};
+        return HEAP32.subarray(pixels>>2, end>>2);
 #endif
       case 0x1406 /* GL_FLOAT */:
 #if GL_ASSERTIONS
         assert((pixels & 3) == 0, 'Pointer to float data passed to texture get function must be aligned to four bytes!');
 #endif
-        return {{{ makeHEAPView('F32', 'pixels', 'pixels+bytes') }}};
+        return HEAPF32.subarray(pixels>>2, end>>2);
       case 0x1405 /* GL_UNSIGNED_INT */:
       case 0x84FA /* GL_UNSIGNED_INT_24_8_WEBGL/GL_UNSIGNED_INT_24_8 */:
 #if USE_WEBGL2
@@ -1474,7 +1475,7 @@ var LibraryGL = {
 #if GL_ASSERTIONS
         assert((pixels & 3) == 0, 'Pointer to integer data passed to texture get function must be aligned to four bytes!');
 #endif
-        return {{{ makeHEAPView('U32', 'pixels', 'pixels+bytes') }}};
+        return HEAPU32.subarray(pixels>>2, end>>2);
       case 0x1403 /* GL_UNSIGNED_SHORT */:
       case 0x8363 /* GL_UNSIGNED_SHORT_5_6_5 */:
       case 0x8033 /* GL_UNSIGNED_SHORT_4_4_4_4 */:
@@ -1486,7 +1487,7 @@ var LibraryGL = {
 #if GL_ASSERTIONS
         assert((pixels & 1) == 0, 'Pointer to int16 data passed to texture get function must be aligned to two bytes!');
 #endif
-        return {{{ makeHEAPView('U16', 'pixels', 'pixels+bytes') }}};
+        return HEAPU16.subarray(pixels>>1, end>>1);
       default:
         GL.recordError(0x0500); // GL_INVALID_ENUM
 #if GL_ASSERTIONS
