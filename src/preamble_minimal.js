@@ -873,42 +873,34 @@ updateGlobalBufferViews();
 #endif // !WASM
 #else // USE_PTHREADS
 
-// Use a provided buffer, if there is one, or else allocate a new one
-if (Module['buffer']) {
-  buffer = Module['buffer'];
-#if ASSERTIONS
-  assert(buffer.byteLength === TOTAL_MEMORY, 'provided buffer should be ' + TOTAL_MEMORY + ' bytes, but it is ' + buffer.byteLength);
-#endif
-} else {
-  // Use a WebAssembly memory where available
+// Allocate a buffer
 #if WASM
-  if (typeof WebAssembly === 'object' && typeof WebAssembly.Memory === 'function') {
+if (typeof WebAssembly === 'object' && typeof WebAssembly.Memory === 'function') {
 #if ASSERTIONS
-    assert(TOTAL_MEMORY % WASM_PAGE_SIZE === 0);
+  assert(TOTAL_MEMORY % WASM_PAGE_SIZE === 0);
 #endif // ASSERTIONS
 #if ALLOW_MEMORY_GROWTH
 #if WASM_MEM_MAX != -1
 #if ASSERTIONS
-    assert({{{ WASM_MEM_MAX }}} % WASM_PAGE_SIZE == 0);
+  assert({{{ WASM_MEM_MAX }}} % WASM_PAGE_SIZE == 0);
 #endif
-    Module['wasmMemory'] = new WebAssembly.Memory({ 'initial': TOTAL_MEMORY / WASM_PAGE_SIZE, 'maximum': {{{ WASM_MEM_MAX }}} / WASM_PAGE_SIZE });
+  Module['wasmMemory'] = new WebAssembly.Memory({ 'initial': TOTAL_MEMORY / WASM_PAGE_SIZE, 'maximum': {{{ WASM_MEM_MAX }}} / WASM_PAGE_SIZE });
 #else
-    Module['wasmMemory'] = new WebAssembly.Memory({ 'initial': TOTAL_MEMORY / WASM_PAGE_SIZE });
+  Module['wasmMemory'] = new WebAssembly.Memory({ 'initial': TOTAL_MEMORY / WASM_PAGE_SIZE });
 #endif // BINARYEN_MEM_MAX
 #else
-    Module['wasmMemory'] = new WebAssembly.Memory({ 'initial': TOTAL_MEMORY / WASM_PAGE_SIZE, 'maximum': TOTAL_MEMORY / WASM_PAGE_SIZE });
+  Module['wasmMemory'] = new WebAssembly.Memory({ 'initial': TOTAL_MEMORY / WASM_PAGE_SIZE, 'maximum': TOTAL_MEMORY / WASM_PAGE_SIZE });
 #endif // ALLOW_MEMORY_GROWTH
-    buffer = Module['wasmMemory'].buffer;
-  } else
+  buffer = Module['wasmMemory'].buffer;
+} else
 #endif // WASM
-  {
-    buffer = new ArrayBuffer(TOTAL_MEMORY);
-  }
-#if ASSERTIONS
-  assert(buffer.byteLength === TOTAL_MEMORY);
-#endif // ASSERTIONS
-  Module['buffer'] = buffer;
+{
+  buffer = new ArrayBuffer(TOTAL_MEMORY);
 }
+#if ASSERTIONS
+assert(buffer.byteLength === TOTAL_MEMORY);
+#endif // ASSERTIONS
+
 updateGlobalBufferViews();
 
 #endif // USE_PTHREADS
@@ -1188,7 +1180,7 @@ function integrateWasmJS() {
     // buffer already, including the mem init file, and we must copy it over in a proper merge.
     // TODO: avoid this copy, by avoiding such static init writes
     // TODO: in shorter term, just copy up to the last static init write
-    var oldBuffer = Module['buffer'];
+    var oldBuffer = buffer;
     if (newBuffer.byteLength < oldBuffer.byteLength) {
       err('the new buffer in mergeMemory is smaller than the previous one. in native wasm, we should grow memory here');
     }
@@ -1411,17 +1403,17 @@ function integrateWasmJS() {
 
     wasmJS['lookupImport'] = lookupImport;
 
-    assert(providedBuffer === Module['buffer']); // we should not even need to pass it as a 3rd arg for wasm, but that's the asm.js way.
+    assert(providedBuffer === buffer); // we should not even need to pass it as a 3rd arg for wasm, but that's the asm.js way.
 
     info.global = global;
     info.env = env;
 
     // polyfill interpreter expects an ArrayBuffer
-    assert(providedBuffer === Module['buffer']);
+    assert(providedBuffer === buffer);
     env['memory'] = providedBuffer;
     assert(env['memory'] instanceof ArrayBuffer);
 
-    wasmJS['providedTotalMemory'] = Module['buffer'].byteLength;
+    wasmJS['providedTotalMemory'] = buffer.byteLength;
 
     // Prepare to generate wasm, using either asm2wasm or s-exprs
     var code;
@@ -1471,7 +1463,7 @@ function integrateWasmJS() {
   var wasmReallocBuffer = function(size) {
     var PAGE_MULTIPLE = Module["usingWasm"] ? WASM_PAGE_SIZE : ASMJS_PAGE_SIZE; // In wasm, heap size must be a multiple of 64KB. In asm.js, they need to be multiples of 16MB.
     size = alignUp(size, PAGE_MULTIPLE); // round up to wasm page size
-    var old = Module['buffer'];
+    var old = buffer;
     var oldSize = old.byteLength;
     if (Module["usingWasm"]) {
       // native wasm support
@@ -1479,7 +1471,7 @@ function integrateWasmJS() {
         var result = Module['wasmMemory'].grow((size - oldSize) / wasmPageSize); // .grow() takes a delta compared to the previous size
         if (result !== (-1 | 0)) {
           // success in native wasm memory growth, get the buffer from the memory
-          return Module['buffer'] = Module['wasmMemory'].buffer;
+          return buffer = Module['wasmMemory'].buffer;
         } else {
           return null;
         }
@@ -1495,7 +1487,7 @@ function integrateWasmJS() {
       // wasm interpreter support
       exports['__growWasmMemory']((size - oldSize) / wasmPageSize); // tiny wasm method that just does grow_memory
       // in interpreter, we replace Module.buffer if we allocate
-      return Module['buffer'] !== old ? Module['buffer'] : null; // if it was reallocated, it changed
+      return buffer !== old ? buffer : null; // if it was reallocated, it changed
     }
 #endif // BINARYEN_METHOD != 'native-wasm'
   };

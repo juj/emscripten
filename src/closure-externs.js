@@ -1120,10 +1120,6 @@ var ___cxa_free_exception = function() {};
 /**
  * @suppress {duplicate}
  */
-var buffer;
-/**
- * @suppress {duplicate}
- */
 var global;
 /**
  * @suppress {duplicate}
