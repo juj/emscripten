@@ -2134,7 +2134,9 @@ var LibraryJSEvents = {
     HEAP32[a+7] = 0; // failIfMajorPerformanceCaveat
     HEAP32[a+8] = 1; // majorVersion
     HEAP32[a+9] = 0; // minorVersion
+#if GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS
     HEAP32[a+10] = 1; // enableExtensionsByDefault
+#endif
     HEAP32[a+11] = 0; // explicitSwapControl
 #if USE_PTHREADS
     HEAP32[a+12] = 1; // proxyContextToMainThread
@@ -2156,7 +2158,9 @@ var LibraryJSEvents = {
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.failIfMajorPerformanceCaveat, 0, 'i32') }}};
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.majorVersion, 1, 'i32') }}};
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.minorVersion, 0, 'i32') }}};
+#if GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.enableExtensionsByDefault, 1, 'i32') }}};
+#endif
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.explicitSwapControl, 0, 'i32') }}};
 
 #if USE_PTHREADS
@@ -2185,6 +2189,28 @@ var LibraryJSEvents = {
   // This function performs proxying manually, depending on the style of context that is to be created.
   emscripten_webgl_do_create_context: function(target, a) {
     var c = {};
+
+    a >>= 2;
+    c['alpha'] = !!HEAP32[a];
+    c['depth'] = !!HEAP32[a+1];
+    c['stencil'] = !!HEAP32[a+2];
+    c['antialias'] = !!HEAP32[a+3];
+    c['premultipliedAlpha'] = !!HEAP32[a+4];
+    c['preserveDrawingBuffer'] = !!HEAP32[a+5];
+    c['preferLowPowerToHighPerformance'] = !!HEAP32[a+6];
+    c['failIfMajorPerformanceCaveat'] = !!HEAP32[a+7];
+    c['majorVersion'] = HEAP32[a+8];
+    c['minorVersion'] = HEAP32[a+9];
+#if GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS
+    c['enableExtensionsByDefault'] = HEAP32[a+10];
+#endif
+    c['explicitSwapControl'] = HEAP32[a+11];
+    c['proxyContextToMainThread'] = HEAP32[a+12];
+#if OFFSCREEN_FRAMEBUFFER
+    c['renderViaOffscreenBackBuffer'] = HEAP32[a+13];
+#endif
+
+#if 0
     c['alpha'] = !!{{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.alpha, 'i32') }}};
     c['depth'] = !!{{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.depth, 'i32') }}};
     c['stencil'] = !!{{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.stencil, 'i32') }}};
@@ -2195,13 +2221,15 @@ var LibraryJSEvents = {
     c['failIfMajorPerformanceCaveat'] = !!{{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.failIfMajorPerformanceCaveat, 'i32') }}};
     c['majorVersion'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.majorVersion, 'i32') }}};
     c['minorVersion'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.minorVersion, 'i32') }}};
+#if GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS
     c['enableExtensionsByDefault'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.enableExtensionsByDefault, 'i32') }}};
+#endif
     c['explicitSwapControl'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.explicitSwapControl, 'i32') }}};
     c['proxyContextToMainThread'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 'i32') }}};
 #if OFFSCREEN_FRAMEBUFFER
     c['renderViaOffscreenBackBuffer'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 'i32') }}};
 #endif
-
+#endif
     var canvas = __findCanvasEventTarget(target);
 
 #if USE_PTHREADS
@@ -2404,7 +2432,9 @@ var LibraryJSEvents = {
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.failIfMajorPerformanceCaveat, 't.failIfMajorPerformanceCaveat', 'i32') }}};
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.majorVersion, 'c.version', 'i32') }}};
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.minorVersion, 0, 'i32') }}};
+#if GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.enableExtensionsByDefault, 'c.attributes["enableExtensionsByDefault"]', 'i32') }}};
+#endif
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.explicitSwapControl, 'c.attributes["explicitSwapControl"]', 'i32') }}};
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
