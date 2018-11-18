@@ -89,11 +89,10 @@ var LibraryJSEvents = {
     return document.querySelector(__maybeCStringToJsString(target));
   },
 
-  _findCanvasEventTarget__deps: ['_maybeCStringToJsString'],
+  _findCanvasEventTarget__deps: ['$GL', '_maybeCStringToJsString'],
   _findCanvasEventTarget: function(target) {
     target = __maybeCStringToJsString(target);
-    if (typeof GL !== 'undefined' && GL.offscreenCanvases[target]) return GL.offscreenCanvases[target];
-    return document.querySelector(target);
+    return GL.offscreenCanvases[target] || document.querySelector(target);
   },
 #else
   // Find a DOM element with the given ID.
