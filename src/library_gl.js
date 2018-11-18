@@ -1305,25 +1305,6 @@ var LibraryGL = {
   },
 #endif
 
-  glGenTextures__sig: 'vii',
-  glGenTextures: function(n, textures) {
-    for (var i = 0; i < n; i++) {
-      var texture = GLctx.createTexture();
-      if (!texture) {
-        GL.recordError(0x0502 /* GL_INVALID_OPERATION */); // GLES + EGL specs don't specify what should happen here, so best to issue an error and create IDs with 0.
-#if GL_ASSERTIONS
-        err('GL_INVALID_OPERATION in glGenTextures: GLctx.createTexture returned null - most likely GL context is lost!');
-#endif
-        while(i < n) {{{ makeSetValue('textures', 'i++*4', 0, 'i32') }}};
-        return;
-      }
-      var id = GL.getNewId(GL.textures);
-      texture.name = id;
-      GL.textures[id] = texture;
-      {{{ makeSetValue('textures', 'i*4', 'id', 'i32') }}};
-    }
-  },
-
   glDeleteTextures__sig: 'vii',
   glDeleteTextures: function(n, textures) {
     for (var i = 0; i < n; i++) {
@@ -1753,23 +1734,38 @@ var LibraryGL = {
     return GLctx.isTexture(texture);
   },
 
-  glGenBuffers__sig: 'vii',
-  glGenBuffers: function(n, buffers) {
+  // The code path for creating textures and buffers is so identical to each other (and not in fast path), that merge the functions together to
+  // only have one generated copy of this. createBuffer == 0 -> creating textures, createBuffer == 1 -> creating buffers
+  _glGenTexturesOrBuffers__sig: 'vii',
+  _glGenTexturesOrBuffers: function(n, buffers, createBuffer) {
     for (var i = 0; i < n; i++) {
-      var buffer = GLctx.createBuffer();
+      var buffer = createBuffer ? GLctx.createBuffer() : GLctx.createTexture();
       if (!buffer) {
         GL.recordError(0x0502 /* GL_INVALID_OPERATION */);
 #if GL_ASSERTIONS
-        err('GL_INVALID_OPERATION in glGenBuffers: GLctx.createBuffer returned null - most likely GL context is lost!');
+        err('GL_INVALID_OPERATION in ' + (createBuffer ? 'glGenBuffers' : 'glGenTextures') + ': GLctx.' + (createBuffer ? 'createBuffer' : 'createTexture') + ' returned null - most likely GL context is lost!');
 #endif
         while(i < n) {{{ makeSetValue('buffers', 'i++*4', 0, 'i32') }}};
         return;
       }
-      var id = GL.getNewId(GL.buffers);
+      var id = GL.getNewId(createBuffer ? GL.buffers : GL.textures);
       buffer.name = id;
-      GL.buffers[id] = buffer;
+      if (createBuffer) GL.buffers[id] = buffer;
+      else GL.textures[id] = buffer;
       {{{ makeSetValue('buffers', 'i*4', 'id', 'i32') }}};
     }
+  },
+
+  glGenBuffers__deps: ['_glGenTexturesOrBuffers'],
+  glGenBuffers__sig: 'vii',
+  glGenBuffers: function(n, buffers) {
+    __glGenTexturesOrBuffers(n, buffers, true);
+  },
+
+  glGenTextures__deps: ['_glGenTexturesOrBuffers'],
+  glGenTextures__sig: 'vii',
+  glGenTextures: function(n, textures) {
+    __glGenTexturesOrBuffers(n, textures, false);
   },
 
   glDeleteBuffers__sig: 'vii',
