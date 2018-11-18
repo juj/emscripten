@@ -2786,6 +2786,10 @@ var LibraryJSEvents = {
     cancelAnimationFrame(id);
   },
 
+  emscripten_performance_now: function() {
+    return performance.now();
+  },
+
   emscripten_get_device_pixel_ratio__proxy: 'sync',
   emscripten_get_device_pixel_ratio__sig: 'd',
   emscripten_get_device_pixel_ratio: function() {
