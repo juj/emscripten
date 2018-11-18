@@ -79,6 +79,23 @@ var LibraryJSEvents = {
     }
   },
 
+#if DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR
+  _maybeCStringToJsString: function(cString) {
+    return typeof cString == "number" ? UTF8ToString(cString) : cString;
+  },
+
+  _findEventTarget__deps: ['_maybeCStringToJsString'],
+  _findEventTarget: function(target) {
+    return document.querySelector(__maybeCStringToJsString(target));
+  },
+
+  _findCanvasEventTarget__deps: ['_maybeCStringToJsString'],
+  _findCanvasEventTarget: function(target) {
+    target = __maybeCStringToJsString(target);
+    if (typeof GL !== 'undefined' && GL.offscreenCanvases[target]) return GL.offscreenCanvases[target];
+    return document.querySelector(target);
+  },
+#else
   // Find a DOM element with the given ID.
   _findEventTarget: function(target) {
     try {
@@ -110,7 +127,7 @@ var LibraryJSEvents = {
     if (typeof GL !== 'undefined' && GL.offscreenCanvases[target]) return GL.offscreenCanvases[target];
     return __findEventTarget(target);
   },
-
+#endif
   _deferredCalls: [],
 
   // Queues the given function call to occur the next time we enter an event handler.
