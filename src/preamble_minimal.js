@@ -169,17 +169,7 @@ function UTF8ArrayToString(u8Array, idx) {
             u0 = ((u0 & 15) << 12) | (u1 << 6) | u2;
           } else {
             u3 = u8Array[idx++] & 63;
-            if ((u0 & 0xF8) == 0xF0) {
-              u0 = ((u0 & 7) << 18) | (u1 << 12) | (u2 << 6) | u3;
-            } else {
-              u4 = u8Array[idx++] & 63;
-              if ((u0 & 0xFC) == 0xF8) {
-                u0 = ((u0 & 3) << 24) | (u1 << 18) | (u2 << 12) | (u3 << 6) | u4;
-              } else {
-                u5 = u8Array[idx++] & 63;
-                u0 = ((u0 & 1) << 30) | (u1 << 24) | (u2 << 18) | (u3 << 12) | (u4 << 6) | u5;
-              }
-            }
+            u0 = ((u0 & 7) << 18) | (u1 << 12) | (u2 << 6) | u3;
           }
         }
       }
@@ -242,24 +232,9 @@ function stringToUTF8Array(str, outU8Array, outIdx, maxBytesToWrite) {
       outU8Array[outIdx++] = 0xE0 | (u >> 12);
       outU8Array[outIdx++] = 0x80 | ((u >> 6) & 63);
       outU8Array[outIdx++] = 0x80 | (u & 63);
-    } else if (u <= 0x1FFFFF) {
+    } else {
       if (outIdx + 3 >= endIdx) break;
       outU8Array[outIdx++] = 0xF0 | (u >> 18);
-      outU8Array[outIdx++] = 0x80 | ((u >> 12) & 63);
-      outU8Array[outIdx++] = 0x80 | ((u >> 6) & 63);
-      outU8Array[outIdx++] = 0x80 | (u & 63);
-    } else if (u <= 0x3FFFFFF) {
-      if (outIdx + 4 >= endIdx) break;
-      outU8Array[outIdx++] = 0xF8 | (u >> 24);
-      outU8Array[outIdx++] = 0x80 | ((u >> 18) & 63);
-      outU8Array[outIdx++] = 0x80 | ((u >> 12) & 63);
-      outU8Array[outIdx++] = 0x80 | ((u >> 6) & 63);
-      outU8Array[outIdx++] = 0x80 | (u & 63);
-    } else {
-      if (outIdx + 5 >= endIdx) break;
-      outU8Array[outIdx++] = 0xFC | (u >> 30);
-      outU8Array[outIdx++] = 0x80 | ((u >> 24) & 63);
-      outU8Array[outIdx++] = 0x80 | ((u >> 18) & 63);
       outU8Array[outIdx++] = 0x80 | ((u >> 12) & 63);
       outU8Array[outIdx++] = 0x80 | ((u >> 6) & 63);
       outU8Array[outIdx++] = 0x80 | (u & 63);
@@ -297,12 +272,8 @@ function lengthBytesUTF8(str) {
       len += 2;
     } else if (u <= 0xFFFF) {
       len += 3;
-    } else if (u <= 0x1FFFFF) {
-      len += 4;
-    } else if (u <= 0x3FFFFFF) {
-      len += 5;
     } else {
-      len += 6;
+      len += 4;
     }
   }
   return len;
