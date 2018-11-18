@@ -24,11 +24,11 @@
 LibraryManager.library = {
   // keep this low in memory, because we flatten arrays with them in them
 #if USE_PTHREADS
-  stdin: '; if (ENVIRONMENT_IS_PTHREAD) _stdin = PthreadWorkerInit._stdin; else PthreadWorkerInit._stdin = _stdin = allocate(1, "i32*", ALLOC_STATIC)',
-  stdout: '; if (ENVIRONMENT_IS_PTHREAD) _stdout = PthreadWorkerInit._stdout; else PthreadWorkerInit._stdout = _stdout = allocate(1, "i32*", ALLOC_STATIC)',
-  stderr: '; if (ENVIRONMENT_IS_PTHREAD) _stderr = PthreadWorkerInit._stderr; else PthreadWorkerInit._stderr = _stderr = allocate(1, "i32*", ALLOC_STATIC)',
-  _impure_ptr: '; if (ENVIRONMENT_IS_PTHREAD) __impure_ptr = PthreadWorkerInit.__impure_ptr; else PthreadWorkerInit.__impure_ptr __impure_ptr = allocate(1, "i32*", ALLOC_STATIC)',
-  __dso_handle: '; if (ENVIRONMENT_IS_PTHREAD) ___dso_handle = PthreadWorkerInit.___dso_handle; else PthreadWorkerInit.___dso_handle = ___dso_handle = allocate(1, "i32*", ALLOC_STATIC)',
+  stdin: '; if (ENVIRONMENT_IS_PTHREAD) _stdin = PthreadWorkerInit._stdin; else PthreadWorkerInit._stdin = _stdin = staticAlloc(1)',
+  stdout: '; if (ENVIRONMENT_IS_PTHREAD) _stdout = PthreadWorkerInit._stdout; else PthreadWorkerInit._stdout = _stdout = staticAlloc(1)',
+  stderr: '; if (ENVIRONMENT_IS_PTHREAD) _stderr = PthreadWorkerInit._stderr; else PthreadWorkerInit._stderr = _stderr = staticAlloc(1)',
+  _impure_ptr: '; if (ENVIRONMENT_IS_PTHREAD) __impure_ptr = PthreadWorkerInit.__impure_ptr; else PthreadWorkerInit.__impure_ptr __impure_ptr = staticAlloc(1)',
+  __dso_handle: '; if (ENVIRONMENT_IS_PTHREAD) ___dso_handle = PthreadWorkerInit.___dso_handle; else PthreadWorkerInit.___dso_handle = ___dso_handle = staticAlloc(1)',
 #else
   stdin: '{{{ makeStaticAlloc(1) }}}',
   stdout: '{{{ makeStaticAlloc(1) }}}',
@@ -1881,8 +1881,9 @@ LibraryManager.library = {
       return 0;
     } else {
       if (DLFCN.error) _free(DLFCN.error);
-      var msgArr = intArrayFromString(DLFCN.errorMsg);
-      DLFCN.error = allocate(msgArr, 'i8', ALLOC_NORMAL);
+      var len = lengthBytesUTF8(DLFCN.errorMsg)+1;
+      DLFCN.error = _malloc(len);
+      stringToUTF8(DLFCN.errorMsg, DLFCN.error, len);
       DLFCN.errorMsg = null;
       return DLFCN.error;
     }
@@ -1892,7 +1893,10 @@ LibraryManager.library = {
   dladdr__sig: 'iii',
   dladdr: function(addr, info) {
     // report all function pointers as coming from this program itself XXX not really correct in any way
-    var fname = allocate(intArrayFromString(Module['thisProgram'] || './this.program'), 'i8', ALLOC_NORMAL); // XXX leak
+    var s = Module['thisProgram'] || './this.program';
+    var len = lengthBytesUTF8(s)+1;
+    var fname  = _malloc(len); // XXX leak
+    stringToUTF8(s, fname, len);
     {{{ makeSetValue('info', 0, 'fname', 'i32') }}};
     {{{ makeSetValue('info', QUANTUM_SIZE, '0', 'i32') }}};
     {{{ makeSetValue('info', QUANTUM_SIZE*2, '0', 'i32') }}};
