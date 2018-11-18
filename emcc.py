@@ -2767,7 +2767,10 @@ def module_export_name_substitution():
   src = open(final).read()
   final = final + '.module_export_name_substitution.js'
   f = open(final, 'w')
-  replacement = "typeof %(EXPORT_NAME)s !== 'undefined' ? %(EXPORT_NAME)s : {}" % {"EXPORT_NAME": shared.Settings.EXPORT_NAME}
+  if shared.Settings.MINIMAL_RUNTIME:
+    replacement = shared.Settings.EXPORT_NAME
+  else:
+    replacement = "typeof %(EXPORT_NAME)s !== 'undefined' ? %(EXPORT_NAME)s : {}" % {"EXPORT_NAME": shared.Settings.EXPORT_NAME}
   f.write(src.replace(shared.JS.module_export_name_substitution_pattern, replacement))
   f.close()
   save_intermediate('module_export_name_substitution', 'js')
