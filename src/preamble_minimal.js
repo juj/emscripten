@@ -1106,7 +1106,7 @@ function lookupSymbol(ptr) { // for a pointer, print out all symbols that resolv
   for (var i in Module) {
     if (Module[i] === ptr) ret.push(i);
   }
-  print(ptr + ' is ' + ret);
+  out(ptr + ' is ' + ret);
 }
 #endif
 #endif
