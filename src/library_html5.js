@@ -2177,7 +2177,7 @@ var LibraryJSEvents = {
     c['proxyContextToMainThread'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 'i32') }}};
     c['renderViaOffscreenBackBuffer'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 'i32') }}};
 
-    target = Pointer_stringify(target);
+    target = UTF8ToString(target);
     var canvas;
     if ((!target || target === '#canvas') && Module['canvas']) {
       canvas = (Module['canvas'].id && GL.offscreenCanvases[Module['canvas'].id]) ? (GL.offscreenCanvases[Module['canvas'].id].offscreenCanvas || __findEventTarget(Module['canvas'].id)) : Module['canvas'];
