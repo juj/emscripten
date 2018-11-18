@@ -986,11 +986,13 @@ function callRuntimeCallbacks(callbacks) {
 
 var __ATINIT__    = []; // functions called during startup
 
+#if ASSERTIONS
 var runtimeInitialized = false;
 var runtimeExited = false;
 
 #if USE_PTHREADS
 if (ENVIRONMENT_IS_PTHREAD) runtimeInitialized = true; // The runtime is hosted in the main thread, and bits shared to pthreads via SharedArrayBuffer. No need to init again in pthread.
+#endif
 #endif
 
 function ensureInitRuntime() {
@@ -1000,13 +1002,16 @@ function ensureInitRuntime() {
 #if USE_PTHREADS
   if (ENVIRONMENT_IS_PTHREAD) return; // PThreads reuse the runtime from the main thread.
 #endif
+#if ASSERTIONS
   if (runtimeInitialized) return;
   runtimeInitialized = true;
+#endif
 #if USE_PTHREADS
   // Pass the thread address inside the asm.js scope to store it for fast access that avoids the need for a FFI out.
   __register_pthread_ptr(PThread.mainThreadBlock, /*isMainBrowserThread=*/!ENVIRONMENT_IS_WORKER, /*isMainRuntimeThread=*/1);
   _emscripten_register_main_browser_thread_id(PThread.mainThreadBlock);
 #endif
+
   callRuntimeCallbacks(__ATINIT__);
 }
 
