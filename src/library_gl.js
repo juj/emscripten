@@ -1358,14 +1358,13 @@ var LibraryGL = {
   },
 #endif
 
-  $emscriptenWebGLComputeImageSize: function(width, height, sizePerPixel, alignment) {
+  _computeUnpackAlignedImageSize: function(width, height, sizePerPixel, alignment) {
     function roundedToNextMultipleOf(x, y) {
-      return Math.floor((x + y - 1) / y) * y
+      return Math.ceil(x/y)*y;
     }
     var plainRowSize = width * sizePerPixel;
     var alignedRowSize = roundedToNextMultipleOf(plainRowSize, alignment);
-    return (height <= 0) ? 0 :
-             ((height - 1) * alignedRowSize + plainRowSize);
+    return height * alignedRowSize;
   },
 
   _colorChannelsInGlTextureFormat: {
@@ -1409,7 +1408,7 @@ var LibraryGL = {
 #endif
   },
 
-  $emscriptenWebGLGetTexPixelData__deps: ['$emscriptenWebGLComputeImageSize', '_colorChannelsInGlTextureFormat', '_sizeOfGlTextureElementType'],
+  $emscriptenWebGLGetTexPixelData__deps: ['_computeUnpackAlignedImageSize', '_colorChannelsInGlTextureFormat', '_sizeOfGlTextureElementType'],
   $emscriptenWebGLGetTexPixelData: function(type, format, width, height, pixels, internalFormat) {
     var sizePerPixel = __colorChannelsInGlTextureFormat[format] * __sizeOfGlTextureElementType[type];
     if (!sizePerPixel) {
@@ -1420,7 +1419,7 @@ var LibraryGL = {
 #endif
       return;
     }
-    var bytes = emscriptenWebGLComputeImageSize(width, height, sizePerPixel, GL.unpackAlignment);
+    var bytes = __computeUnpackAlignedImageSize(width, height, sizePerPixel, GL.unpackAlignment);
     switch(type) {
 #if USE_WEBGL2
       case 0x1400 /* GL_BYTE */:
