@@ -1331,3 +1331,7 @@ var EMIT_FUNCTION_GRAPH_DATA = 0;
 
 // If true, uses minimal size runtime without POSIX emulation or other historical features
 var MINIMAL_RUNTIME = 0;
+
+// If true, there is no "Module.canvas" object, and DOM element 'target' parameters
+// are taken to refer to CSS selectors, instead of referring to IDs
+var DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR = 0;
