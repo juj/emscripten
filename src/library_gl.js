@@ -805,7 +805,7 @@ var LibraryGL = {
 
     deleteContext: function(contextHandle) {
       if (GL.currentContext === GL.contexts[contextHandle]) GL.currentContext = null;
-      if (typeof JSEvents === 'object') JSEvents.removeAllHandlersOnTarget(GL.contexts[contextHandle].GLctx.canvas); // Release all JS event handlers on the DOM element that the GL context is associated with since the context is now deleted.
+      __removeAllHandlersOnTarget(GL.contexts[contextHandle].GLctx.canvas); // Release all JS event handlers on the DOM element that the GL context is associated with since the context is now deleted.
       if (GL.contexts[contextHandle] && GL.contexts[contextHandle].GLctx.canvas) GL.contexts[contextHandle].GLctx.canvas.GLctxObject = undefined; // Make sure the canvas object no longer refers to the context object so there are no GC surprises.
       _free(GL.contexts[contextHandle]);
       GL.contexts[contextHandle] = null;
@@ -862,7 +862,7 @@ var LibraryGL = {
       // E.g. debugging-related extensions should probably be off by default.
       var automaticallyEnabledExtensions = [ // Khronos ratified WebGL extensions ordered by number (no debug extensions):
                                              "OES_texture_float", "OES_texture_half_float", "OES_standard_derivatives",
-                                             "OES_vertex_array_object", "WEBGL_compressed_texture_s3tc", "WEBGL_depth_texture",
+                                             "OES_vertex_array_object", "WEBGL_compressed_texture_s3tc", "WEBGL_depth_texture", 
                                              "OES_element_index_uint", "EXT_texture_filter_anisotropic", "EXT_frag_depth",
                                              "WEBGL_draw_buffers", "ANGLE_instanced_arrays", "OES_texture_float_linear",
                                              "OES_texture_half_float_linear", "EXT_blend_minmax", "EXT_shader_texture_lod",

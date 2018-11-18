@@ -109,7 +109,6 @@ var LibraryManager = {
     // Core system libraries (always linked against)
     var libraries = [
       'library.js',
-      'library_browser.js',
       'library_formatString.js',
       'library_path.js',
       'library_signals.js',
