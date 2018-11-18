@@ -49,7 +49,7 @@ function JSify(data, functionsOnly) {
   var itemsDict = { type: [], GlobalVariableStub: [], functionStub: [], function: [], GlobalVariable: [], GlobalVariablePostSet: [] };
 
   if (mainPass) {
-    var shellFile = SHELL_FILE ? SHELL_FILE : (SIDE_MODULE ? 'shell_sharedlib.js' : 'shell.js');
+    var shellFile = SHELL_FILE ? SHELL_FILE : (SIDE_MODULE ? 'shell_sharedlib.js' : (MINIMAL_RUNTIME ? 'shell_minimal.js' : 'shell.js'));
 
     // We will start to print out the data, but must do so carefully - we are
     // dealing with potentially *huge* strings. Convenient replacements and
@@ -76,8 +76,9 @@ function JSify(data, functionsOnly) {
     if (SIDE_MODULE) {
       pre = processMacros(preprocess(read('preamble_sharedlib.js'), 'preamble_sharedlib.js'));
     } else {
+      var preamble = MINIMAL_RUNTIME ? 'preamble_minimal.js' : 'preamble.js';
       pre = processMacros(preprocess(read('support.js'), 'support.js')) +
-            processMacros(preprocess(read('preamble.js'), 'preamble.js'));
+            processMacros(preprocess(read(preamble), preamble));
     }
     print(pre);
   }
@@ -607,7 +608,7 @@ function JSify(data, functionsOnly) {
       print(read('deterministic.js'));
     }
 
-    var postFile = SIDE_MODULE ? 'postamble_sharedlib.js' : 'postamble.js';
+    var postFile = SIDE_MODULE ? 'postamble_sharedlib.js' : (MINIMAL_RUNTIME ? 'postamble_minimal.js' : 'postamble.js');
     var postParts = processMacros(preprocess(read(postFile), postFile)).split('{{GLOBAL_VARS}}');
     print(postParts[0]);
 

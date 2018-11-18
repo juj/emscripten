@@ -1314,3 +1314,6 @@ var MODULE_EXPORTS = [];
 
 // If true, function call graph dependency data is emitted to a.out.graph.json file.
 var EMIT_FUNCTION_GRAPH_DATA = 0;
+
+// If true, uses minimal size runtime without POSIX emulation or other historical features
+var MINIMAL_RUNTIME = 0;
