@@ -455,6 +455,11 @@ var GL_FFP_ONLY = 0;
 // WebGL initialization afterwards will use this GL context to render.
 var GL_PREINITIALIZED_CONTEXT = 0;
 
+// If true, calls to glUniform*fv and glUniformMatrix*fv utilize a pool of preallocated temporary buffers for common small sizes
+// to avoid generating temporary garbage for WebGL 1. Disable this to optimize generated size of the GL library a little bit.
+// If you are only using WebGL 2 and do not support WebGL 1, this is not needed and you can turn it off.
+var GL_POOL_TEMP_BUFFERS = 1;
+
 // Enables building of stb-image, a tiny public-domain library for decoding
 // images, allowing decoding of images without using the browser's built-in
 // decoders. The benefit is that this can be done synchronously, however, it
