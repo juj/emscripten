@@ -50,7 +50,7 @@ if (memoryInitializer) {
     var data = Module['readBinary'](memoryInitializer);
     HEAPU8.set(data, GLOBAL_BASE);
   } else {
-    addRunDependency('memory initializer');
+//    addRunDependency('memory initializer');
     var applyMemoryInitializer = function(data) {
       if (data.byteLength) data = new Uint8Array(data);
 #if ASSERTIONS
@@ -63,7 +63,7 @@ if (memoryInitializer) {
       // we won't keep unnecessary memory lying around. However, keep the XHR object itself alive so that e.g.
       // its .status field can still be accessed later.
       if (Module['memoryInitializerRequest']) delete Module['memoryInitializerRequest'].response;
-      removeRunDependency('memory initializer');
+//      removeRunDependency('memory initializer');
     }
     function doBrowserLoad() {
       Module['readAsync'](memoryInitializer, applyMemoryInitializer, function() {
