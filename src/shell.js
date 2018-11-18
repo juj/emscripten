@@ -43,7 +43,6 @@ for (key in Module) {
   }
 }
 
-Module['thisProgram'] = './this.program';
 Module['quit'] = function(status, toThrow) {
   throw toThrow;
 };
