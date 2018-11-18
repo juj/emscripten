@@ -106,6 +106,10 @@ function assert(condition, text) {
   if (!condition) throw text;
 }
 
+function abort(what) {
+  throw what;
+}
+
 // Given a pointer 'ptr' to a null-terminated ASCII-encoded string in the emscripten HEAP, returns
 // a copy of that string as a Javascript String object.
 

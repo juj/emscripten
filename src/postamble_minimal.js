@@ -32,7 +32,3 @@ Module['run'] = function() {
   checkStackCookie();
 #endif
 }
-
-function abort(what) {
-  throw what;
-}
