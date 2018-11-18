@@ -2427,9 +2427,11 @@ class Building(object):
               '--externs', CLOSURE_EXTERNS,
               # '--variable_map_output_file', filename + '.vars',
               '--js', filename, '--js_output_file', outfile]
-      for extern in NODE_EXTERNS:
-        args.append('--externs')
-        args.append(extern)
+
+      # TODO: ONLY IF TARGETING NODE, NOT WHEN TARGETING BROWSER
+#      for extern in NODE_EXTERNS:
+#        args.append('--externs')
+#        args.append(extern)
       for extern in BROWSER_EXTERNS:
         args.append('--externs')
         args.append(extern)
