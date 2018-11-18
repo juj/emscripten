@@ -501,6 +501,30 @@ var LibraryGL = {
       webGLContextAttributes['preserveDrawingBuffer'] = true;
 #endif
 
+#if GL_PREINITIALIZED_CONTEXT
+      // If WebGL context has already been preinitialized for the page on the JS side, reuse that context instead. This is useful for example when
+      // the main page precompiles shaders for the application, in which case the WebGL context is created already before any Emscripten compiled
+      // code has been downloaded.
+      if (Module['preinitializedWebGLContext']) {
+        var ctx = Module['preinitializedWebGLContext'];
+#if USE_WEBGL2
+        webGLContextAttributes['majorVersion'] = (typeof WebGL2RenderingContext !== 'undefined' && ctx instanceof WebGL2RenderingContext) ? 2 : 1;
+#else
+        webGLContextAttributes['majorVersion'] = 1;
+#endif
+      } else
+#endif
+      {
+#if USE_WEBGL2
+        if (webGLContextAttributes['majorVersion'] == 2) {
+          var ctx = canvas.getContext("webgl2", webGLContextAttributes);
+        } else
+#endif
+        {
+          var ctx = canvas.getContext("webgl", webGLContextAttributes) || canvas.getContext("experimental-webgl", webGLContextAttributes);
+        }
+      }
+/*
       var ctx;
       var errorInfo = '?';
       function onContextCreationError(event) {
@@ -537,12 +561,13 @@ var LibraryGL = {
 #endif
         return 0;
       }
-
-      if (!ctx) return 0;
-      var context = GL.registerContext(ctx, webGLContextAttributes);
+*/
+      if (ctx) {
+        var context = GL.registerContext(ctx, webGLContextAttributes);
 #if TRACE_WEBGL_CALLS
-      GL.hookWebGL(ctx);
+        GL.hookWebGL(ctx);
 #endif
+      }
       return context;
     },
 
