@@ -341,7 +341,7 @@ var LibraryJSEvents = {
     {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.buttons, 'e.buttons', 'i16') }}};
     {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.movementX, 'e["movementX"] || e["mozMovementX"] || e["webkitMovementX"] || (e.screenX-__previousScreenX)', 'i32') }}};
     {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.movementY, 'e["movementY"] || e["mozMovementY"] || e["webkitMovementY"] || (e.screenY-__previousScreenY)', 'i32') }}};
-
+/*
     if (Module['canvas']) {
       var rect = Module['canvas'].getBoundingClientRect();
       {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.canvasX, 'e.clientX - rect.left', 'i32') }}};
@@ -350,6 +350,7 @@ var LibraryJSEvents = {
       {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.canvasX, '0', 'i32') }}};
       {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.canvasY, '0', 'i32') }}};
     }
+*/
     if (target) {
       var rect = __getBoundingClientRectOrZeros(target);
       {{{ makeSetValue('s', C_STRUCTS.EmscriptenMouseEvent.targetX, 'e.clientX - rect.left', 'i32') }}};
@@ -1087,7 +1088,7 @@ var LibraryJSEvents = {
       {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchEvent.altKey, 'e.altKey', 'i32') }}};
       {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchEvent.metaKey, 'e.metaKey', 'i32') }}};
       v += {{{ C_STRUCTS.EmscriptenTouchEvent.touches }}}; // Advance to the start of the touch array.
-      var canvasRect = Module['canvas'] ? Module['canvas'].getBoundingClientRect() : undefined;
+//      var canvasRect = Module['canvas'] ? Module['canvas'].getBoundingClientRect() : undefined;
       var targetRect = __getBoundingClientRectOrZeros(target);
       var numTouches = 0;
       for(var i in touches) {
@@ -1101,13 +1102,14 @@ var LibraryJSEvents = {
         {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.pageY, 't.pageY', 'i32') }}};
         {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.isChanged, 't.changed', 'i32') }}};
         {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.onTarget, 't.onTarget', 'i32') }}};
+        /*
         if (canvasRect) {
           {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.canvasX, 't.clientX - canvasRect.left', 'i32') }}};
           {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.canvasY, 't.clientY - canvasRect.top', 'i32') }}};
-        } else {
+        } else {*/
           {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.canvasX, '0', 'i32') }}};
           {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.canvasY, '0', 'i32') }}};            
-        }
+//        }
         {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.targetX, 't.clientX - targetRect.left', 'i32') }}};
         {{{ makeSetValue('v', C_STRUCTS.EmscriptenTouchPoint.targetY, 't.clientY - targetRect.top', 'i32') }}};
         v += {{{ C_STRUCTS.EmscriptenTouchPoint.__size__ }}};
@@ -1278,8 +1280,7 @@ var LibraryJSEvents = {
 #if USE_PTHREADS
     targetThread = __getTargetThreadForEventCallback(targetThread);
 #endif
-    if (target) target = __findEventTarget(target);
-    else target = Module['canvas'];
+    target = __findEventTarget(target);
     if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
     var webGlEventHandlerFunc = function(event) {
@@ -2180,7 +2181,7 @@ var LibraryJSEvents = {
   emscripten_webgl_commit_frame: 'emscripten_webgl_do_commit_frame',
 #endif
 
-  emscripten_webgl_do_create_context__deps: ['$GL', '_findEventTarget'],
+  emscripten_webgl_do_create_context__deps: ['$GL', '_findCanvasEventTarget'],
   // This function performs proxying manually, depending on the style of context that is to be created.
   emscripten_webgl_do_create_context: function(target, a) {
     var c = {};
@@ -2201,13 +2202,7 @@ var LibraryJSEvents = {
     c['renderViaOffscreenBackBuffer'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 'i32') }}};
 #endif
 
-    target = UTF8ToString(target);
-    var canvas;
-    if ((!target || target === '#canvas') && Module['canvas']) {
-      canvas = (Module['canvas'].id && GL.offscreenCanvases[Module['canvas'].id]) ? (GL.offscreenCanvases[Module['canvas'].id].offscreenCanvas || __findEventTarget(Module['canvas'].id)) : Module['canvas'];
-    } else {
-      canvas = GL.offscreenCanvases[target] ? GL.offscreenCanvases[target].offscreenCanvas : __findEventTarget(target);
-    }
+    var canvas = __findCanvasEventTarget(target);
 
 #if USE_PTHREADS
     // Create a WebGL context that is proxied to main thread if canvas was not found on worker, or if explicitly requested to do so.
@@ -2676,8 +2671,7 @@ var LibraryJSEvents = {
   emscripten_set_element_css_size__proxy: 'sync',
   emscripten_set_element_css_size__sig: 'iiii',
   emscripten_set_element_css_size: function(target, width, height) {
-    if (target) target = __findEventTarget(target);
-    else target = Module['canvas'];
+    target = __findEventTarget(target);
     if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
     target.style.width = width + "px";
@@ -2690,8 +2684,7 @@ var LibraryJSEvents = {
   emscripten_get_element_css_size__proxy: 'sync',
   emscripten_get_element_css_size__sig: 'iiii',
   emscripten_get_element_css_size: function(target, width, height) {
-    if (target) target = __findEventTarget(target);
-    else target = Module['canvas'];
+    target = __findEventTarget(target);
     if (!target) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
 
     if (target.getBoundingClientRect) {
