@@ -2105,6 +2105,27 @@ var LibraryJSEvents = {
 
   // Execute in calling thread without proxying needed.
   emscripten_webgl_init_context_attributes: function(a) {
+    a >>= 2;
+    HEAP32[a] = 1; // alpha
+    HEAP32[a+1] = 1; // depth
+    HEAP32[a+2] = 0; // stencil
+    HEAP32[a+3] = 1; // antialias
+    HEAP32[a+4] = 1; // premultipliedAlpha
+    HEAP32[a+5] = 0; // preserveDrawingBuffer
+    HEAP32[a+6] = 0; // preferLowPowerToHighPerformance
+    HEAP32[a+7] = 0; // failIfMajorPerformanceCaveat
+    HEAP32[a+8] = 1; // majorVersion
+    HEAP32[a+9] = 0; // minorVersion
+    HEAP32[a+10] = 1; // enableExtensionsByDefault
+    HEAP32[a+11] = 0; // explicitSwapControl
+#if USE_PTHREADS
+    HEAP32[a+12] = 1; // proxyContextToMainThread
+#else
+    HEAP32[a+12] = 0; // proxyContextToMainThread
+#endif
+    HEAP32[a+13] = 0; // renderViaOffscreenBackBuffer
+
+#if 0
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.alpha, 1, 'i32') }}};
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.depth, 1, 'i32') }}};
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.stencil, 0, 'i32') }}};
@@ -2117,6 +2138,7 @@ var LibraryJSEvents = {
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.minorVersion, 0, 'i32') }}};
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.enableExtensionsByDefault, 1, 'i32') }}};
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.explicitSwapControl, 0, 'i32') }}};
+
 #if USE_PTHREADS
     // The default proposed context initialization state is as follows:
     // - if main thread is creating the context, default to the context not being shared between threads
@@ -2127,6 +2149,7 @@ var LibraryJSEvents = {
       {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 0/*EMSCRIPTEN_WEBGL_CONTEXT_PROXY_DISALLOW*/, 'i32') }}};
 
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 0, 'i32') }}};
+#endif
   },
 
 #if !USE_PTHREADS
