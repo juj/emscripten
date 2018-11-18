@@ -48,9 +48,6 @@ for (key in Module) {
   }
 }
 
-Module['quit'] = function(status, toThrow) {
-  throw toThrow;
-};
 Module['preRun'] = [];
 Module['postRun'] = [];
 
@@ -176,10 +173,6 @@ if (ENVIRONMENT_IS_NODE) {
   // deprecated, and in the future it will exit with error status.
   process['on']('unhandledRejection', abort);
 
-  Module['quit'] = function(status) {
-    process['exit'](status);
-  };
-
   Module['inspect'] = function () { return '[Emscripten Module object]'; };
 } else
 #endif // ENVIRONMENT_MAY_BE_NODE
@@ -219,12 +212,6 @@ if (ENVIRONMENT_IS_SHELL) {
     assert(typeof data === 'object');
     return data;
   };
-
-  if (typeof quit === 'function') {
-    Module['quit'] = function(status) {
-      quit(status);
-    }
-  }
 } else
 #endif // ENVIRONMENT_MAY_BE_SHELL
 
