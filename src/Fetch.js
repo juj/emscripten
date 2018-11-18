@@ -156,7 +156,7 @@ function __emscripten_fetch_delete_cached_data(db, f, onsuccess, onerror) {
   var attr = f + 112/*offsetof(Fetch::__attributes)*/;
   var path = HEAPU32[attr + 60/*offsetof(Fetch::destinationPath)*/ >> 2];
   if (!path) path = HEAPU32[f + 8/*offsetof(Fetch::offset_url)*/ >> 2];
-  var pathStr = Pointer_stringify(path);
+  var pathStr = UTF8ToString(path);
 
   try {
     var transaction = db.transaction(['FILES'], 'readwrite');
@@ -205,7 +205,7 @@ function __emscripten_fetch_load_cached_data(db, f, onsuccess, onerror) {
   var attr = f + 112/*offsetof(Fetch::__attributes)*/;
   var path = HEAPU32[attr + 60/*offsetof(Fetch::destinationPath)*/ >> 2];
   if (!path) path = HEAPU32[f + 8/*offsetof(Fetch::offset_url)*/ >> 2];
-  var pathStr = Pointer_stringify(path);
+  var pathStr = UTF8ToString(path);
 
   try {
     var transaction = db.transaction(['FILES'], 'readonly');
@@ -270,7 +270,7 @@ function __emscripten_fetch_cache_data(db, f, data, onsuccess, onerror) {
   var attr = f + 112/*offsetof(Fetch::__attributes)*/;
   var destinationPath = HEAPU32[attr + 60/*offsetof(Fetch::destinationPath)*/ >> 2];
   if (!destinationPath) destinationPath = HEAPU32[f + 8/*offsetof(Fetch::offset_url)*/ >> 2];
-  var destinationPathStr = Pointer_stringify(destinationPath);
+  var destinationPathStr = UTF8ToString(destinationPath);
 
   try {
     var transaction = db.transaction(['FILES'], 'readwrite');
@@ -315,10 +315,10 @@ function __emscripten_fetch_xhr(f, onsuccess, onerror, onprogress) {
     onerror(f, 0, 'no url specified!');
     return;
   }
-  var url_ = Pointer_stringify(url);
+  var url_ = UTF8ToString(url);
 
   var attr = f + 112/*offsetof(Fetch::__attributes)*/;
-  var requestMethod = Pointer_stringify(attr);
+  var requestMethod = UTF8ToString(attr);
   if (!requestMethod) requestMethod = 'GET';
   var userData = HEAPU32[attr + 32/*offsetof(Fetch::userData)*/ >> 2];
   var fetchAttributes = HEAPU32[attr + 48/*offsetof(Fetch::attributes)*/ >> 2];
@@ -342,9 +342,9 @@ function __emscripten_fetch_xhr(f, onsuccess, onerror, onprogress) {
   var fetchAttrSynchronous = !!(fetchAttributes & 64/*EMSCRIPTEN_FETCH_SYNCHRONOUS*/);
   var fetchAttrWaitable = !!(fetchAttributes & 128/*EMSCRIPTEN_FETCH_WAITABLE*/);
 
-  var userNameStr = userName ? Pointer_stringify(userName) : undefined;
-  var passwordStr = password ? Pointer_stringify(password) : undefined;
-  var overriddenMimeTypeStr = overriddenMimeType ? Pointer_stringify(overriddenMimeType) : undefined;
+  var userNameStr = userName ? UTF8ToString(userName) : undefined;
+  var passwordStr = password ? UTF8ToString(password) : undefined;
+  var overriddenMimeTypeStr = overriddenMimeType ? UTF8ToString(overriddenMimeType) : undefined;
 
   var xhr = new XMLHttpRequest();
   xhr.withCredentials = withCredentials;
@@ -370,8 +370,8 @@ function __emscripten_fetch_xhr(f, onsuccess, onerror, onprogress) {
       var value = HEAPU32[requestHeaders + 4 >> 2];
       if (!value) break;
       requestHeaders += 8;
-      var keyStr = Pointer_stringify(key);
-      var valueStr = Pointer_stringify(value);
+      var keyStr = UTF8ToString(key);
+      var valueStr = UTF8ToString(value);
 #if FETCH_DEBUG
       console.log('fetch: xhr.setRequestHeader("' + keyStr + '", "' + valueStr + '");');
 #endif
@@ -485,7 +485,7 @@ function emscripten_start_fetch(f, successcb, errorcb, progresscb) {
   if (typeof Module !== 'undefined') Module['noExitRuntime'] = true; // If we are the main Emscripten runtime, we should not be closing down.
 
   var attr = f + 112/*offsetof(Fetch::__attributes)*/;
-  var requestMethod = Pointer_stringify(attr);
+  var requestMethod = UTF8ToString(attr);
   var onsuccess = HEAPU32[attr + 36/*offsetof(Fetch::onsuccess)*/ >> 2];
   var onerror = HEAPU32[attr + 40/*offsetof(Fetch::onerror)*/ >> 2];
   var onprogress = HEAPU32[attr + 44/*offsetof(Fetch::onprogress)*/ >> 2];

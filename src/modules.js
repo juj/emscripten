@@ -356,7 +356,6 @@ function exportRuntime() {
     'getValue',
     'allocate',
     'getMemory',
-    'Pointer_stringify',
     'AsciiToString',
     'stringToAscii',
     'UTF8ArrayToString',

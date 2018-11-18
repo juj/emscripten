@@ -2376,7 +2376,7 @@ var LibraryGL = {
     program = GL.programs[program];
     var vars = [];
     for (var i = 0; i < count; i++)
-      vars.push(Pointer_stringify({{{ makeGetValue('varyings', 'i*4', 'i32') }}}));
+      vars.push(UTF8ToString({{{ makeGetValue('varyings', 'i*4', 'i32') }}}));
 
     GLctx['transformFeedbackVaryings'](program, vars, bufferMode);
   },
@@ -2514,7 +2514,7 @@ var LibraryGL = {
     program = GL.programs[program];
     var names = [];
     for (var i = 0; i < uniformCount; i++)
-      names.push(Pointer_stringify({{{ makeGetValue('uniformNames', 'i*4', 'i32') }}}));
+      names.push(UTF8ToString({{{ makeGetValue('uniformNames', 'i*4', 'i32') }}}));
 
     var result = GLctx['getUniformIndices'](program, names);
     if (!result) return; // GL spec: If an error is generated, nothing is written out to uniformIndices.
@@ -2564,7 +2564,7 @@ var LibraryGL = {
     GL.validateGLObjectID(GL.programs, program, 'glGetUniformBlockIndex', 'program');
 #endif
     program = GL.programs[program];
-    uniformBlockName = Pointer_stringify(uniformBlockName);
+    uniformBlockName = UTF8ToString(uniformBlockName);
     return GLctx['getUniformBlockIndex'](program, uniformBlockName);
   },
 
@@ -2876,7 +2876,7 @@ var LibraryGL = {
 #if GL_ASSERTIONS
     GL.validateGLObjectID(GL.programs, program, 'glGetUniformLocation', 'program');
 #endif
-    name = Pointer_stringify(name);
+    name = UTF8ToString(name);
 
     var arrayOffset = 0;
     // If user passed an array accessor "[index]", parse the array index off the accessor.
@@ -2911,7 +2911,7 @@ var LibraryGL = {
 #if GL_ASSERTIONS
     GL.validateGLObjectID(GL.programs, program, 'glGetFragDataLocation', 'program');
 #endif
-    return GLctx['getFragDataLocation'](GL.programs[program], Pointer_stringify(name));
+    return GLctx['getFragDataLocation'](GL.programs[program], UTF8ToString(name));
   },
 #endif
 
@@ -3661,7 +3661,7 @@ var LibraryGL = {
 
   glGetAttribLocation__sig: 'iii',
   glGetAttribLocation: function(program, name) {
-    return GLctx.getAttribLocation(GL.programs[program], Pointer_stringify(name));
+    return GLctx.getAttribLocation(GL.programs[program], UTF8ToString(name));
   },
 
   glGetActiveAttrib__sig: 'viiiiiii',
@@ -4051,7 +4051,7 @@ var LibraryGL = {
 #if GL_ASSERTIONS
     GL.validateGLObjectID(GL.programs, program, 'glBindAttribLocation', 'program');
 #endif
-    name = Pointer_stringify(name);
+    name = UTF8ToString(name);
     GLctx.bindAttribLocation(GL.programs[program], index, name);
   },
 

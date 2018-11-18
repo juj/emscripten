@@ -89,7 +89,7 @@ LibraryManager.library = {
     } else {
       time = Date.now();
     }
-    path = Pointer_stringify(path);
+    path = UTF8ToString(path);
     try {
       FS.utime(path, time, time);
       return 0;
@@ -112,7 +112,7 @@ LibraryManager.library = {
     } else {
       time = Date.now();
     }
-    path = Pointer_stringify(path);
+    path = UTF8ToString(path);
     try {
       FS.utime(path, time, time);
       return 0;
@@ -691,7 +691,7 @@ LibraryManager.library = {
     // char *getenv(const char *name);
     // http://pubs.opengroup.org/onlinepubs/009695399/functions/getenv.html
     if (name === 0) return 0;
-    name = Pointer_stringify(name);
+    name = UTF8ToString(name);
     if (!ENV.hasOwnProperty(name)) return 0;
 
     if (_getenv.ret) _free(_getenv.ret);
@@ -718,8 +718,8 @@ LibraryManager.library = {
       ___setErrNo(ERRNO_CODES.EINVAL);
       return -1;
     }
-    var name = Pointer_stringify(envname);
-    var val = Pointer_stringify(envval);
+    var name = UTF8ToString(envname);
+    var val = UTF8ToString(envval);
     if (name === '' || name.indexOf('=') !== -1) {
       ___setErrNo(ERRNO_CODES.EINVAL);
       return -1;
@@ -739,7 +739,7 @@ LibraryManager.library = {
       ___setErrNo(ERRNO_CODES.EINVAL);
       return -1;
     }
-    name = Pointer_stringify(name);
+    name = UTF8ToString(name);
     if (name === '' || name.indexOf('=') !== -1) {
       ___setErrNo(ERRNO_CODES.EINVAL);
       return -1;
@@ -763,7 +763,7 @@ LibraryManager.library = {
       ___setErrNo(ERRNO_CODES.EINVAL);
       return -1;
     }
-    string = Pointer_stringify(string);
+    string = UTF8ToString(string);
     var splitPoint = string.indexOf('=')
     if (string === '' || string.indexOf('=') === -1) {
       ___setErrNo(ERRNO_CODES.EINVAL);
@@ -1132,11 +1132,11 @@ LibraryManager.library = {
   llvm_prefetch: function(){},
 
   __assert_fail: function(condition, filename, line, func) {
-    abort('Assertion failed: ' + Pointer_stringify(condition) + ', at: ' + [filename ? Pointer_stringify(filename) : 'unknown filename', line, func ? Pointer_stringify(func) : 'unknown function']);
+    abort('Assertion failed: ' + UTF8ToString(condition) + ', at: ' + [filename ? UTF8ToString(filename) : 'unknown filename', line, func ? UTF8ToString(func) : 'unknown function']);
   },
 
   __assert_func: function(filename, line, func, condition) {
-    abort('Assertion failed: ' + (condition ? Pointer_stringify(condition) : 'unknown condition') + ', at: ' + [filename ? Pointer_stringify(filename) : 'unknown filename', line, func ? Pointer_stringify(func) : 'unknown function']);
+    abort('Assertion failed: ' + (condition ? UTF8ToString(condition) : 'unknown condition') + ', at: ' + [filename ? UTF8ToString(filename) : 'unknown filename', line, func ? UTF8ToString(func) : 'unknown function']);
   },
 
   $EXCEPTIONS: {
@@ -1757,7 +1757,7 @@ LibraryManager.library = {
     if (filenameAddr === 0) {
       filename = '__self__';
     } else {
-      filename = Pointer_stringify(filenameAddr);
+      filename = UTF8ToString(filenameAddr);
 
       var isValidFile = function (filename) {
         var target = FS.findObject(filename);
@@ -1828,7 +1828,7 @@ LibraryManager.library = {
   dlsym: function(handle, symbol) {
     // void *dlsym(void *restrict handle, const char *restrict name);
     // http://pubs.opengroup.org/onlinepubs/009695399/functions/dlsym.html
-    symbol = Pointer_stringify(symbol);
+    symbol = UTF8ToString(symbol);
 
     if (!LDSO.loadedLibs[handle]) {
       DLFCN.errorMsg = 'Tried to dlsym() from an unopened handle: ' + handle;
@@ -2226,10 +2226,10 @@ LibraryManager.library = {
       tm_yday: {{{ makeGetValue('tm', C_STRUCTS.tm.tm_yday, 'i32') }}},
       tm_isdst: {{{ makeGetValue('tm', C_STRUCTS.tm.tm_isdst, 'i32') }}},
       tm_gmtoff: {{{ makeGetValue('tm', C_STRUCTS.tm.tm_gmtoff, 'i32') }}},
-      tm_zone: tm_zone ? Pointer_stringify(tm_zone) : ''
+      tm_zone: tm_zone ? UTF8ToString(tm_zone) : ''
     };
 
-    var pattern = Pointer_stringify(format);
+    var pattern = UTF8ToString(format);
 
     // expand format
     var EXPANSION_RULES_1 = {
@@ -2517,7 +2517,7 @@ LibraryManager.library = {
   strptime: function(buf, format, tm) {
     // char *strptime(const char *restrict buf, const char *restrict format, struct tm *restrict tm);
     // http://pubs.opengroup.org/onlinepubs/009695399/functions/strptime.html
-    var pattern = Pointer_stringify(format);
+    var pattern = UTF8ToString(format);
 
     // escape special characters
     // TODO: not sure we really need to escape all of these in JS regexps
@@ -2584,8 +2584,8 @@ LibraryManager.library = {
       pattern = pattern.replace(new RegExp('\\%'+pattern[i+1], 'g'), '');
     }
 
-    var matches = new RegExp('^'+pattern, "i").exec(Pointer_stringify(buf))
-    // out(Pointer_stringify(buf)+ ' is matched by '+((new RegExp('^'+pattern)).source)+' into: '+JSON.stringify(matches));
+    var matches = new RegExp('^'+pattern, "i").exec(UTF8ToString(buf))
+    // out(UTF8ToString(buf)+ ' is matched by '+((new RegExp('^'+pattern)).source)+' into: '+JSON.stringify(matches));
 
     function initDate() {
       function fixup(value, min, max) {
@@ -3259,7 +3259,7 @@ LibraryManager.library = {
   // old ipv4 only functions
   inet_addr__deps: ['_inet_pton4_raw'],
   inet_addr: function(ptr) {
-    var addr = __inet_pton4_raw(Pointer_stringify(ptr));
+    var addr = __inet_pton4_raw(UTF8ToString(ptr));
     if (addr === null) {
       return -1;
     }
@@ -3354,7 +3354,7 @@ LibraryManager.library = {
   },
   _inet_pton6__deps: ['_inet_pton6_raw'],
   _inet_pton6: function(src, dst) {
-    var ints = __inet_pton6_raw(Pointer_stringify(src));
+    var ints = __inet_pton6_raw(UTF8ToString(src));
     if (ints === null) {
       return 0;
     }
@@ -3595,7 +3595,7 @@ LibraryManager.library = {
   gethostbyname__proxy: 'sync',
   gethostbyname__sig: 'ii',
   gethostbyname: function(name) {
-    name = Pointer_stringify(name);
+    name = UTF8ToString(name);
 
     // generate hostent
     var ret = _malloc({{{ C_STRUCTS.hostent.__size__ }}}); // XXX possibly leaked, as are others here
@@ -3719,7 +3719,7 @@ LibraryManager.library = {
     }
 
     if (service) {
-      service = Pointer_stringify(service);
+      service = UTF8ToString(service);
       port = parseInt(service, 10);
 
       if (isNaN(port)) {
@@ -3751,7 +3751,7 @@ LibraryManager.library = {
     //
     // try as a numeric address
     //
-    node = Pointer_stringify(node);
+    node = UTF8ToString(node);
     addr = __inet_pton4_raw(node);
     if (addr !== null) {
       // incoming node is a valid ipv4 address
@@ -3956,7 +3956,7 @@ LibraryManager.library = {
   getprotobyname__deps: ['setprotoent', '$Protocols'],
   getprotobyname: function(name) {
     // struct protoent *getprotobyname(const char *);
-    name = Pointer_stringify(name);
+    name = UTF8ToString(name);
     _setprotoent(true);
     var result = Protocols.map[name];
     return result;
@@ -4012,15 +4012,15 @@ LibraryManager.library = {
   // ==========================================================================
 
   emscripten_run_script: function(ptr) {
-    {{{ makeEval('eval(Pointer_stringify(ptr));') }}}
+    {{{ makeEval('eval(UTF8ToString(ptr));') }}}
   },
 
   emscripten_run_script_int: function(ptr) {
-    {{{ makeEval('return eval(Pointer_stringify(ptr))|0;') }}}
+    {{{ makeEval('return eval(UTF8ToString(ptr))|0;') }}}
   },
 
   emscripten_run_script_string: function(ptr) {
-    {{{ makeEval("var s = eval(Pointer_stringify(ptr)) + '';") }}}
+    {{{ makeEval("var s = eval(UTF8ToString(ptr)) + '';") }}}
     var me = _emscripten_run_script_string;
     var len = lengthBytesUTF8(s);
     if (!me.bufferSize || me.bufferSize < len+1) {
@@ -4258,7 +4258,7 @@ LibraryManager.library = {
   },
 
   emscripten_get_compiler_setting: function(name) {
-    name = Pointer_stringify(name);
+    name = UTF8ToString(name);
 
     var ret = getCompilerSetting(name);
     if (typeof ret === 'number') return ret;
