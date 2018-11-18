@@ -145,24 +145,6 @@ Module['then'] = function(func) {
 #endif
 #endif
 
-var calledMain = false;
-
-#if HAS_MAIN
-Module['callMain'] = function callMain() {
-
-  ensureInitRuntime();
-
-#if PROXY_TO_PTHREAD
-    // User requested the PROXY_TO_PTHREAD option, so call a stub main which pthread_create()s a new thread
-    // that will call the user's real main() for the application.
-    var ret = Module['_proxy_main']();
-#else
-    var ret = Module['_main']();
-#endif
-  calledMain = true;
-}
-#endif // HAS_MAIN
-
 {{GLOBAL_VARS}}
 
 /** @type {function(Array=)} */
@@ -171,22 +153,18 @@ function run() {
   writeStackCookie();
 #endif
 
-  if (Module['calledRun']) return; // run may have just been called through dependencies being fulfilled just in this very frame
+  ensureInitRuntime();
 
-  function doRun() {
-    if (Module['calledRun']) return; // run may have just been called while the async setStatus time below was happening
-    Module['calledRun'] = true;
+  if (Module['onRuntimeInitialized']) Module['onRuntimeInitialized']();
 
-    if (ABORT) return;
+#if PROXY_TO_PTHREAD
+    // User requested the PROXY_TO_PTHREAD option, so call a stub main which pthread_create()s a new thread
+    // that will call the user's real main() for the application.
+    var ret = Module['_proxy_main']();
+#else
+    var ret = Module['_main']();
+#endif
 
-    ensureInitRuntime();
-
-    if (Module['onRuntimeInitialized']) Module['onRuntimeInitialized']();
-
-    Module['callMain']();
-  }
-
-  doRun();
 #if STACK_OVERFLOW_CHECK
   checkStackCookie();
 #endif
