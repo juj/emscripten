@@ -103,9 +103,7 @@ var EXITSTATUS = 0;
 
 /** @type {function(*, string=)} */
 function assert(condition, text) {
-  if (!condition) {
-    abort('Assertion failed: ' + text);
-  }
+  if (!condition) throw text;
 }
 
 var globalScope = this;
@@ -161,7 +159,14 @@ function AsciiToString(ptr) {
 // null-terminated and encoded in ASCII form. The copy will require at most str.length+1 bytes of space in the HEAP.
 
 function stringToAscii(str, outPtr) {
-  return writeAsciiToMemory(str, outPtr, false);
+  for (var i = 0; i < str.length; ++i) {
+#if ASSERTIONS
+    assert(str.charCodeAt(i) === str.charCodeAt(i)&0xff);
+#endif
+    {{{ makeSetValue('buffer++', 0, 'str.charCodeAt(i)', 'i8') }}};
+  }
+  // Null-terminate the pointer to the HEAP.
+  {{{ makeSetValue('buffer', 0, 0, 'i8') }}};
 }
 
 // Given a pointer 'ptr' to a null-terminated UTF8-encoded string in the given array that contains uint8 values, returns
@@ -620,18 +625,19 @@ var HEAP,
   HEAPF64;
 
 function updateGlobalBuffer(buf) {
-  Module['buffer'] = buffer = buf;
+  buffer = buf;
 }
 
 function updateGlobalBufferViews() {
-  Module['HEAP8'] = HEAP8 = new Int8Array(buffer);
-  Module['HEAP16'] = HEAP16 = new Int16Array(buffer);
-  Module['HEAP32'] = HEAP32 = new Int32Array(buffer);
-  Module['HEAPU8'] = HEAPU8 = new Uint8Array(buffer);
-  Module['HEAPU16'] = HEAPU16 = new Uint16Array(buffer);
-  Module['HEAPU32'] = HEAPU32 = new Uint32Array(buffer);
-  Module['HEAPF32'] = HEAPF32 = new Float32Array(buffer);
-  Module['HEAPF64'] = HEAPF64 = new Float64Array(buffer);
+  HEAP8 = new Int8Array(buffer);
+  HEAP16 = new Int16Array(buffer);
+  HEAP32 = new Int32Array(buffer);
+  HEAPU8 = new Uint8Array(buffer);
+  HEAPU16 = new Uint16Array(buffer);
+  HEAPU32 = new Uint32Array(buffer);
+  HEAPF32 = new Float32Array(buffer);
+  HEAPF64 = new Float64Array(buffer);
+// TODO: #if EXPORT_HEAP, then assign Module['HEAP*'] = HEAP*
 }
 
 var STATIC_BASE, STATICTOP, staticSealed; // static area
@@ -831,9 +837,11 @@ try {
 }
 #endif
 
-var TOTAL_STACK = Module['TOTAL_STACK'] || {{{ TOTAL_STACK }}};
-var TOTAL_MEMORY = Module['TOTAL_MEMORY'] || {{{ TOTAL_MEMORY }}};
+var TOTAL_STACK = {{{ TOTAL_STACK }}};
+var TOTAL_MEMORY = {{{ TOTAL_MEMORY }}};
+#if ASSERTIONS
 if (TOTAL_MEMORY < TOTAL_STACK) err('TOTAL_MEMORY should be larger than TOTAL_STACK, was ' + TOTAL_MEMORY + '! (TOTAL_STACK=' + TOTAL_STACK + ')');
+#endif
 
 // Initialize the runtime's memory
 #if ASSERTIONS
@@ -1629,8 +1637,6 @@ function integrateWasmJS() {
 
 #if ASSERTIONS
     assert(exports, 'no binaryen method succeeded. consider enabling more options, like interpreting, if you want that: http://kripken.github.io/emscripten-site/docs/compiling/WebAssembly.html#binaryen-methods');
-#else
-    assert(exports, 'no binaryen method succeeded.');
 #endif
 
 #if RUNTIME_LOGGING
