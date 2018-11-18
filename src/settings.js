@@ -408,6 +408,15 @@ var FULL_ES2 = 0;
 // from the output.
 var GL_EMULATE_GLES_VERSION_STRING_FORMAT = 1;
 
+// If true, all GL extensions are advertised in both unprefixed WebGL extension
+// format, but also in desktop/mobile GLES/GL extension format with "GL_" prefix.
+var GL_EXTENSIONS_IN_PREFIXED_FORMAT = 1;
+
+// If true, adds support for automatically enabling all GL extensions for
+// GLES/GL emulation purposes. This takes up code size. If you set this to 0,
+// you will need to manually enable the extensions you need.
+var GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS = 1;
+
 // Some old Android WeChat (Chromium 37?) browser has a WebGL bug that it ignores
 // the offset of a typed array view pointing to an ArrayBuffer. Set this to 
 // 1 to enable a polyfill that works around the issue when it appears. This
