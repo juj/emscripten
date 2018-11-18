@@ -2123,7 +2123,9 @@ var LibraryJSEvents = {
 #else
     HEAP32[a+12] = 0; // proxyContextToMainThread
 #endif
+#if OFFSCREEN_FRAMEBUFFER
     HEAP32[a+13] = 0; // renderViaOffscreenBackBuffer
+#endif
 
 #if 0
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.alpha, 1, 'i32') }}};
@@ -2148,7 +2150,10 @@ var LibraryJSEvents = {
 #endif
       {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 0/*EMSCRIPTEN_WEBGL_CONTEXT_PROXY_DISALLOW*/, 'i32') }}};
 
+#if OFFSCREEN_FRAMEBUFFER
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 0, 'i32') }}};
+#endif
+
 #endif
   },
 
@@ -2175,7 +2180,9 @@ var LibraryJSEvents = {
     c['enableExtensionsByDefault'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.enableExtensionsByDefault, 'i32') }}};
     c['explicitSwapControl'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.explicitSwapControl, 'i32') }}};
     c['proxyContextToMainThread'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 'i32') }}};
+#if OFFSCREEN_FRAMEBUFFER
     c['renderViaOffscreenBackBuffer'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 'i32') }}};
+#endif
 
     target = UTF8ToString(target);
     var canvas;
