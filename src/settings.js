@@ -1329,3 +1329,7 @@ var MINIMAL_RUNTIME = 0;
 // If true, there is no "Module.canvas" object, and DOM element 'target' parameters
 // are taken to refer to CSS selectors, instead of referring to IDs
 var DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR = 0;
+
+// Tracks whether we are building with errno support enabled. Set to 0
+// to disable compiling errno support in altogether.
+var SUPPORT_ERRNO = 1;

@@ -74,7 +74,11 @@ LibraryManager.library = {
   // utime.h
   // ==========================================================================
 
-  utime__deps: ['$FS', '__setErrNo', '$ERRNO_CODES'],
+  utime__deps: ['$FS'
+#if SUPPORT_ERRNO
+  , '__setErrNo', '$ERRNO_CODES'
+#endif
+  ],
   utime__proxy: 'sync',
   utime__sig: 'iii',
   utime: function(path, times) {
@@ -99,7 +103,11 @@ LibraryManager.library = {
     }
   },
 
-  utimes__deps: ['$FS', '__setErrNo', '$ERRNO_CODES'],
+  utimes__deps: ['$FS'
+#if SUPPORT_ERRNO
+  , '__setErrNo', '$ERRNO_CODES'
+#endif
+  ],
   utimes__proxy: 'sync',
   utimes__sig: 'iii',
   utimes: function(path, times) {
@@ -132,17 +140,23 @@ LibraryManager.library = {
     return 0;
   },
 
+#if SUPPORT_ERRNO
   chroot__deps: ['__setErrNo', '$ERRNO_CODES'],
+#endif
   chroot__proxy: 'sync',
   chroot__sig: 'ii',
   chroot: function(path) {
     // int chroot(const char *path);
     // http://pubs.opengroup.org/onlinepubs/7908799/xsh/chroot.html
+#if SUPPORT_ERRNO
     ___setErrNo(ERRNO_CODES.EACCES);
+#endif
     return -1;
   },
 
+#if SUPPORT_ERRNO
   fpathconf__deps: ['__setErrNo', '$ERRNO_CODES'],
+#endif
   fpathconf__proxy: 'sync',
   fpathconf__sig: 'iii',
   fpathconf: function(fildes, name) {
@@ -180,12 +194,18 @@ LibraryManager.library = {
       case {{{ cDefine('_PC_FILESIZEBITS') }}}:
         return 64;
     }
+#if SUPPORT_ERRNO
     ___setErrNo(ERRNO_CODES.EINVAL);
+#endif
     return -1;
   },
   pathconf: 'fpathconf',
 
-  confstr__deps: ['__setErrNo', '$ERRNO_CODES', '$ENV'],
+  confstr__deps: ['$ENV'
+#if SUPPORT_ERRNO
+  , '__setErrNo', '$ERRNO_CODES'
+#endif
+  ],
   confstr__proxy: 'sync',
   confstr__sig: 'iiii',
   confstr: function(name, buf, len) {
@@ -227,7 +247,9 @@ LibraryManager.library = {
         value = '-m32 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64';
         break;
       default:
+#if SUPPORT_ERRNO
         ___setErrNo(ERRNO_CODES.EINVAL);
+#endif
         return 0;
     }
     if (len == 0 || buf == 0) {
@@ -242,12 +264,16 @@ LibraryManager.library = {
     }
   },
 
+#if SUPPORT_ERRNO
   execl__deps: ['__setErrNo', '$ERRNO_CODES'],
+#endif
   execl: function(/* ... */) {
     // int execl(const char *path, const char *arg0, ... /*, (char *)0 */);
     // http://pubs.opengroup.org/onlinepubs/009695399/functions/exec.html
     // We don't support executing external code.
+#if SUPPORT_ERRNO
     ___setErrNo(ERRNO_CODES.ENOEXEC);
+#endif
     return -1;
   },
   execle: 'execl',
@@ -264,28 +290,40 @@ LibraryManager.library = {
     exit(status);
   },
 
+#if SUPPORT_ERRNO
   fork__deps: ['__setErrNo', '$ERRNO_CODES'],
+#endif
   fork: function() {
     // pid_t fork(void);
     // http://pubs.opengroup.org/onlinepubs/000095399/functions/fork.html
     // We don't support multiple processes.
+#if SUPPORT_ERRNO
     ___setErrNo(ERRNO_CODES.EAGAIN);
+#endif
     return -1;
   },
   vfork: 'fork',
   posix_spawn: 'fork',
   posix_spawnp: 'fork',
 
-  setgroups__deps: ['__setErrNo', '$ERRNO_CODES', 'sysconf'],
+  setgroups__deps: ['sysconf'
+#if SUPPORT_ERRNO
+  , '__setErrNo', '$ERRNO_CODES'
+#endif
+  ],
   setgroups: function(ngroups, gidset) {
     // int setgroups(int ngroups, const gid_t *gidset);
     // https://developer.apple.com/library/mac/#documentation/Darwin/Reference/ManPages/man2/setgroups.2.html
     if (ngroups < 1 || ngroups > _sysconf({{{ cDefine('_SC_NGROUPS_MAX') }}})) {
+#if SUPPORT_ERRNO
       ___setErrNo(ERRNO_CODES.EINVAL);
+#endif
       return -1;
     } else {
       // We have just one process/user/group, so it makes no sense to set groups.
+#if SUPPORT_ERRNO
       ___setErrNo(ERRNO_CODES.EPERM);
+#endif
       return -1;
     }
   },
@@ -294,7 +332,9 @@ LibraryManager.library = {
     return PAGE_SIZE;
   },
 
+#if SUPPORT_ERRNO
   sysconf__deps: ['__setErrNo', '$ERRNO_CODES'],
+#endif
   sysconf__proxy: 'sync',
   sysconf__sig: 'ii',
   sysconf: function(name) {
@@ -450,7 +490,9 @@ LibraryManager.library = {
         return 1;
       }
     }
+#if SUPPORT_ERRNO
     ___setErrNo(ERRNO_CODES.EINVAL);
+#endif
     return -1;
   },
 
@@ -460,7 +502,9 @@ LibraryManager.library = {
   // We control the "dynamic" memory - DYNAMIC_BASE to DYNAMICTOP
   sbrk__asm: true,
   sbrk__sig: ['ii'],
+#if SUPPORT_ERRNO
   sbrk__deps: ['__setErrNo'],
+#endif
   sbrk: function(increment) {
     increment = increment|0;
     var oldDynamicTop = 0;
@@ -483,7 +527,9 @@ LibraryManager.library = {
 #if ABORTING_MALLOC
         abortOnCannotGrowMemory()|0;
 #else
+#if SUPPORT_ERRNO
         ___setErrNo({{{ cDefine('ENOMEM') }}});
+#endif
         return -1;
 #endif
       }
@@ -500,7 +546,9 @@ LibraryManager.library = {
 #if ABORTING_MALLOC
       abortOnCannotGrowMemory()|0;
 #endif
+#if SUPPORT_ERRNO
       ___setErrNo({{{ cDefine('ENOMEM') }}});
+#endif
       return -1;
     }
 
@@ -509,7 +557,9 @@ LibraryManager.library = {
     if ((newDynamicTop|0) > (totalMemory|0)) {
       if ((enlargeMemory()|0) == 0) {
         HEAP32[DYNAMICTOP_PTR>>2] = oldDynamicTop;
+#if SUPPORT_ERRNO
         ___setErrNo({{{ cDefine('ENOMEM') }}});
+#endif
         return -1;
       }
     }
@@ -531,7 +581,9 @@ LibraryManager.library = {
 #if ABORTING_MALLOC
       abortOnCannotGrowMemory()|0;
 #else
+#if SUPPORT_ERRNO
       ___setErrNo({{{ cDefine('ENOMEM') }}});
+#endif
       return -1;
 #endif
     }
@@ -541,7 +593,9 @@ LibraryManager.library = {
 #if ABORTING_MALLOC
       abortOnCannotGrowMemory()|0;
 #endif
+#if SUPPORT_ERRNO
       ___setErrNo({{{ cDefine('ENOMEM') }}});
+#endif
       return -1;
     }
 
@@ -550,7 +604,9 @@ LibraryManager.library = {
     totalMemory = getTotalMemory()|0;
     if ((newDynamicTop|0) > (totalMemory|0)) {
       if ((enlargeMemory()|0) == 0) {
+#if SUPPORT_ERRNO
         ___setErrNo({{{ cDefine('ENOMEM') }}});
+#endif
         HEAP32[DYNAMICTOP_PTR>>2] = oldDynamicTop;
         return -1;
       }
@@ -559,12 +615,16 @@ LibraryManager.library = {
     return 0;
   },
 
+#if SUPPORT_ERRNO
   system__deps: ['__setErrNo', '$ERRNO_CODES'],
+#endif
   system: function(command) {
     // int system(const char *command);
     // http://pubs.opengroup.org/onlinepubs/000095399/functions/system.html
     // Can't call external programs.
+#if SUPPORT_ERRNO
     ___setErrNo(ERRNO_CODES.EAGAIN);
+#endif
     return -1;
   },
 
@@ -708,20 +768,28 @@ LibraryManager.library = {
     ___buildEnvironment(__get_environ());
     return 0;
   },
-  setenv__deps: ['$ENV', '__buildEnvironment', '$ERRNO_CODES', '__setErrNo'],
+  setenv__deps: ['$ENV', '__buildEnvironment'
+#if SUPPORT_ERRNO
+  , '$ERRNO_CODES', '__setErrNo'
+#endif
+  ],
   setenv__proxy: 'sync',
   setenv__sig: 'iiii',
   setenv: function(envname, envval, overwrite) {
     // int setenv(const char *envname, const char *envval, int overwrite);
     // http://pubs.opengroup.org/onlinepubs/009695399/functions/setenv.html
     if (envname === 0) {
+#if SUPPORT_ERRNO
       ___setErrNo(ERRNO_CODES.EINVAL);
+#endif
       return -1;
     }
     var name = UTF8ToString(envname);
     var val = UTF8ToString(envval);
     if (name === '' || name.indexOf('=') !== -1) {
+#if SUPPORT_ERRNO
       ___setErrNo(ERRNO_CODES.EINVAL);
+#endif
       return -1;
     }
     if (ENV.hasOwnProperty(name) && !overwrite) return 0;
@@ -729,19 +797,27 @@ LibraryManager.library = {
     ___buildEnvironment(__get_environ());
     return 0;
   },
-  unsetenv__deps: ['$ENV', '__buildEnvironment', '$ERRNO_CODES', '__setErrNo'],
+  unsetenv__deps: ['$ENV', '__buildEnvironment'
+#if SUPPORT_ERRNO
+  , '$ERRNO_CODES', '__setErrNo'
+#endif
+  ],
   unsetenv__proxy: 'sync',
   unsetenv__sig: 'ii',
   unsetenv: function(name) {
     // int unsetenv(const char *name);
     // http://pubs.opengroup.org/onlinepubs/009695399/functions/unsetenv.html
     if (name === 0) {
+#if SUPPORT_ERRNO
       ___setErrNo(ERRNO_CODES.EINVAL);
+#endif
       return -1;
     }
     name = UTF8ToString(name);
     if (name === '' || name.indexOf('=') !== -1) {
+#if SUPPORT_ERRNO
       ___setErrNo(ERRNO_CODES.EINVAL);
+#endif
       return -1;
     }
     if (ENV.hasOwnProperty(name)) {
@@ -750,7 +826,11 @@ LibraryManager.library = {
     }
     return 0;
   },
-  putenv__deps: ['$ENV', '__buildEnvironment', '$ERRNO_CODES', '__setErrNo'],
+  putenv__deps: ['$ENV', '__buildEnvironment'
+#if SUPPORT_ERRNO
+  , '$ERRNO_CODES', '__setErrNo'
+#endif
+  ],
   putenv__proxy: 'sync',
   putenv__sig: 'ii',
   putenv: function(string) {
@@ -760,13 +840,17 @@ LibraryManager.library = {
     //          string is taken by reference so future changes are reflected.
     //          We copy it instead, possibly breaking some uses.
     if (string === 0) {
+#if SUPPORT_ERRNO
       ___setErrNo(ERRNO_CODES.EINVAL);
+#endif
       return -1;
     }
     string = UTF8ToString(string);
     var splitPoint = string.indexOf('=')
     if (string === '' || string.indexOf('=') === -1) {
+#if SUPPORT_ERRNO
       ___setErrNo(ERRNO_CODES.EINVAL);
+#endif
       return -1;
     }
     var name = string.slice(0, splitPoint);
@@ -2212,15 +2296,23 @@ LibraryManager.library = {
     }
   },
 
+#if SUPPORT_ERRNO
   stime__deps: ['$ERRNO_CODES', '__setErrNo'],
+#endif
   stime: function(when) {
+#if SUPPORT_ERRNO
     ___setErrNo(ERRNO_CODES.EPERM);
+#endif
     return -1;
   },
 
+#if SUPPORT_ERRNO
   __map_file__deps: ['$ERRNO_CODES', '__setErrNo'],
+#endif
   __map_file: function(pathname, size) {
+#if SUPPORT_ERRNO
     ___setErrNo(ERRNO_CODES.EPERM);
+#endif
     return -1;
   },
 
@@ -2823,12 +2915,18 @@ LibraryManager.library = {
     return 0;
   },
 
-  timespec_get__deps: ['clock_gettime', '$ERRNO_CODES', '__setErrNo'],
+  timespec_get__deps: ['clock_gettime'
+#if SUPPORT_ERRNO
+  , '$ERRNO_CODES', '__setErrNo'
+#endif
+  ],
   timespec_get: function(ts, base) {
     //int timespec_get(struct timespec *ts, int base);
     if (base !== {{{ cDefine('TIME_UTC') }}}) {
       // There is no other implemented value than TIME_UTC; all other values are considered erroneous.
+#if SUPPORT_ERRNO
       ___setErrNo(ERRNO_CODES.EINVAL);
+#endif
       return 0;
     }
     var ret = _clock_gettime({{{ cDefine('CLOCK_REALTIME') }}}, ts);
@@ -2839,7 +2937,11 @@ LibraryManager.library = {
   // sys/time.h
   // ==========================================================================
 
-  clock_gettime__deps: ['emscripten_get_now', 'emscripten_get_now_is_monotonic', '$ERRNO_CODES', '__setErrNo'],
+  clock_gettime__deps: ['emscripten_get_now', 'emscripten_get_now_is_monotonic'
+#if SUPPORT_ERRNO
+  , '$ERRNO_CODES', '__setErrNo'
+#endif
+  ],
   clock_gettime: function(clk_id, tp) {
     // int clock_gettime(clockid_t clk_id, struct timespec *tp);
     var now;
@@ -2848,7 +2950,9 @@ LibraryManager.library = {
     } else if (clk_id === {{{ cDefine('CLOCK_MONOTONIC') }}} && _emscripten_get_now_is_monotonic()) {
       now = _emscripten_get_now();
     } else {
+#if SUPPORT_ERRNO
       ___setErrNo(ERRNO_CODES.EINVAL);
+#endif
       return -1;
     }
     {{{ makeSetValue('tp', C_STRUCTS.timespec.tv_sec, '(now/1000)|0', 'i32') }}}; // seconds
@@ -2856,15 +2960,23 @@ LibraryManager.library = {
     return 0;
   },
   __clock_gettime: 'clock_gettime', // musl internal alias
+#if SUPPORT_ERRNO
   clock_settime__deps: ['$ERRNO_CODES', '__setErrNo'],
+#endif
   clock_settime: function(clk_id, tp) {
     // int clock_settime(clockid_t clk_id, const struct timespec *tp);
     // Nothing.
+#if SUPPORT_ERRNO
     ___setErrNo(clk_id === {{{ cDefine('CLOCK_REALTIME') }}} ? ERRNO_CODES.EPERM
                                                              : ERRNO_CODES.EINVAL);
+#endif
     return -1;
   },
-  clock_getres__deps: ['emscripten_get_now_res', 'emscripten_get_now_is_monotonic', '$ERRNO_CODES', '__setErrNo'],
+  clock_getres__deps: ['emscripten_get_now_res', 'emscripten_get_now_is_monotonic'
+#if SUPPORT_ERRNO
+  , '$ERRNO_CODES', '__setErrNo'
+#endif
+  ],
   clock_getres: function(clk_id, res) {
     // int clock_getres(clockid_t clk_id, struct timespec *res);
     var nsec;
@@ -2873,7 +2985,9 @@ LibraryManager.library = {
     } else if (clk_id === {{{ cDefine('CLOCK_MONOTONIC') }}} && _emscripten_get_now_is_monotonic()) {
       nsec = _emscripten_get_now_res();
     } else {
+#if SUPPORT_ERRNO
       ___setErrNo(ERRNO_CODES.EINVAL);
+#endif
       return -1;
     }
     {{{ makeSetValue('res', C_STRUCTS.timespec.tv_sec, '(nsec/1000000000)|0', 'i32') }}};
@@ -3029,12 +3143,16 @@ LibraryManager.library = {
   // sys/wait.h
   // ==========================================================================
 
+#if SUPPORT_ERRNO
   wait__deps: ['$ERRNO_CODES', '__setErrNo'],
+#endif
   wait: function(stat_loc) {
     // pid_t wait(int *stat_loc);
     // http://pubs.opengroup.org/onlinepubs/009695399/functions/wait.html
     // Makes no sense in a single-process environment.
+#if SUPPORT_ERRNO
     ___setErrNo(ERRNO_CODES.ECHILD);
+#endif
     return -1;
   },
   // NOTE: These aren't really the same, but we use the same stub for them all.
@@ -3047,6 +3165,7 @@ LibraryManager.library = {
   // errno.h
   // ==========================================================================
 
+#if SUPPORT_ERRNO
   $ERRNO_CODES: {
     EPERM: {{{ cDefine('EPERM') }}},
     ENOENT: {{{ cDefine('ENOENT') }}},
@@ -3300,7 +3419,7 @@ LibraryManager.library = {
 #endif
     return value;
   },
-
+#endif // ~#if SUPPORT_ERRNO
   // ==========================================================================
   // sched.h (stubs only - no thread support yet!)
   // ==========================================================================
