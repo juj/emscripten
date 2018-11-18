@@ -145,7 +145,6 @@ Module['then'] = function(func) {
 #endif
 #endif
 
-var initialStackTop;
 var calledMain = false;
 
 #if HAS_MAIN
