@@ -1344,3 +1344,8 @@ var DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR = 0;
 // Tracks whether we are building with errno support enabled. Set to 0
 // to disable compiling errno support in altogether.
 var SUPPORT_ERRNO = 1;
+
+// If set to 0, drops support from HTML5 library from being able to unregister event
+// callbacks added to DOM. This can save a little bit of code size on compiled pages
+// that do not need unload functionality.
+var HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS = 1;

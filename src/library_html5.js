@@ -235,10 +235,13 @@ var LibraryJSEvents = {
       --__inEventHandler;
     }
     
+#if HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS
     if (eventHandler.callbackfunc) {
+#endif
       eventHandler.eventListenerFunc = jsEventHandler;
       eventHandler.target.addEventListener(eventHandler.eventTypeString, jsEventHandler, eventHandler.useCapture);
       __eventHandlers.push(eventHandler);
+#if HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS
       __registerRemoveEventListeners();
     } else {
       for(var i = 0; i < __eventHandlers.length; ++i) {
@@ -248,6 +251,7 @@ var LibraryJSEvents = {
          }
       }
     }
+#endif
   },
 
 #if USE_PTHREADS
