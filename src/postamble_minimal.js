@@ -1,13 +1,9 @@
 
 // === Auto-generated postamble setup entry stuff ===
 
-Module['asm'] = asm;
-
 {{{ exportRuntime() }}}
 
-if (Module['asm']['runPostSets']) {
-  Module['asm']['runPostSets']();
-}
+asm['runPostSets']();
 
 HEAPU8.set(new Uint8Array(Module['mem']), GLOBAL_BASE);
 
