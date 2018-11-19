@@ -2151,11 +2151,11 @@ var LibraryJSEvents = {
 #if GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS
     HEAP32[a+10] = 1; // enableExtensionsByDefault
 #endif
+#if GL_SUPPORT_EXPLICIT_SWAP_CONTROL
     HEAP32[a+11] = 0; // explicitSwapControl
+#endif
 #if USE_PTHREADS
     HEAP32[a+12] = 1; // proxyContextToMainThread
-#else
-    HEAP32[a+12] = 0; // proxyContextToMainThread
 #endif
 #if OFFSCREEN_FRAMEBUFFER
     HEAP32[a+13] = 0; // renderViaOffscreenBackBuffer
@@ -2175,16 +2175,17 @@ var LibraryJSEvents = {
 #if GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.enableExtensionsByDefault, 1, 'i32') }}};
 #endif
+#if GL_SUPPORT_EXPLICIT_SWAP_CONTROL
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.explicitSwapControl, 0, 'i32') }}};
+#endif
 
 #if USE_PTHREADS
     // The default proposed context initialization state is as follows:
     // - if main thread is creating the context, default to the context not being shared between threads
     // - if a web worker is creating the context, default to using OffscreenCanvas if available, or proxying via Offscreen Framebuffer if not
     if (ENVIRONMENT_IS_WORKER) {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 1/*EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK*/, 'i32') }}};
-    else
+    else {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 0/*EMSCRIPTEN_WEBGL_CONTEXT_PROXY_DISALLOW*/, 'i32') }}};
 #endif
-      {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 0/*EMSCRIPTEN_WEBGL_CONTEXT_PROXY_DISALLOW*/, 'i32') }}};
 
 #if OFFSCREEN_FRAMEBUFFER
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 0, 'i32') }}};
@@ -2218,8 +2219,12 @@ var LibraryJSEvents = {
 #if GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS
     c['enableExtensionsByDefault'] = HEAP32[a+10];
 #endif
+#if GL_SUPPORT_EXPLICIT_SWAP_CONTROL
     c['explicitSwapControl'] = HEAP32[a+11];
+#endif
+#if USE_PTHREADS
     c['proxyContextToMainThread'] = HEAP32[a+12];
+#endif
 #if OFFSCREEN_FRAMEBUFFER
     c['renderViaOffscreenBackBuffer'] = HEAP32[a+13];
 #endif
@@ -2238,8 +2243,12 @@ var LibraryJSEvents = {
 #if GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS
     c['enableExtensionsByDefault'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.enableExtensionsByDefault, 'i32') }}};
 #endif
+#if GL_SUPPORT_EXPLICIT_SWAP_CONTROL
     c['explicitSwapControl'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.explicitSwapControl, 'i32') }}};
+#endif
+#if USE_PTHREADS
     c['proxyContextToMainThread'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread, 'i32') }}};
+#endif
 #if OFFSCREEN_FRAMEBUFFER
     c['renderViaOffscreenBackBuffer'] = {{{ makeGetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer, 'i32') }}};
 #endif
@@ -2276,6 +2285,7 @@ var LibraryJSEvents = {
       return 0;
     }
 
+#if GL_SUPPORT_EXPLICIT_SWAP_CONTROL
 #if OFFSCREENCANVAS_SUPPORT
 #if GL_DEBUG
     if (typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas) console.log('emscripten_webgl_create_context: Creating an OffscreenCanvas-based WebGL context on target "' + target + '"');
@@ -2336,6 +2346,8 @@ var LibraryJSEvents = {
 #endif // ~!OFFSCREEN_FRAMEBUFFER
 
 #endif // ~!OFFSCREENCANVAS_SUPPORT
+
+#endif // ~GL_SUPPORT_EXPLICIT_SWAP_CONTROL
 
     return GL.createContext(canvas, c);
   },
@@ -2449,7 +2461,9 @@ var LibraryJSEvents = {
 #if GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.enableExtensionsByDefault, 'c.attributes["enableExtensionsByDefault"]', 'i32') }}};
 #endif
+#if GL_SUPPORT_EXPLICIT_SWAP_CONTROL
     {{{ makeSetValue('a', C_STRUCTS.EmscriptenWebGLContextAttributes.explicitSwapControl, 'c.attributes["explicitSwapControl"]', 'i32') }}};
+#endif
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 

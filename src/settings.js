@@ -422,6 +422,10 @@ var GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS = 1;
 // saves code size. (Good to keep at 1 for development)
 var GL_TRACK_ERRORS = 1;
 
+// If true, GL contexts support the explicitSwapControl context creation flag.
+// Set to 0 to save a little bit of space on projects that do not need it.
+var GL_SUPPORT_EXPLICIT_SWAP_CONTROL = 0;
+
 // Some old Android WeChat (Chromium 37?) browser has a WebGL bug that it ignores
 // the offset of a typed array view pointing to an ArrayBuffer. Set this to
 // 1 to enable a polyfill that works around the issue when it appears. This
