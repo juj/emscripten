@@ -1194,12 +1194,14 @@ var LibraryBrowser = {
 
 #if USE_PTHREADS
 #if OFFSCREEN_FRAMEBUFFER
+#if GL_SUPPORT_EXPLICIT_SWAP_CONTROL
       // If the current GL context is a proxied regular WebGL context, and was initialized with implicit swap mode on the main thread, and we are on the parent thread,
       // perform the swap on behalf of the user.
       if (typeof GL !== 'undefined' && GL.currentContext && GL.currentContextIsProxied) {
         var explicitSwapControl = {{{ makeGetValue('GL.currentContext', 0, 'i32') }}};
         if (!explicitSwapControl) _emscripten_webgl_commit_frame();
       }
+#endif
 #endif
 #endif
 
