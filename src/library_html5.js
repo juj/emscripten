@@ -81,7 +81,7 @@ var LibraryJSEvents = {
 
 #if DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR
   _maybeCStringToJsString: function(cString) {
-    return typeof cString == "number" ? UTF8ToString(cString) : cString;
+    return (cString | 0 === cString) ? UTF8ToString(cString) : cString;
   },
 
   _findEventTarget__deps: ['_maybeCStringToJsString'],
@@ -108,7 +108,7 @@ var LibraryJSEvents = {
       // since DOM events mostly can default to that. Specific callback registrations
       // override their own defaults.
       if (!target) return window;
-      if (typeof target === "number") target = UTF8ToString(target);
+      if (target | 0 === target) target = UTF8ToString(target);
       if (target === '#window') return window;
       else if (target === '#document') return document;
       else if (target === '#screen') return window.screen;
@@ -124,7 +124,7 @@ var LibraryJSEvents = {
   // Like findEventTarget, but looks for OffscreenCanvas elements first
   _findCanvasEventTarget__deps: ['_findEventTarget'],
   _findCanvasEventTarget: function(target) {
-    if (typeof target === 'number') target = UTF8ToString(target);
+    if (target | 0 === target) target = UTF8ToString(target);
     if (!target || target === '#canvas') {
       if (typeof GL !== 'undefined' && GL.offscreenCanvases['canvas']) return GL.offscreenCanvases['canvas']; // TODO: Remove this line, target '#canvas' should refer only to Module['canvas'], not to GL.offscreenCanvases['canvas'] - but need stricter tests to be able to remove this line.
       return Module['canvas'];

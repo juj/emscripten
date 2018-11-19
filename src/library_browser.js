@@ -1463,9 +1463,7 @@ var LibraryBrowser = {
   emscripten_get_preloaded_image_data__proxy: 'sync',
   emscripten_get_preloaded_image_data__sig: 'iiii',
   emscripten_get_preloaded_image_data: function(path, w, h) {
-    if (typeof path === "number") {
-      path = UTF8ToString(path);
-    }
+    if (path | 0 === path) path = UTF8ToString(path);
 
     path = PATH.resolve(path);
 
