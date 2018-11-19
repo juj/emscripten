@@ -59,6 +59,8 @@ var LibraryJSEvents = {
     }
   },
 #endif
+
+#if HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS
   _removeAllEventListeners__deps: ['_eventHandlers', '_removeHandler'],
   _removeAllEventListeners: function() {
     for(var i = __eventHandlers.length-1; i >= 0; --i) {
@@ -78,6 +80,7 @@ var LibraryJSEvents = {
       __removeEventListenersRegistered = true;
     }
   },
+#endif
 
 #if DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR
   _maybeCStringToJsString: function(cString) {
@@ -201,6 +204,7 @@ var LibraryJSEvents = {
 
   _isInternetExplorer: function() { return navigator.userAgent.indexOf('MSIE') !== -1 || navigator.appVersion.indexOf('Trident/') > 0; },
 
+#if HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS
   // Removes all event handlers on the given DOM element of the given type. Pass in eventTypeString == undefined/null to remove all event handlers regardless of the type.
   _removeAllHandlersOnTarget__deps: ['_eventHandlers', '_removeHandler'],
   _removeAllHandlersOnTarget: function(target, eventTypeString) {
@@ -218,7 +222,8 @@ var LibraryJSEvents = {
     h.target.removeEventListener(h.eventTypeString, h.eventListenerFunc, h.useCapture);
     __eventHandlers.splice(i, 1);
   },
-  
+#endif
+
   _registerOrRemoveHandler__deps: ['_eventHandlers', '_removeHandler'],
   _registerOrRemoveHandler: function(eventHandler) {
     var jsEventHandler = function jsEventHandler(event) {
@@ -2738,9 +2743,11 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+#if HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS
   emscripten_html5_remove_all_event_listeners: function() {
     __removeAllEventListeners();
   },
+#endif
 
   emscripten_request_animation_frame: function(cb, userData) {
     return requestAnimationFrame(function(timeStamp) {
