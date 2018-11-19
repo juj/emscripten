@@ -13,7 +13,7 @@ HEAPU8.set(new Uint8Array(Module['mem']), GLOBAL_BASE);
 
 {{GLOBAL_VARS}}
 
-Module['run'] = function() {
+function run() {
 #if STACK_OVERFLOW_CHECK
   writeStackCookie();
 #endif
@@ -32,3 +32,5 @@ Module['run'] = function() {
   checkStackCookie();
 #endif
 }
+
+ready();
