@@ -1455,34 +1455,36 @@ def create_the_global(metadata):
 
 def create_receiving(function_table_data, function_tables_defs, exported_implemented_functions):
   receiving = ''
-  if not shared.Settings.ASSERTIONS:
-    runtime_assertions = ''
-  else:
-    # assert on the runtime being in a valid state when calling into compiled code. The only exceptions are
-    # some support code
-    runtime_assertions = '''
-  assert(runtimeInitialized, 'you need to wait for the runtime to be ready (e.g. wait for main() to be called)');
-  assert(!runtimeExited, 'the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)');
-'''
-    receiving = [f for f in exported_implemented_functions if f not in ('_memcpy', '_memset', '_emscripten_replace_memory', '__start_module')]
-    receiving = '\n'.join('var real_' + s + ' = asm["' + s + '"]; asm["' + s + '''"] = function() {''' + runtime_assertions + '''  return real_''' + s + '''.apply(null, arguments);
-};
-''' for s in receiving)
+  runtime_assertions = ''
+#  if not shared.Settings.ASSERTIONS:
+#    runtime_assertions = ''
+#  else:
+#    # assert on the runtime being in a valid state when calling into compiled code. The only exceptions are
+#    # some support code
+#    runtime_assertions = '''
+#  assert(runtimeInitialized, 'you need to wait for the runtime to be ready (e.g. wait for main() to be called)');
+#  assert(!runtimeExited, 'the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)');
+#'''
+#    receiving = [f for f in exported_implemented_functions if f not in ('_memcpy', '_memset', '_emscripten_replace_memory', '__start_module')]
+#    receiving = '\n'.join('var real_' + s + ' = asm["' + s + '"]; asm["' + s + '''"] = function() {''' + runtime_assertions + '''  return real_''' + s + '''.apply(null, arguments);
+#};
+#''' for s in receiving)
 
   shared.Settings.MODULE_EXPORTS = module_exports = exported_implemented_functions + function_tables(function_table_data)
 
-  if not shared.Settings.SWAPPABLE_ASM_MODULE:
-    if shared.Settings.DECLARE_ASM_MODULE_EXPORTS:
-      receiving += ';\n'.join(['var ' + s + ' = Module["' + s + '"] = asm["' + s + '"]' for s in module_exports])
-      # TODO: Instead of the above line, we would like to use the two lines below for smaller size version of exports; but currently JS optimizer is wired to look for the exact above syntax when analyzing
-      # exports.
-#      receiving += ''.join(['var ' + s + ' = asm["' + s + '"];\n' for s in module_exports])
-#      receiving += 'for(var module_exported_function in asm) Module[module_exported_function] = asm[module_exported_function];\n'
+  if not shared.Settings.MINIMAL_RUNTIME or not shared.Settings.WASM:
+    if not shared.Settings.SWAPPABLE_ASM_MODULE:
+      if shared.Settings.DECLARE_ASM_MODULE_EXPORTS:
+        receiving += ';\n'.join(['var ' + s + ' = Module["' + s + '"] = asm["' + s + '"]' for s in module_exports])
+        # TODO: Instead of the above line, we would like to use the two lines below for smaller size version of exports; but currently JS optimizer is wired to look for the exact above syntax when analyzing
+        # exports.
+  #      receiving += ''.join(['var ' + s + ' = asm["' + s + '"];\n' for s in module_exports])
+  #      receiving += 'for(var module_exported_function in asm) Module[module_exported_function] = asm[module_exported_function];\n'
+      else:
+        receiving += '(function() { for(var i in asm) this[i] = Module[i] = asm[i]; }());\n'
     else:
-      receiving += '(function() { for(var i in asm) this[i] = Module[i] = asm[i]; }());\n'
-  else:
-    receiving += 'Module["asm"] = asm;\n' + ';\n'.join(['var ' + s + ' = Module["' + s + '"] = function() {' + runtime_assertions + '  return Module["asm"]["' + s + '"].apply(null, arguments) }' for s in module_exports])
-  receiving += ';\n'
+      receiving += 'Module["asm"] = asm;\n' + ';\n'.join(['var ' + s + ' = Module["' + s + '"] = function() {' + runtime_assertions + '  return Module["asm"]["' + s + '"].apply(null, arguments) }' for s in module_exports])
+    receiving += ';\n'
 
   if shared.Settings.EXPORT_FUNCTION_TABLES and not shared.Settings.WASM:
     for table in function_table_data.values():
@@ -1766,6 +1768,13 @@ function _emscripten_replace_memory(newBuffer) {
 
 
 def create_asm_end(exports):
+  if shared.Settings.MINIMAL_RUNTIME and shared.Settings.WASM:
+    return '''
+    return %s;
+    })
+    // EMSCRIPTEN_END_ASM
+    ''' % (exports)
+
   return '''
 
   return %s;
