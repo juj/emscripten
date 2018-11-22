@@ -1351,7 +1351,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
           exit_with_error('MEM_INIT_METHOD is not supported in wasm. Memory will be embedded in the wasm binary if threads are not used, and included in a separate file if threads are used.')
         options.memory_init_file = True
         # async compilation requires not interpreting (the interpreter modes needs sync input)
-        if shared.Settings.BINARYEN_ASYNC_COMPILATION == 1 and 'interpret' not in shared.Settings.BINARYEN_METHOD:
+        if shared.Settings.BINARYEN_ASYNC_COMPILATION == 1 and 'interpret' not in shared.Settings.BINARYEN_METHOD and not shared.Settings.MINIMAL_RUNTIME:
           # async compilation requires a swappable module - we swap it in when it's ready
           shared.Settings.SWAPPABLE_ASM_MODULE = 1
         else:

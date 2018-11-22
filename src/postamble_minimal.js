@@ -3,12 +3,6 @@
 
 {{{ exportRuntime() }}}
 
-asm['runPostSets']();
-
-HEAPU8.set(new Uint8Array(Module['mem']), GLOBAL_BASE);
-
-{{GLOBAL_VARS}}
-
 function run() {
 #if STACK_OVERFLOW_CHECK
   writeStackCookie();
@@ -29,4 +23,42 @@ function run() {
 #endif
 }
 
+#if WASM
+
+// Initialize wasm (asynchronous)
+var env = Module.asmLibraryArg;
+env['memory'] = Module['wasmMemory'];
+env['table'] = new WebAssembly.Table({ 'initial': Module['wasmTableSize'], 'maximum': Module['wasmMaxTableSize'], 'element': 'anyfunc' });
+env['__memory_base'] = STATIC_BASE;
+env['__table_base'] = 0;
+
+var imports = {
+  'global': {
+    'NaN': NaN,
+    'Infinity': Infinity
+  },
+  'global.Math': Math,
+  'env': env,
+  'asm2wasm': {
+    'f64-rem': function(x, y) { return x % y; },
+    'debugger': function() { debugger; }
+  }
+};
+
+WebAssembly.instantiate(Module['wasm'], imports).then(function(output) {
+  var exports = output.instance.exports;
+  for(var i in exports) this[i] = Module[i] = exports[i];
+  exports['runPostSets']();
+  ready();
+});
+
+#else
+
+// Initialize asm.js (synchronous)
+asm['runPostSets']();
+HEAPU8.set(new Uint8Array(Module['mem']), GLOBAL_BASE);
 ready();
+
+#endif
+
+{{GLOBAL_VARS}}
