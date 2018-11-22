@@ -987,6 +987,7 @@ var LibraryGL = {
   },
 
   glGetString__sig: 'ii',
+  glGetString__deps: ['stringToNewUTF8'],
   glGetString: function(name_) {
     if (GL.stringCache[name_]) return GL.stringCache[name_];
     var ret;
@@ -1000,7 +1001,7 @@ var LibraryGL = {
           gl_exts.push("GL_" + exts[i]);
 #endif
         }
-        ret = allocate(intArrayFromString(gl_exts.join(' ')), 'i8', ALLOC_NORMAL);
+        ret = _stringToNewUTF8(gl_exts.join(' '));
         break;
       case 0x1F00 /* GL_VENDOR */:
       case 0x1F01 /* GL_RENDERER */:
@@ -1017,7 +1018,7 @@ var LibraryGL = {
           err('GL_INVALID_ENUM in glGetString: Received empty parameter for query name ' + name_ + '!'); // This occurs e.g. if one attempts GL_UNMASKED_VENDOR_WEBGL when it is not supported.
 #endif
         }
-        ret = allocate(intArrayFromString(s), 'i8', ALLOC_NORMAL);
+        ret = _stringToNewUTF8(s);
         break;
 
 #if GL_EMULATE_GLES_VERSION_STRING_FORMAT
@@ -1031,7 +1032,7 @@ var LibraryGL = {
         {
           glVersion = 'OpenGL ES 2.0 (' + glVersion + ')';
         }
-        ret = allocate(intArrayFromString(glVersion), 'i8', ALLOC_NORMAL);
+        ret = _stringToNewUTF8(glVersion);
         break;
       case 0x8B8C /* GL_SHADING_LANGUAGE_VERSION */:
         var glslVersion = GLctx.getParameter(GLctx.SHADING_LANGUAGE_VERSION);
@@ -1042,7 +1043,7 @@ var LibraryGL = {
           if (ver_num[1].length == 3) ver_num[1] = ver_num[1] + '0'; // ensure minor version has 2 digits
           glslVersion = 'OpenGL ES GLSL ES ' + ver_num[1] + ' (' + glslVersion + ')';
         }
-        ret = allocate(intArrayFromString(glslVersion), 'i8', ALLOC_NORMAL);
+        ret = _stringToNewUTF8(glslVersion);
         break;
 #endif
       default:
@@ -1202,6 +1203,7 @@ var LibraryGL = {
   },
 
 #if USE_WEBGL2
+  glGetStringi__deps: ['stringToNewUTF8'],
   glGetStringi__sig: 'iii',
   glGetStringi: function(name, index) {
     if (GL.currentContext.version < 2) {
@@ -1224,10 +1226,10 @@ var LibraryGL = {
         var exts = GLctx.getSupportedExtensions();
         var gl_exts = [];
         for (var i = 0; i < exts.length; ++i) {
-          gl_exts.push(allocate(intArrayFromString(exts[i]), 'i8', ALLOC_NORMAL));
+          gl_exts.push(_stringToNewUTF8(exts[i]));
 #if GL_EXTENSIONS_IN_PREFIXED_FORMAT
           // each extension is duplicated, first in unprefixed WebGL form, and then a second time with "GL_" prefix.
-          gl_exts.push(allocate(intArrayFromString("GL_" + exts[i]), 'i8', ALLOC_NORMAL));
+          gl_exts.push(_stringToNewUTF8('GL_' + exts[i]));
 #endif
         }
         stringiCache = GL.stringiCache[name] = gl_exts;
@@ -4261,7 +4263,7 @@ var LibraryGL = {
 
   // GL emulation: provides misc. functionality not present in OpenGL ES 2.0 or WebGL
 
-  $GLEmulation__deps: ['$GLImmediateSetup', 'glEnable', 'glDisable', 'glIsEnabled', 'glGetBooleanv', 'glGetIntegerv', 'glGetString', 'glCreateShader', 'glShaderSource', 'glCompileShader', 'glAttachShader', 'glDetachShader', 'glUseProgram', 'glDeleteProgram', 'glBindAttribLocation', 'glLinkProgram', 'glBindBuffer', 'glGetFloatv', 'glHint', 'glEnableVertexAttribArray', 'glDisableVertexAttribArray', 'glVertexAttribPointer', 'glActiveTexture'],
+  $GLEmulation__deps: ['$GLImmediateSetup', 'glEnable', 'glDisable', 'glIsEnabled', 'glGetBooleanv', 'glGetIntegerv', 'glGetString', 'glCreateShader', 'glShaderSource', 'glCompileShader', 'glAttachShader', 'glDetachShader', 'glUseProgram', 'glDeleteProgram', 'glBindAttribLocation', 'glLinkProgram', 'glBindBuffer', 'glGetFloatv', 'glHint', 'glEnableVertexAttribArray', 'glDisableVertexAttribArray', 'glVertexAttribPointer', 'glActiveTexture', 'stringToNewUTF8'],
   $GLEmulation__postset: 'GLEmulation.init();',
   $GLEmulation: {
     // Fog support. Partial, we assume shaders are used that implement fog. We just pass them uniforms
@@ -4474,11 +4476,11 @@ var LibraryGL = {
         if (GL.stringCache[name_]) return GL.stringCache[name_];
         switch(name_) {
           case 0x1F03 /* GL_EXTENSIONS */: // Add various extensions that we can support
-            var ret = allocate(intArrayFromString(GLctx.getSupportedExtensions().join(' ') +
+            var ret = _stringToNewUTF8(GLctx.getSupportedExtensions().join(' ') +
                    ' GL_EXT_texture_env_combine GL_ARB_texture_env_crossbar GL_ATI_texture_env_combine3 GL_NV_texture_env_combine4 GL_EXT_texture_env_dot3 GL_ARB_multitexture GL_ARB_vertex_buffer_object GL_EXT_framebuffer_object GL_ARB_vertex_program GL_ARB_fragment_program GL_ARB_shading_language_100 GL_ARB_shader_objects GL_ARB_vertex_shader GL_ARB_fragment_shader GL_ARB_texture_cube_map GL_EXT_draw_range_elements' +
                    (GL.currentContext.compressionExt ? ' GL_ARB_texture_compression GL_EXT_texture_compression_s3tc' : '') +
                    (GL.currentContext.anisotropicExt ? ' GL_EXT_texture_filter_anisotropic' : '')
-            ), 'i8', ALLOC_NORMAL);
+            );
             GL.stringCache[name_] = ret;
             return ret;
         }
