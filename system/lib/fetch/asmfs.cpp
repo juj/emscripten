@@ -738,19 +738,12 @@ void EMSCRIPTEN_KEEPALIVE emscripten_asmfs_discard_tree(const char *path)
 }
 
 #ifdef ASMFS_DEBUG
-
 #define RETURN_ERRNO(errno, error_reason) do { \
 		EM_ASM(err(UTF8ToString($0) + '() returned errno ' + #errno + '(' + $1 + '): ' + error_reason + '!'), __FUNCTION__, errno); \
 		return -errno; \
 	} while(0)
 #else
 #define RETURN_ERRNO(errno, error_reason) do { return -(errno); } while(0)
-#endif
-
-#else
-
-#define RETURN_ERRNO(errno, error_reason) do { return -errno; } while(0)
-
 #endif
 
 static char stdout_buffer[4096] = {};
