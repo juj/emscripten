@@ -45,6 +45,10 @@ var imports = {
   }
 };
 
+#if ASSERTIONS
+if (!Module['wasm']) throw 'Must load WebAssembly Module in to variable Module.wasm before adding compiled output .js script to the DOM';
+#endif
+
 WebAssembly.instantiate(Module['wasm'], imports).then(function(output) {
   var exports = output.instance.exports;
   for(var i in exports) this[i] = Module[i] = exports[i];
@@ -55,7 +59,10 @@ WebAssembly.instantiate(Module['wasm'], imports).then(function(output) {
 #else
 
 // Initialize asm.js (synchronous)
-asm['runPostSets']();
+if (asm['runPostSets']) asm['runPostSets']();
+#if ASSERTIONS
+if (!Module['mem']) throw 'Must load memory initializer as an ArrayBuffer in to variable Module.mem before adding compiled output .js script to the DOM';
+#endif
 HEAPU8.set(new Uint8Array(Module['mem']), GLOBAL_BASE);
 ready();
 
