@@ -8,6 +8,14 @@
 // An online HTML version (which may be of a different version of Emscripten)
 //    is up at http://kripken.github.io/emscripten-site/docs/api_reference/preamble.js.html
 
+#if SEPARATE_ASM
+#if ASSERTIONS
+#if WASM == 0
+if (!({{{ASM_MODULE_NAME}}})) throw 'Must load asm.js Module in to variable {{{ASM_MODULE_NAME}}} before adding compiled output .js script to the DOM';
+#endif
+#endif
+#endif
+
 #if BENCHMARK
 Module.realPrint = out;
 out = err = function(){};
