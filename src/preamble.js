@@ -1633,9 +1633,6 @@ addOnPreRun(function() {
         loadDynamicLibrary(lib);
       });
     }
-    if (Module['asm']['runPostSets']) {
-      Module['asm']['runPostSets']();
-    }
   }
   // if we can load dynamic libraries synchronously, do so, otherwise, preload
 #if WASM

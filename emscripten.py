@@ -694,7 +694,6 @@ def get_exported_implemented_functions(all_exported_functions, all_implemented, 
 
   funcs = list(funcs) + metadata['initializers']
   if not shared.Settings.ONLY_MY_CODE:
-    funcs.append('runPostSets')
     if shared.Settings.ALLOW_MEMORY_GROWTH:
       funcs.append('_emscripten_replace_memory')
     if not shared.Settings.SIDE_MODULE:
