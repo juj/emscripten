@@ -52,14 +52,12 @@ if (!Module['wasm']) throw 'Must load WebAssembly Module in to variable Module.w
 WebAssembly.instantiate(Module['wasm'], imports).then(function(output) {
   var exports = output.instance.exports;
   for(var i in exports) this[i] = Module[i] = exports[i];
-  exports['runPostSets']();
   ready();
 });
 
 #else
 
 // Initialize asm.js (synchronous)
-if (asm['runPostSets']) asm['runPostSets']();
 #if ASSERTIONS
 if (!Module['mem']) throw 'Must load memory initializer as an ArrayBuffer in to variable Module.mem before adding compiled output .js script to the DOM';
 #endif
