@@ -120,7 +120,7 @@ void SendWebSocketMessage(int client_fd, void *buf, uint64_t numBytes)
     headerBytes += 8;
   }
 
-#if 0
+#ifdef POSIX_SOCKET_DEEP_DEBUG
   printf("Sending %llu bytes message (%llu bytes of payload) to WebSocket\n", headerBytes + numBytes, numBytes);
 
   printf("Header:");
