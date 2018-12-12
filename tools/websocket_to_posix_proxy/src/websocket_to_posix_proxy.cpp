@@ -2,10 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "posix_sockets.h"
+#include "threads.h"
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-#include <pthread.h>
 
 #include "websocket_to_posix_proxy.h"
 
@@ -90,11 +90,11 @@ void WebSocketMessageUnmaskPayload(uint8_t *payload, uint64_t payloadLength, uin
 // slightly inefficient if we were handling multiple proxied connections at the same time. (currently that is a rare
 // use case, expected to only be proxying one connection at a time - if this proxy bridge is expected to be used
 // for hundreds of connections simultaneously, this mutex should be refactored to be per-connection)
-static pthread_mutex_t webSocketLock = PTHREAD_MUTEX_INITIALIZER;
+static MUTEX_T webSocketLock = CREATE_MUTEX();
 
 void SendWebSocketMessage(int client_fd, void *buf, uint64_t numBytes)
 {
-  pthread_mutex_lock(&webSocketLock);
+  LOCK_MUTEX(&webSocketLock);
   uint8_t headerData[sizeof(WebSocketMessageHeader) + 8/*possible extended length*/] = {};
   WebSocketMessageHeader *header = (WebSocketMessageHeader *)headerData;
   header->opcode = 0x02;
@@ -131,7 +131,7 @@ void SendWebSocketMessage(int client_fd, void *buf, uint64_t numBytes)
 
   send(client_fd, (const char*)headerData, headerBytes, 0); // header
   send(client_fd, (const char*)buf, (int)numBytes, 0); // payload
-  pthread_mutex_unlock(&webSocketLock);
+  UNLOCK_MUTEX(&webSocketLock);
 }
 
 #define MUSL_PF_UNSPEC       0
@@ -1418,7 +1418,7 @@ struct MessageArg
 
 void ProcessWebSocketMessageSynchronouslyInCurrentThread(int client_fd, uint8_t *payload, uint64_t numBytes);
 
-void *message_processing_thread(void *arg)
+THREAD_RETURN_T message_processing_thread(void *arg)
 {
   MessageArg *msg = (MessageArg*)arg;
   assert(msg);
@@ -1426,7 +1426,7 @@ void *message_processing_thread(void *arg)
   ProcessWebSocketMessageSynchronouslyInCurrentThread(msg->client_fd, msg->payload, msg->numBytes);
   free(msg->payload);
   free(msg);
-  pthread_exit(0);
+  EXIT_THREAD(0);
 }
 
 // Offloads the processing of the given message to a background thread.
@@ -1434,12 +1434,12 @@ void ProcessWebSocketMessageAsynchronouslyInBackgroundThread(int client_fd, uint
 {
   MessageArg *arg = (MessageArg*)malloc(sizeof(MessageArg));
   arg->client_fd = client_fd;
-  arg->payload = (uint8_t*)memdup(payload, numBytes);
+  arg->payload = (uint8_t*)memdup(payload, (size_t)numBytes);
   arg->numBytes = numBytes;
-  pthread_t thread;
+  THREAD_T thread;
   // TODO: Instead of unconditionally always creating a thread here, create a thread pool and push messages to it.
   // (leaving this as a future optimization because not sure if it matters here much at all for performance)
-  pthread_create(&thread, 0, &message_processing_thread, arg);
+	CREATE_THREAD(thread, message_processing_thread, arg);
 }
 
 void ProcessWebSocketMessageSynchronouslyInCurrentThread(int client_fd, uint8_t *payload, uint64_t numBytes)

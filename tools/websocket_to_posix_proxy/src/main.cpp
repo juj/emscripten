@@ -3,9 +3,9 @@
 #include <memory.h>
 #include <sys/types.h>
 #include "posix_sockets.h"
+#include "threads.h"
 #include <assert.h>
 #include <vector>
-#include <pthread.h>
 
 #include "sha1.h"
 #include "websocket_to_posix_proxy.h"
@@ -194,7 +194,7 @@ void DumpWebSocketMessage(uint8_t *data, uint64_t numBytes)
 }
 
 // connection thread manages a single active proxy connection.
-void *connection_thread(void *arg)
+THREAD_RETURN_T connection_thread(void *arg)
 {
   int client_fd = (int)(uintptr_t)arg;
   printf("Established new proxy connection handler thread for incoming connection, at fd=%d\n", client_fd); // TODO: print out getpeername()+getsockname() for more info
@@ -205,15 +205,15 @@ void *connection_thread(void *arg)
 
   if (!read)
   {
-    shutdown(client_fd, SHUT_RDWR);
-    pthread_exit(0);
+    shutdown(client_fd, SHUTDOWN_BIDIRECTIONAL);
+    EXIT_THREAD(0);
   }
 
   if (read < 0)
   {
     fprintf(stderr, "Client read failed\n");
-    shutdown(client_fd, SHUT_RDWR);
-    pthread_exit(0);
+    shutdown(client_fd, SHUTDOWN_BIDIRECTIONAL);
+    EXIT_THREAD(0);
   }
 
 #if 0
@@ -240,7 +240,7 @@ void *connection_thread(void *arg)
     if (read < 0)
     {
       fprintf(stderr, "Client read failed\n");
-      pthread_exit(0);
+      EXIT_THREAD(0);
     }
 
 #if 0
@@ -281,8 +281,8 @@ void *connection_thread(void *arg)
     fragmentData.erase(fragmentData.begin(), fragmentData.begin() + (ptrdiff_t)neededBytes);
   }
   printf("Proxy connection closed\n");
-  shutdown(client_fd, SHUT_RDWR);
-  pthread_exit(0);
+  shutdown(client_fd, SHUTDOWN_BIDIRECTIONAL);
+  EXIT_THREAD(0);
 }
 
 int main(int argc, char *argv[])
@@ -330,9 +330,9 @@ int main(int argc, char *argv[])
       continue; // Do not quit here, but keep serving any existing proxy connections.
     }
 
-    pthread_t connection;
-    int ret = pthread_create(&connection, 0, connection_thread, (void*)(uintptr_t)client_fd);
-    if (ret != 0)
+    THREAD_T connection;
+    CREATE_THREAD_RETURN_T ret = CREATE_THREAD(connection, connection_thread, (void*)(uintptr_t)client_fd);
+    if (!CREATE_THREAD_SUCCEEDED(ret))
     {
       fprintf(stderr, "Failed to create a connection handler thread for incoming proxy connection!\n");
       continue; // Do not quit here, but keep program alive to manage other existing proxy connections.
