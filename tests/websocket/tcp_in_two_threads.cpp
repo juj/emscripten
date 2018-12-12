@@ -69,7 +69,8 @@ void *send_thread(void *arg)
 
   for(int i = 0; i < 10; ++i)
   {
-    const char message[] = "hell";
+    char message[] = "hella";
+    message[4] += i;
 
     while(emscripten_atomic_load_u32(&pendingMessages) != 0)
       emscripten_thread_sleep(10);

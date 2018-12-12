@@ -215,7 +215,7 @@ var LibraryWebSocket = {
 #endif
     socket.onmessage = function(e) {
 #if WEBSOCKET_DEBUG == 2
-//    console.error('websocket event "message": socketId='+socketId+',userData='+userData+',callbackFunc='+callbackFunc+')');
+      console.error('websocket event "message": socketId='+socketId+',userData='+userData+',callbackFunc='+callbackFunc+')');
 #endif
       HEAPU32[WS.socketEvent>>2] = socketId;
       if (typeof e.data === 'string') {

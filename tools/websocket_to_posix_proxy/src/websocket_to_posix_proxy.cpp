@@ -9,6 +9,12 @@
 
 #include "websocket_to_posix_proxy.h"
 
+// Uncomment to enable debug printing
+// #define POSIX_SOCKET_DEBUG
+
+// Uncomment to enable more verbose debug printing (in addition to uncommenting POSIX_SOCKET_DEBUG)
+// #define POSIX_SOCKET_DEEP_DEBUG
+
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
@@ -39,8 +45,6 @@ uint64_t ntoh64(uint64_t x) // thread-safe, re-entrant
 
 #define MAX_SOCKADDR_SIZE 256
 #define MAX_OPTIONVALUE_SIZE 16
-
-#define POSIX_SOCKET_DEBUG
 
 struct SocketCallHeader
 {
@@ -1471,7 +1475,6 @@ void ProcessWebSocketMessageSynchronouslyInCurrentThread(int client_fd, uint8_t 
       printf("Unknown POSIX_SOCKET_MSG %u received!\n", header->function);
       break;
 	}
-  printf("\n");
 }
 
 void ProcessWebSocketMessage(int client_fd, uint8_t *payload, uint64_t numBytes)

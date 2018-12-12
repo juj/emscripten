@@ -10,6 +10,10 @@
 #include "sha1.h"
 #include "websocket_to_posix_proxy.h"
 
+// #define PROXY_DEBUG
+
+// #define PROXY_DEEP_DEBUG
+
 static const unsigned char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static void base64_encode(void *dst, const void *src, size_t len) // thread-safe, re-entrant
 {
@@ -216,18 +220,20 @@ THREAD_RETURN_T connection_thread(void *arg)
     EXIT_THREAD(0);
   }
 
-#if 0
+#ifdef PROXY_DEEP_DEBUG
   printf("Received:");
   for(int i = 0; i < read; ++i)
   {
     printf(" %02X", buf[i]);
   }
   printf("\n");
-  printf("In text:\n%s\n", buf);
+//  printf("In text:\n%s\n", buf);
 #endif
   SendHandshake(client_fd, buf);
 
-//    printf("Handshake received, entering message loop:\n");
+#ifdef PROXY_DEEP_DEBUG
+  printf("Handshake received, entering message loop:\n");
+#endif
 
   std::vector<uint8_t> fragmentData;
 
@@ -243,42 +249,68 @@ THREAD_RETURN_T connection_thread(void *arg)
       EXIT_THREAD(0);
     }
 
-#if 0
+#ifdef PROXY_DEEP_DEBUG
     printf("Received:");
     for(int i = 0; i < read; ++i)
     {
       printf(" %02X", ((unsigned char*)buf)[i]);
     }
     printf("\n");
+//    printf("In text:\n%s\n", buf);
 #endif
 
+#ifdef PROXY_DEEP_DEBUG
+    printf("Have %d+%d==%d bytes now in queue\n", (int)fragmentData.size(), (int)read, (int)(fragmentData.size()+read));
+#endif
     fragmentData.insert(fragmentData.end(), buf, buf+read);
-    bool hasFullHeader = WebSocketHasFullHeader(&fragmentData[0], fragmentData.size());
-    if (!hasFullHeader) continue;
-    uint64_t neededBytes = WebSocketFullMessageSize(&fragmentData[0], fragmentData.size());
-    if (fragmentData.size() < neededBytes)
-      continue;
 
-    WebSocketMessageHeader *header = (WebSocketMessageHeader *)&fragmentData[0];
-    uint64_t payloadLength = WebSocketMessagePayloadLength(&fragmentData[0], neededBytes);
-    uint8_t *payload = WebSocketMessageData(&fragmentData[0], neededBytes);
-
-    // Unmask payload
-    if (header->mask)
-      WebSocketMessageUnmaskPayload(payload, payloadLength, WebSocketMessageMaskingKey(&fragmentData[0], neededBytes));
-
-//      DumpWebSocketMessage(&fragmentData[0], neededBytes);
-
-    switch(header->opcode)
+    // Process received fragments until there is not enough data for a full message
+    while(!fragmentData.empty())
     {
-    case 0x02: /*binary message*/ ProcessWebSocketMessage(client_fd, payload, payloadLength); break;
-    case 0x08: CloseWebSocket(client_fd); connectionAlive = false; break;
-    default:
-      printf("Unknown WebSocket opcode received %x!\n", header->opcode);
-      break;
-    }
+      bool hasFullHeader = WebSocketHasFullHeader(&fragmentData[0], fragmentData.size());
+      if (!hasFullHeader)
+      {
+#ifdef PROXY_DEEP_DEBUG
+        printf("(not enough for a full WebSocket header)\n");
+#endif
+        break;
+      }
+      uint64_t neededBytes = WebSocketFullMessageSize(&fragmentData[0], fragmentData.size());
+      if (fragmentData.size() < neededBytes)
+      {
+#ifdef PROXY_DEEP_DEBUG
+        printf("(not enough for a full WebSocket message, needed %d bytes)\n", (int)neededBytes);
+#endif
+        break;
+      }
 
-    fragmentData.erase(fragmentData.begin(), fragmentData.begin() + (ptrdiff_t)neededBytes);
+      WebSocketMessageHeader *header = (WebSocketMessageHeader *)&fragmentData[0];
+      uint64_t payloadLength = WebSocketMessagePayloadLength(&fragmentData[0], neededBytes);
+      uint8_t *payload = WebSocketMessageData(&fragmentData[0], neededBytes);
+
+      // Unmask payload
+      if (header->mask)
+        WebSocketMessageUnmaskPayload(payload, payloadLength, WebSocketMessageMaskingKey(&fragmentData[0], neededBytes));
+
+#ifdef PROXY_DEEP_DEBUG
+        DumpWebSocketMessage(&fragmentData[0], neededBytes);
+#endif
+
+      switch(header->opcode)
+      {
+      case 0x02: /*binary message*/ ProcessWebSocketMessage(client_fd, payload, payloadLength); break;
+      case 0x08: CloseWebSocket(client_fd); connectionAlive = false; break;
+      default:
+        fprintf(stderr, "Unknown WebSocket opcode received %x!\n", header->opcode);
+        connectionAlive = false; // Kill connection
+        break;
+      }
+
+      fragmentData.erase(fragmentData.begin(), fragmentData.begin() + (ptrdiff_t)neededBytes);
+#ifdef PROXY_DEEP_DEBUG
+      printf("Cleared used bytes, got %d left in fragment queue.\n", (int)fragmentData.size());
+#endif
+    }
   }
   printf("Proxy connection closed\n");
   shutdown(client_fd, SHUTDOWN_BIDIRECTIONAL);

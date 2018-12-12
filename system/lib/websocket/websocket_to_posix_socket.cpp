@@ -10,9 +10,13 @@
 #include <assert.h>
 #include <netdb.h>
 
-#define MIN(a,b) (((a)<(b))?(a):(b))
-
+// Uncomment to enable debug printing
 // #define POSIX_SOCKET_DEBUG
+
+// Uncomment to enable more verbose debug printing (in addition to uncommenting POSIX_SOCKET_DEBUG)
+// #define POSIX_SOCKET_DEEP_DEBUG
+
+#define MIN(a,b) (((a)<(b))?(a):(b))
 
 extern "C"
 {
@@ -71,11 +75,17 @@ static PosixSocketCallResult *allocate_call_result(int expectedBytes)
   PosixSocketCallResult *b = (PosixSocketCallResult*)(malloc(sizeof(PosixSocketCallResult)));
   if (!b)
   {
+#ifdef POSIX_SOCKET_DEBUG
+    emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "allocate_call_result: Failed to allocate call result struct of size %d bytes!\n", (int)sizeof(PosixSocketCallResult));
+#endif
     pthread_mutex_unlock(&bridgeLock);
     return 0;
   }
   static int nextId = 1;
   b->callId = nextId++;
+#ifdef POSIX_SOCKET_DEEP_DEBUG
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "allocate_call_result: allocated call ID %d\n", b->callId);
+#endif
   b->bytes = expectedBytes;
   b->data = 0;
   b->operationCompleted = 0;
@@ -95,6 +105,11 @@ static PosixSocketCallResult *allocate_call_result(int expectedBytes)
 
 static void free_call_result(PosixSocketCallResult *buffer)
 {
+#ifdef POSIX_SOCKET_DEEP_DEBUG
+  if (buffer)
+    emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "free_call_result: freed call ID %d\n", buffer->callId);
+#endif
+
   if (buffer->data) free(buffer->data);
   free(buffer);
 }
@@ -111,6 +126,9 @@ PosixSocketCallResult *pop_call_result(int callId)
       if (prev) prev->next = b->next;
       else callResultHead = b->next;
       b->next = 0;
+#ifdef POSIX_SOCKET_DEEP_DEBUG
+      emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "pop_call_result: Removed call ID %d from pending sockets call queue\n", callId);
+#endif
       pthread_mutex_unlock(&bridgeLock);
       return b;
     }
@@ -118,19 +136,26 @@ PosixSocketCallResult *pop_call_result(int callId)
     b = b->next;
   }
   pthread_mutex_unlock(&bridgeLock);
+#ifdef POSIX_SOCKET_DEBUG
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "pop_call_result: No such call ID %d in pending sockets call queue!\n", callId);
+#endif
   return 0;
 }
 
 void wait_for_call_result(PosixSocketCallResult *b)
 {
+#ifdef POSIX_SOCKET_DEEP_DEBUG
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "wait_for_call_result: Waiting for call ID %d\n", b->callId);
+#endif
   while(!emscripten_atomic_load_u32(&b->operationCompleted))
     emscripten_futex_wait(&b->operationCompleted, 0, 1e9);
+#ifdef POSIX_SOCKET_DEEP_DEBUG
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "wait_for_call_result: Waiting for call ID %d done\n", b->callId);
+#endif
 }
 
 static EM_BOOL bridge_socket_on_message(int eventType, const EmscriptenWebSocketMessageEvent *websocketEvent, void *userData)
 {
-//  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "POSIX sockets bridge received message on thread %p, size: %d bytes\n", (void*)pthread_self(), websocketEvent->numBytes);
-
   if (websocketEvent->numBytes < sizeof(SocketCallResultHeader))
   {
     emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "Received corrupt WebSocket result message with size %d, not enough space for header, at least %d bytes!\n", (int)websocketEvent->numBytes, (int)sizeof(SocketCallResultHeader));
@@ -138,6 +163,10 @@ static EM_BOOL bridge_socket_on_message(int eventType, const EmscriptenWebSocket
   }
 
   SocketCallResultHeader *header = (SocketCallResultHeader *)websocketEvent->data;
+
+#ifdef POSIX_SOCKET_DEEP_DEBUG
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "POSIX sockets bridge received message on thread %p, size: %d bytes, for call ID %d\n", (void*)pthread_self(), websocketEvent->numBytes, header->callId);
+#endif
 
   PosixSocketCallResult *b = pop_call_result(header->callId);
   if (!b)
