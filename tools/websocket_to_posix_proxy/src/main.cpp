@@ -5,12 +5,13 @@
 #include "posix_sockets.h"
 #include <assert.h>
 #include <vector>
+#include <pthread.h>
 
 #include "sha1.h"
 #include "websocket_to_posix_proxy.h"
 
 static const unsigned char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-void base64_encode(void *dst, const void *src, size_t len)
+static void base64_encode(void *dst, const void *src, size_t len) // thread-safe, re-entrant
 {
   assert(dst != src);
   unsigned int *d = (unsigned int *)dst;
@@ -29,7 +30,8 @@ void base64_encode(void *dst, const void *src, size_t len)
 #define BUFFER_SIZE 1024
 #define on_error(...) { fprintf(stderr, __VA_ARGS__); fflush(stderr); exit(1); }
 
-int GetHttpHeader(const char *headers, const char *header, char *out)
+// Given a multiline string of HTTP headers, returns a pointer to the beginning of the value of given header inside the string that was passed in.
+static int GetHttpHeader(const char *headers, const char *header, char *out) // thread-safe, re-entrant
 {
   const char *pos = strstr(headers, header);
   if (!pos) return 0;
@@ -41,6 +43,7 @@ int GetHttpHeader(const char *headers, const char *header, char *out)
   return end-pos;
 }
 
+// Sends WebSocket handshake back to the given WebSocket connection.
 void SendHandshake(int fd, const char *request)
 {
   char key[128];
@@ -66,7 +69,8 @@ void SendHandshake(int fd, const char *request)
   printf("Sent handshake:\n%s\n", handshakeMsg);
 }
 
-bool WebSocketHasFullHeader(uint8_t *data, uint64_t obtainedNumBytes)
+// Validates if the given, possibly partially received WebSocket message has enough bytes to contain a full WebSocket header.
+static bool WebSocketHasFullHeader(uint8_t *data, uint64_t obtainedNumBytes)
 {
   if (obtainedNumBytes < 2) return false;
   uint64_t expectedNumBytes = 2;
@@ -81,6 +85,7 @@ bool WebSocketHasFullHeader(uint8_t *data, uint64_t obtainedNumBytes)
   return obtainedNumBytes >= expectedNumBytes;
 }
 
+// Computes the total number of bytes that the given WebSocket message will take up.
 uint64_t WebSocketFullMessageSize(uint8_t *data, uint64_t obtainedNumBytes)
 {
   assert(WebSocketHasFullHeader(data, obtainedNumBytes));
@@ -188,6 +193,98 @@ void DumpWebSocketMessage(uint8_t *data, uint64_t numBytes)
   printf("\n");
 }
 
+// connection thread manages a single active proxy connection.
+void *connection_thread(void *arg)
+{
+  int client_fd = (int)(uintptr_t)arg;
+  printf("Established new proxy connection handler thread for incoming connection, at fd=%d\n", client_fd); // TODO: print out getpeername()+getsockname() for more info
+
+  // Waiting for connection upgrade handshake
+  char buf[BUFFER_SIZE];
+  int read = recv(client_fd, buf, BUFFER_SIZE, 0);
+
+  if (!read)
+  {
+    shutdown(client_fd, SHUT_RDWR);
+    pthread_exit(0);
+  }
+
+  if (read < 0)
+  {
+    fprintf(stderr, "Client read failed\n");
+    shutdown(client_fd, SHUT_RDWR);
+    pthread_exit(0);
+  }
+
+#if 0
+  printf("Received:");
+  for(int i = 0; i < read; ++i)
+  {
+    printf(" %02X", buf[i]);
+  }
+  printf("\n");
+  printf("In text:\n%s\n", buf);
+#endif
+  SendHandshake(client_fd, buf);
+
+//    printf("Handshake received, entering message loop:\n");
+
+  std::vector<uint8_t> fragmentData;
+
+  bool connectionAlive = true;
+  while (connectionAlive)
+  {
+    int read = recv(client_fd, buf, BUFFER_SIZE, 0);
+
+    if (!read) break; // done reading
+    if (read < 0)
+    {
+      fprintf(stderr, "Client read failed\n");
+      pthread_exit(0);
+    }
+
+#if 0
+    printf("Received:");
+    for(int i = 0; i < read; ++i)
+    {
+      printf(" %02X", ((unsigned char*)buf)[i]);
+    }
+    printf("\n");
+#endif
+
+    fragmentData.insert(fragmentData.end(), buf, buf+read);
+    bool hasFullHeader = WebSocketHasFullHeader(&fragmentData[0], fragmentData.size());
+    if (!hasFullHeader) continue;
+    uint64_t neededBytes = WebSocketFullMessageSize(&fragmentData[0], fragmentData.size());
+    if (fragmentData.size() < neededBytes)
+      continue;
+
+    WebSocketMessageHeader *header = (WebSocketMessageHeader *)&fragmentData[0];
+    uint64_t payloadLength = WebSocketMessagePayloadLength(&fragmentData[0], neededBytes);
+    uint8_t *payload = WebSocketMessageData(&fragmentData[0], neededBytes);
+
+    // Unmask payload
+    if (header->mask)
+      WebSocketMessageUnmaskPayload(payload, payloadLength, WebSocketMessageMaskingKey(&fragmentData[0], neededBytes));
+
+//      DumpWebSocketMessage(&fragmentData[0], neededBytes);
+
+    switch(header->opcode)
+    {
+    case 0x02: /*binary message*/ ProcessWebSocketMessage(client_fd, payload, payloadLength); break;
+    case 0x08: CloseWebSocket(client_fd); connectionAlive = false; break;
+    default:
+      printf("Unknown WebSocket opcode received %x!\n", header->opcode);
+      break;
+    }
+
+    fragmentData.erase(fragmentData.begin(), fragmentData.begin() + (ptrdiff_t)neededBytes);
+  }
+  printf("Proxy connection closed\n");
+  shutdown(client_fd, SHUT_RDWR);
+  pthread_exit(0);
+}
+
 int main(int argc, char *argv[])
 {
   if (argc < 2) on_error("websocket_to_posix_proxy creates a bridge that allows WebSocket connections on a web page to proxy out to perform TCP/UDP connections.\nUsage: %s [port]\n", argv[0]);
@@ -204,15 +301,11 @@ int main(int argc, char *argv[])
   signal(SIGPIPE, SIG_IGN);
 #endif
 
-  int port = atoi(argv[1]);
-
-  int server_fd, client_fd, err;
-  struct sockaddr_in server, client;
-  char buf[BUFFER_SIZE];
-
-  server_fd = socket(AF_INET, SOCK_STREAM, 0);
+  const int port = atoi(argv[1]);
+  int server_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (server_fd < 0) on_error("Could not create socket\n");
 
+  struct sockaddr_in server;
   server.sin_family = AF_INET;
   server.sin_port = htons(port);
   server.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -220,7 +313,7 @@ int main(int argc, char *argv[])
   int opt_val = 1;
   setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (SETSOCKOPT_PTR_TYPE)&opt_val, sizeof opt_val);
 
-  err = bind(server_fd, (struct sockaddr *) &server, sizeof(server));
+  int err = bind(server_fd, (struct sockaddr *) &server, sizeof(server));
   if (err < 0) on_error("Could not bind socket\n");
 
   err = listen(server_fd, 128);
@@ -230,77 +323,19 @@ int main(int argc, char *argv[])
 
   while (1)
   {
-    socklen_t client_len = sizeof(client);
-    client_fd = accept(server_fd, (struct sockaddr *) &client, &client_len);
-
-    if (client_fd < 0) on_error("Could not establish new connection\n");
-
-    // Waiting for connection upgrade handshake
-    int read = recv(client_fd, buf, BUFFER_SIZE, 0);
-
-    if (!read) break; // done reading
-    if (read < 0) on_error("Client read failed\n");
-
-    printf("Received connection\n");
-#if 0
-    printf("Received:");
-    for(int i = 0; i < read; ++i)
+    int client_fd = accept(server_fd, 0, 0);
+    if (client_fd < 0)
     {
-      printf(" %02X", buf[i]);
+      fprintf(stderr, "Could not establish new incoming proxy connection\n");
+      continue; // Do not quit here, but keep serving any existing proxy connections.
     }
-    printf("\n");
-    printf("In text:\n%s\n", buf);
-#endif
-    SendHandshake(client_fd, buf);
 
-//    printf("Handshake received, entering message loop:\n");
-
-    std::vector<uint8_t> fragmentData;
-
-    bool connectionAlive = true;
-    while (connectionAlive)
+    pthread_t connection;
+    int ret = pthread_create(&connection, 0, connection_thread, (void*)(uintptr_t)client_fd);
+    if (ret != 0)
     {
-      int read = recv(client_fd, buf, BUFFER_SIZE, 0);
-
-      if (!read) break; // done reading
-      if (read < 0) on_error("Client read failed\n");
-
-#if 0
-      printf("Received:");
-      for(int i = 0; i < read; ++i)
-      {
-        printf(" %02X", ((unsigned char*)buf)[i]);
-      }
-      printf("\n");
-#endif
-
-      fragmentData.insert(fragmentData.end(), buf, buf+read);
-      bool hasFullHeader = WebSocketHasFullHeader(&fragmentData[0], fragmentData.size());
-      if (!hasFullHeader) continue;
-      uint64_t neededBytes = WebSocketFullMessageSize(&fragmentData[0], fragmentData.size());
-      if (fragmentData.size() < neededBytes)
-        continue;
-
-      WebSocketMessageHeader *header = (WebSocketMessageHeader *)&fragmentData[0];
-      uint64_t payloadLength = WebSocketMessagePayloadLength(&fragmentData[0], neededBytes);
-      uint8_t *payload = WebSocketMessageData(&fragmentData[0], neededBytes);
-
-      // Unmask payload
-      if (header->mask)
-        WebSocketMessageUnmaskPayload(payload, payloadLength, WebSocketMessageMaskingKey(&fragmentData[0], neededBytes));
-
-//      DumpWebSocketMessage(&fragmentData[0], neededBytes);
-
-      switch(header->opcode)
-      {
-      case 0x02: /*binary message*/ ProcessWebSocketMessage(client_fd, payload, payloadLength); break;
-      case 0x08: CloseWebSocket(client_fd); connectionAlive = false; break;
-      default:
-        printf("Unknown WebSocket opcode received %x!\n", header->opcode);
-        break;
-      }
-
-      fragmentData.erase(fragmentData.begin(), fragmentData.begin() + (ptrdiff_t)neededBytes);
+      fprintf(stderr, "Failed to create a connection handler thread for incoming proxy connection!\n");
+      continue; // Do not quit here, but keep program alive to manage other existing proxy connections.
     }
   }
 

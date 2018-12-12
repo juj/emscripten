@@ -5,13 +5,14 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <pthread.h>
 
 #include "websocket_to_posix_proxy.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
-uint64_t ntoh64(uint64_t x)
+uint64_t ntoh64(uint64_t x) // thread-safe, re-entrant
 {
   return ntohl(x>>32) | ((uint64_t)ntohl(x&0xFFFFFFFFu) << 32);
 }
@@ -49,7 +50,7 @@ struct SocketCallHeader
 
 static char buf_temp_str[2048] = {};
 
-char *BufferToString(const void *buf, size_t len)
+static char *BufferToString(const void *buf, size_t len) // not thread-safe, but only used for debug prints, so expected not to cause trouble
 {
   uint8_t *b = (uint8_t *)buf;
   if (!b)
@@ -66,7 +67,7 @@ char *BufferToString(const void *buf, size_t len)
   return buf_temp_str;
 }
 
-void WebSocketMessageUnmaskPayload(uint8_t *payload, uint64_t payloadLength, uint32_t maskingKey)
+void WebSocketMessageUnmaskPayload(uint8_t *payload, uint64_t payloadLength, uint32_t maskingKey) // thread-safe, re-entrant
 {
   uint8_t maskingKey8[4];
   memcpy(maskingKey8, &maskingKey, 4);
@@ -85,8 +86,15 @@ void WebSocketMessageUnmaskPayload(uint8_t *payload, uint64_t payloadLength, uin
   }
 }
 
+// Technically only would need one lock per connection, but this is now one lock per all connections, which would be
+// slightly inefficient if we were handling multiple proxied connections at the same time. (currently that is a rare
+// use case, expected to only be proxying one connection at a time - if this proxy bridge is expected to be used
+// for hundreds of connections simultaneously, this mutex should be refactored to be per-connection)
+static pthread_mutex_t webSocketLock = PTHREAD_MUTEX_INITIALIZER;
+
 void SendWebSocketMessage(int client_fd, void *buf, uint64_t numBytes)
 {
+  pthread_mutex_lock(&webSocketLock);
   uint8_t headerData[sizeof(WebSocketMessageHeader) + 8/*possible extended length*/] = {};
   WebSocketMessageHeader *header = (WebSocketMessageHeader *)headerData;
   header->opcode = 0x02;
@@ -123,6 +131,7 @@ void SendWebSocketMessage(int client_fd, void *buf, uint64_t numBytes)
 
   send(client_fd, (const char*)headerData, headerBytes, 0); // header
   send(client_fd, (const char*)buf, (int)numBytes, 0); // payload
+  pthread_mutex_unlock(&webSocketLock);
 }
 
 #define MUSL_PF_UNSPEC       0
@@ -1392,13 +1401,50 @@ void Getnameinfo(int client_fd, uint8_t *data, uint64_t numBytes) // int getname
   fprintf(stderr, "TODO getnameinfo() unimplemented!\n");
 }
 
-void ProcessWebSocketMessage(int client_fd, uint8_t *payload, uint64_t numBytes)
+static void *memdup(const void *ptr, size_t sz)
 {
-  if (numBytes < sizeof(SocketCallHeader))
-  {
-    printf("Received too small sockets call message! size: %d bytes, expected at least %d bytes\n", (int)numBytes, (int)sizeof(SocketCallHeader));
-    return;
-  }
+  if (!ptr) return 0;
+  void *dup = malloc(sz);
+  if (dup) memcpy(dup, ptr, sz);
+  return dup;
+}
+
+struct MessageArg
+{
+  int client_fd;
+  uint8_t *payload;
+  uint64_t numBytes;
+};
+
+void ProcessWebSocketMessageSynchronouslyInCurrentThread(int client_fd, uint8_t *payload, uint64_t numBytes);
+
+void *message_processing_thread(void *arg)
+{
+  MessageArg *msg = (MessageArg*)arg;
+  assert(msg);
+  assert(msg->client_fd);
+  ProcessWebSocketMessageSynchronouslyInCurrentThread(msg->client_fd, msg->payload, msg->numBytes);
+  free(msg->payload);
+  free(msg);
+  pthread_exit(0);
+}
+
+// Offloads the processing of the given message to a background thread.
+void ProcessWebSocketMessageAsynchronouslyInBackgroundThread(int client_fd, uint8_t *payload, uint64_t numBytes)
+{
+  MessageArg *arg = (MessageArg*)malloc(sizeof(MessageArg));
+  arg->client_fd = client_fd;
+  arg->payload = (uint8_t*)memdup(payload, numBytes);
+  arg->numBytes = numBytes;
+  pthread_t thread;
+  // TODO: Instead of unconditionally always creating a thread here, create a thread pool and push messages to it.
+  // (leaving this as a future optimization because not sure if it matters here much at all for performance)
+  pthread_create(&thread, 0, &message_processing_thread, arg);
+}
+
+void ProcessWebSocketMessageSynchronouslyInCurrentThread(int client_fd, uint8_t *payload, uint64_t numBytes)
+{
+  assert(numBytes >= sizeof(SocketCallHeader)); // Already validated in ProcessWebSocketMessage() before coming here, so we should be good.
   SocketCallHeader *header = (SocketCallHeader*)payload;
   switch(header->function)
   {
@@ -1426,4 +1472,26 @@ void ProcessWebSocketMessage(int client_fd, uint8_t *payload, uint64_t numBytes)
       break;
 	}
   printf("\n");
+}
+
+void ProcessWebSocketMessage(int client_fd, uint8_t *payload, uint64_t numBytes)
+{
+  if (numBytes < sizeof(SocketCallHeader))
+  {
+    printf("Received too small sockets call message! size: %d bytes, expected at least %d bytes\n", (int)numBytes, (int)sizeof(SocketCallHeader));
+    return;
+  }
+  SocketCallHeader *header = (SocketCallHeader*)payload;
+  if (header->function == POSIX_SOCKET_MSG_RECV)
+  {
+    // Synchonous/blocking recv()s can halt indefinitely until a message is actually received. An application might
+    // be send()ing messages in one thread while using another thread to wait for recv(). Therefore run these potentially
+    // blocking recv()s in a separate thread. The nonblocking operations can run synchronously in calling thread (they could
+    // also run in a background thread, but for performance, do not offload them since it is not necessary)
+    ProcessWebSocketMessageAsynchronouslyInBackgroundThread(client_fd, payload, numBytes);
+  }
+  else
+  {
+    ProcessWebSocketMessageSynchronouslyInCurrentThread(client_fd, payload, numBytes);
+  }
 }

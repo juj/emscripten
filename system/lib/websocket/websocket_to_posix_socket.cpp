@@ -12,7 +12,7 @@
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
-#define POSIX_SOCKET_DEBUG
+// #define POSIX_SOCKET_DEBUG
 
 extern "C"
 {
@@ -24,8 +24,6 @@ static void *memdup(const void *ptr, size_t sz)
   if (dup) memcpy(dup, ptr, sz);
   return dup;
 }
-
-static EMSCRIPTEN_WEBSOCKET_T bridgeSocket = (EMSCRIPTEN_WEBSOCKET_T)0;
 
 // Each proxied socket call has at least the following data.
 struct SocketCallHeader
@@ -57,12 +55,26 @@ struct PosixSocketCallResult
   // Result data:
   SocketCallResultHeader *data;
 };
+
+// Shield multithreaded accesses to POSIX sockets functions in the program, namely the two variables 'bridgeSocket' and 'callResultHead' below.
+static pthread_mutex_t bridgeLock = PTHREAD_MUTEX_INITIALIZER;
+
+// Socket handle for the connection from browser WebSocket to the sockets bridge proxy server.
+static EMSCRIPTEN_WEBSOCKET_T bridgeSocket = (EMSCRIPTEN_WEBSOCKET_T)0;
+
+// Stores a linked list of all currently pending sockets operations (ones that are waiting for a reply back from the sockets proxy server)
 static PosixSocketCallResult *callResultHead = 0;
 
 static PosixSocketCallResult *allocate_call_result(int expectedBytes)
 {
-  static int nextId = 1;
+  pthread_mutex_lock(&bridgeLock); // Guard multithreaded access to 'callResultHead' and 'nextId' below
   PosixSocketCallResult *b = (PosixSocketCallResult*)(malloc(sizeof(PosixSocketCallResult)));
+  if (!b)
+  {
+    pthread_mutex_unlock(&bridgeLock);
+    return 0;
+  }
+  static int nextId = 1;
   b->callId = nextId++;
   b->bytes = expectedBytes;
   b->data = 0;
@@ -77,6 +89,7 @@ static PosixSocketCallResult *allocate_call_result(int expectedBytes)
     while(t->next) t = t->next;
     t->next = b;
   }
+  pthread_mutex_unlock(&bridgeLock);
   return b;
 }
 
@@ -88,6 +101,7 @@ static void free_call_result(PosixSocketCallResult *buffer)
 
 PosixSocketCallResult *pop_call_result(int callId)
 {
+  pthread_mutex_lock(&bridgeLock); // Guard multithreaded access to 'callResultHead'
   PosixSocketCallResult *prev = 0;
   PosixSocketCallResult *b = callResultHead;
   while(b)
@@ -97,10 +111,13 @@ PosixSocketCallResult *pop_call_result(int callId)
       if (prev) prev->next = b->next;
       else callResultHead = b->next;
       b->next = 0;
+      pthread_mutex_unlock(&bridgeLock);
       return b;
     }
+    prev = b;
     b = b->next;
   }
+  pthread_mutex_unlock(&bridgeLock);
   return 0;
 }
 
@@ -121,6 +138,7 @@ static EM_BOOL bridge_socket_on_message(int eventType, const EmscriptenWebSocket
   }
 
   SocketCallResultHeader *header = (SocketCallResultHeader *)websocketEvent->data;
+
   PosixSocketCallResult *b = pop_call_result(header->callId);
   if (!b)
   {
@@ -145,6 +163,11 @@ static EM_BOOL bridge_socket_on_message(int eventType, const EmscriptenWebSocket
     return EM_TRUE;
   }
 
+  if (b->operationCompleted != 0)
+  {
+    emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "Memory corruption(?): the received result for completed operation at address %p was expected to be in state 0, but it was at state %d!\n", &b->operationCompleted, (int)b->operationCompleted);
+  }
+
   emscripten_atomic_store_u32(&b->operationCompleted, 1);
   emscripten_futex_wake(&b->operationCompleted, 0x7FFFFFFF);
 
@@ -154,14 +177,25 @@ static EM_BOOL bridge_socket_on_message(int eventType, const EmscriptenWebSocket
 EMSCRIPTEN_WEBSOCKET_T emscripten_init_websocket_to_posix_socket_bridge(const char *bridgeUrl)
 {
 #ifdef POSIX_SOCKET_DEBUG
-  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_ERROR | EM_LOG_JS_STACK, "emscripten_init_websocket_to_posix_socket_bridge(bridgeUrl=\"%s\")\n", bridgeUrl);
+  emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_JS_STACK, "emscripten_init_websocket_to_posix_socket_bridge(bridgeUrl=\"%s\")\n", bridgeUrl);
 #endif
+  pthread_mutex_lock(&bridgeLock); // Guard multithreaded access to 'bridgeSocket'
+  if (bridgeSocket)
+  {
+#ifdef POSIX_SOCKET_DEBUG
+    emscripten_log(EM_LOG_NO_PATHS | EM_LOG_CONSOLE | EM_LOG_WARN | EM_LOG_JS_STACK, "emscripten_init_websocket_to_posix_socket_bridge(bridgeUrl=\"%s\"): A previous bridge socket connection handle existed! Forcibly tearing old connection down.\n", bridgeUrl);
+#endif
+    emscripten_websocket_close(bridgeSocket, 0, 0);
+    emscripten_websocket_delete(bridgeSocket);
+    bridgeSocket = 0;
+  }
   EmscriptenWebSocketCreateAttributes attr;
   emscripten_websocket_init_create_attributes(&attr);
   attr.url = bridgeUrl;
   bridgeSocket = emscripten_websocket_new(&attr);
   emscripten_websocket_set_onmessage_callback_on_thread(bridgeSocket, 0, bridge_socket_on_message, EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD);
 
+  pthread_mutex_unlock(&bridgeLock);
   return bridgeSocket;
 }
 
