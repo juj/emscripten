@@ -92,7 +92,7 @@ void *recv_thread(void *arg)
 
   for(int i = 0; i < 10; ++i)
   {
-    char server_reply[256];
+    char server_reply[256] = {};
     printf("Recv()ing\n");
     if (recv(sock, server_reply, 256, 0) < 0)
     {
