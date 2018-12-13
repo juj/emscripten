@@ -8,6 +8,7 @@
 #include <assert.h>
 
 #include "websocket_to_posix_proxy.h"
+#include "socket_registry.h"
 
 // Uncomment to enable debug printing
 // #define POSIX_SOCKET_DEBUG
@@ -737,6 +738,14 @@ void Socket(int client_fd, uint8_t *data, uint64_t numBytes) // int socket(int d
   if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
 
+  if (errorCode == 0)
+  {
+    // The proxy client connection created a new socket - track its lifetime and mark the new socket to be part of
+    // this particular proxy connection so that it will be properly freed when the proxy connection disconnects,
+    // and that no other proxy connections will be able to access this socket.
+    TrackSocketUsedByConnection(client_fd, ret);
+  }
+
   struct {
     int callId;
     int ret;
@@ -776,6 +785,15 @@ void Socketpair(int client_fd, uint8_t *data, uint64_t numBytes) // int socketpa
   printf("socketpair(domain=%d,type=%d,protocol=%d, socket_vector=[%d,%d])->%d\n", d->domain, d->type, d->protocol, socket_vector[0], socket_vector[1], ret);
   if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+
+  if (errorCode == 0)
+  {
+    // The proxy client connection created two new sockets - track their lifetime and mark the new sockets to be part of
+    // this particular proxy connection so that they will be properly freed when the proxy connection disconnects,
+    // and that no other proxy connections will be able to access these sockets.
+    TrackSocketUsedByConnection(client_fd, socket_vector[0]);
+    TrackSocketUsedByConnection(client_fd, socket_vector[1]);
+  }
 
   struct {
     int callId;
@@ -818,12 +836,29 @@ void Shutdown(int client_fd, uint8_t *data, uint64_t numBytes) // int shutdown(i
   MSG *d = (MSG*)data;
 
   d->how = Translate_Shutdown_How(d->how);
-  int ret = shutdown(d->socket, d->how);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+
+  int ret, errorCode;
+
+  if (IsSocketPartOfConnection(client_fd, d->socket))
+  {
+    ret = shutdown(d->socket, d->how);
+    errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 #ifdef POSIX_SOCKET_DEBUG
-  printf("shutdown(socket=%d,how=%d)->%d\n", d->socket, d->how, ret);
-  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
+    printf("shutdown(socket=%d,how=%d)->%d\n", d->socket, d->how, ret);
+    if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+    if (errorCode == 0 && d->how == SHUTDOWN_BIDIRECTIONAL)
+    {
+      // Proxy client performed bidirectional close, mark this socket as being disconnected, and disallow it
+      // from accessing this socket again - this close()s the socket.
+      CloseSocketByConnection(client_fd, d->socket);
+    }
+  }
+  else
+  {
+    fprintf(stderr, "shutdown(socket=%d,how=%d): Proxy client connection client_fd=%d attempted to call shutdown() on a socket fd=%d that it did not create (or has already shut down)\n", d->socket, d->how, client_fd, d->socket);
+    ret = errorCode = -1;
+  }
 
   struct {
     int callId;
@@ -846,12 +881,22 @@ void Bind(int client_fd, uint8_t *data, uint64_t numBytes) // int bind(int socke
   };
   MSG *d = (MSG*)data;
 
-  int ret = bind(d->socket, (sockaddr*)d->address, d->address_len);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+  int ret, errorCode;
+
+  if (IsSocketPartOfConnection(client_fd, d->socket))
+  {
+    ret = bind(d->socket, (sockaddr*)d->address, d->address_len);
+    errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 #ifdef POSIX_SOCKET_DEBUG
-  printf("bind(socket=%d,address=%p,address_len=%d, address=\"%s\")->%d\n", d->socket, d->address, d->address_len, BufferToString(d->address, d->address_len), ret);
-  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
+    printf("bind(socket=%d,address=%p,address_len=%d, address=\"%s\")->%d\n", d->socket, d->address, d->address_len, BufferToString(d->address, d->address_len), ret);
+    if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+  }
+  else
+  {
+    fprintf(stderr, "bind(): Proxy client connection client_fd=%d attempted to call bind() on a socket fd=%d that it did not create (or has already shut down)\n", client_fd, d->socket);
+    ret = errorCode = -1;
+  }
 
   struct {
     int callId;
@@ -876,12 +921,22 @@ void Connect(int client_fd, uint8_t *data, uint64_t numBytes) // int connect(int
 
   int actualAddressLen = MIN(d->address_len, (uint32_t)numBytes - sizeof(MSG));
 
-  int ret = connect(d->socket, (sockaddr*)d->address, actualAddressLen);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+  int ret, errorCode;
+
+  if (IsSocketPartOfConnection(client_fd, d->socket))
+  {
+    ret = connect(d->socket, (sockaddr*)d->address, actualAddressLen);
+    errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 #ifdef POSIX_SOCKET_DEBUG
-  printf("connect(socket=%d,address=%p,address_len=%d, address=\"%s\")->%d\n", d->socket, d->address, d->address_len, BufferToString(d->address, actualAddressLen), ret);
-  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
+    printf("connect(socket=%d,address=%p,address_len=%d, address=\"%s\")->%d\n", d->socket, d->address, d->address_len, BufferToString(d->address, actualAddressLen), ret);
+    if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+  }
+  else
+  {
+    fprintf(stderr, "connect(): Proxy client connection client_fd=%d attempted to call connect() on a socket fd=%d that it did not create (or has already shut down)\n", client_fd, d->socket);
+    ret = errorCode = -1;
+  }
 
   struct {
     int callId;
@@ -903,12 +958,22 @@ void Listen(int client_fd, uint8_t *data, uint64_t numBytes) // int listen(int s
   };
   MSG *d = (MSG*)data;
 
-  int ret = listen(d->socket, d->backlog);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+  int ret, errorCode;
+
+  if (IsSocketPartOfConnection(client_fd, d->socket))
+  {
+    ret = listen(d->socket, d->backlog);
+    errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 #ifdef POSIX_SOCKET_DEBUG
-  printf("listen(socket=%d,backlog=%d)->%d\n", d->socket, d->backlog, ret);
-  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
+    printf("listen(socket=%d,backlog=%d)->%d\n", d->socket, d->backlog, ret);
+    if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+  }
+  else
+  {
+    fprintf(stderr, "bind(): Proxy client connection client_fd=%d attempted to call bind() on a socket fd=%d that it did not create (or has already shut down)\n", client_fd, d->socket);
+    ret = errorCode = -1;
+  }
 
   struct {
     int callId;
@@ -933,17 +998,27 @@ void Accept(int client_fd, uint8_t *data, uint64_t numBytes) // int accept(int s
   uint8_t address[MAX_SOCKADDR_SIZE] = {};
   socklen_t addressLen = (socklen_t)MAX(0, MIN(d->address_len, MAX_SOCKADDR_SIZE));
 
-#ifdef POSIX_SOCKET_DEBUG
-  printf("accept(socket=%d,address=%p,address_len=%u, address=\"%s\")\n", d->socket, address, d->address_len, BufferToString(address, addressLen));
-#endif
+  int ret, errorCode;
 
-  int ret = accept(d->socket, d->address_len ? (sockaddr*)address : 0, d->address_len ? &addressLen : 0);
-  int errorCode = (ret < 0) ? GET_SOCKET_ERROR() : 0;
+  if (IsSocketPartOfConnection(client_fd, d->socket))
+  {
+#ifdef POSIX_SOCKET_DEBUG
+    printf("accept(socket=%d,address=%p,address_len=%u, address=\"%s\")\n", d->socket, address, d->address_len, BufferToString(address, addressLen));
+#endif
+    ret = accept(d->socket, d->address_len ? (sockaddr*)address : 0, d->address_len ? &addressLen : 0);
+    errorCode = (ret < 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("accept returned %d (address=\"%s\")\n", ret, BufferToString(address, addressLen));
-  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
+    printf("accept returned %d (address=\"%s\")\n", ret, BufferToString(address, addressLen));
+    if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+  }
+  else
+  {
+    fprintf(stderr, "accept(): Proxy client connection client_fd=%d attempted to call accept() on a socket fd=%d that it did not create (or has already shut down)\n", client_fd, d->socket);
+    ret = errorCode = -1;
+    addressLen = 0;
+  }
 
   struct Result {
     int callId;
@@ -977,13 +1052,25 @@ void Getsockname(int client_fd, uint8_t *data, uint64_t numBytes) // int getsock
   uint8_t address[MAX_SOCKADDR_SIZE];
 
   socklen_t addressLen = (socklen_t)d->address_len;
-  int ret = getsockname(d->socket, (sockaddr*)address, &addressLen);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+
+  int ret, errorCode;
+
+  if (IsSocketPartOfConnection(client_fd, d->socket))
+  {
+    ret = getsockname(d->socket, (sockaddr*)address, &addressLen);
+    errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("getsockname(socket=%d,address=%p,address_len=%u)->%d (ret address: \"%s\")\n", d->socket, address, d->address_len, ret, BufferToString(address, addressLen));
-  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
+    printf("getsockname(socket=%d,address=%p,address_len=%u)->%d (ret address: \"%s\")\n", d->socket, address, d->address_len, ret, BufferToString(address, addressLen));
+    if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+  }
+  else
+  {
+    fprintf(stderr, "getsockname(): Proxy client connection client_fd=%d attempted to call getsockname() on a socket fd=%d that it did not create (or has already shut down)\n", client_fd, d->socket);
+    ret = errorCode = -1;
+    addressLen = 0;
+  }
 
   struct Result {
     int callId;
@@ -1014,15 +1101,26 @@ void Getpeername(int client_fd, uint8_t *data, uint64_t numBytes) // int getpeer
   MSG *d = (MSG*)data;
 
   uint8_t address[MAX_SOCKADDR_SIZE];
-
   socklen_t addressLen = (socklen_t)d->address_len;
-  int ret = getpeername(d->socket, (sockaddr*)address, &addressLen);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+
+  int ret, errorCode;
+
+  if (IsSocketPartOfConnection(client_fd, d->socket))
+  {
+    ret = getpeername(d->socket, (sockaddr*)address, &addressLen);
+    errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("getpeername(socket=%d,address=%p,address_len=%u, address=\"%s\")->%d\n", d->socket, address, d->address_len, BufferToString(address, addressLen), ret);
-  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
+    printf("getpeername(socket=%d,address=%p,address_len=%u, address=\"%s\")->%d\n", d->socket, address, d->address_len, BufferToString(address, addressLen), ret);
+    if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+  }
+  else
+  {
+    fprintf(stderr, "getpeername(): Proxy client connection client_fd=%d attempted to call getpeername() on a socket fd=%d that it did not create (or has already shut down)\n", client_fd, d->socket);
+    ret = errorCode = -1;
+    addressLen = 0;
+  }
 
   struct Result {
     int callId;
@@ -1055,13 +1153,24 @@ void Send(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int send(i
   MSG *d = (MSG*)data;
 
   int actualBytes = MIN((int)numBytes - sizeof(MSG), d->length);
-  SEND_RET_TYPE ret = send(d->socket, (const char *)d->message, actualBytes, d->flags);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+  SEND_RET_TYPE ret;
+  int errorCode;
+
+  if (IsSocketPartOfConnection(client_fd, d->socket))
+  {
+    ret = send(d->socket, (const char *)d->message, actualBytes, d->flags);
+    errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("send(socket=%d,message=%p,length=%zd,flags=%d, data=\"%s\")->" SEND_FORMATTING_SPECIFIER "\n", d->socket, d->message, d->length, d->flags, BufferToString(d->message, d->length), ret);
-  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
+    printf("send(socket=%d,message=%p,length=%zd,flags=%d, data=\"%s\")->" SEND_FORMATTING_SPECIFIER "\n", d->socket, d->message, d->length, d->flags, BufferToString(d->message, d->length), ret);
+    if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+  }
+  else
+  {
+    fprintf(stderr, "send(): Proxy client connection client_fd=%d attempted to call send() on a socket fd=%d that it did not create (or has already shut down)\n", client_fd, d->socket);
+    ret = errorCode = -1;
+  }
 
   struct {
     int callId;
@@ -1085,15 +1194,27 @@ void Recv(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int recv(i
   MSG *d = (MSG*)data;
 
   uint8_t *buffer = (uint8_t*)malloc(d->length);
-  SEND_RET_TYPE ret = recv(d->socket, (char *)buffer, d->length, d->flags);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+  SEND_RET_TYPE ret;
+  int errorCode;
+  int receivedBytes;
 
-  int receivedBytes = MAX(ret, 0);
+  if (IsSocketPartOfConnection(client_fd, d->socket))
+  {
+    ret = recv(d->socket, (char *)buffer, d->length, d->flags);
+    errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+    receivedBytes = MAX(ret, 0);
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("recv(socket=%d,buffer=%p,length=%zd,flags=%d)->" SEND_FORMATTING_SPECIFIER " received \"%s\"\n", d->socket, buffer, d->length, d->flags, ret, BufferToString(buffer, receivedBytes));
-  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
+    printf("recv(socket=%d,buffer=%p,length=%zd,flags=%d)->" SEND_FORMATTING_SPECIFIER " received \"%s\"\n", d->socket, buffer, d->length, d->flags, ret, BufferToString(buffer, receivedBytes));
+    if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+  }
+  else
+  {
+    fprintf(stderr, "recv(): Proxy client connection client_fd=%d attempted to call recv() on a socket fd=%d that it did not create (or has already shut down)\n", client_fd, d->socket);
+    ret = errorCode = -1;
+    receivedBytes = 0;
+  }
 
   struct Result {
     int callId;
@@ -1125,13 +1246,24 @@ void Sendto(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int send
   };
   MSG *d = (MSG*)data;
 
-  SEND_RET_TYPE ret = sendto(d->socket, (const char *)d->message, d->length, d->flags, (sockaddr*)d->dest_addr, d->dest_len);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+  SEND_RET_TYPE ret;
+  int errorCode;
+
+  if (IsSocketPartOfConnection(client_fd, d->socket))
+  {
+    ret = sendto(d->socket, (const char *)d->message, d->length, d->flags, (sockaddr*)d->dest_addr, d->dest_len);
+    errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("sendto(socket=%d,message=%p,length=%zd,flags=%d,dest_addr=%p,dest_len=%d)->" SEND_FORMATTING_SPECIFIER "\n", d->socket, d->message, d->length, d->flags, d->dest_addr, d->dest_len, ret);
-  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
+    printf("sendto(socket=%d,message=%p,length=%zd,flags=%d,dest_addr=%p,dest_len=%d)->" SEND_FORMATTING_SPECIFIER "\n", d->socket, d->message, d->length, d->flags, d->dest_addr, d->dest_len, ret);
+    if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+  }
+  else
+  {
+    fprintf(stderr, "sendto(): Proxy client connection client_fd=%d attempted to call sendto() on a socket fd=%d that it did not create (or has already shut down)\n", client_fd, d->socket);
+    ret = errorCode = -1;
+  }
 
   struct {
     int callId;
@@ -1159,15 +1291,27 @@ void Recvfrom(int client_fd, uint8_t *data, uint64_t numBytes) // ssize_t/int re
   uint8_t *buffer = (uint8_t *)malloc(d->length);
 
   socklen_t address_len = (socklen_t)d->address_len;
-  int ret = recvfrom(d->socket, (char *)buffer, d->length, d->flags, (sockaddr*)address, &address_len);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
+  int ret, errorCode, receivedBytes;
+
+  if (IsSocketPartOfConnection(client_fd, d->socket))
+  {
+    ret = recvfrom(d->socket, (char *)buffer, d->length, d->flags, (sockaddr*)address, &address_len);
+    errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 #ifdef POSIX_SOCKET_DEBUG
-  printf("recvfrom(socket=%d,buffer=%p,length=%zd,flags=%d,address=%p,address_len=%u, address=\"%s\")->%d\n", d->socket, buffer, d->length, d->flags, address, d->address_len, BufferToString(address, address_len), ret);
-  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
+    printf("recvfrom(socket=%d,buffer=%p,length=%zd,flags=%d,address=%p,address_len=%u, address=\"%s\")->%d\n", d->socket, buffer, d->length, d->flags, address, d->address_len, BufferToString(address, address_len), ret);
+    if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+    receivedBytes = MAX(ret, 0);
+  }
+  else
+  {
+    fprintf(stderr, "recvfrom(): Proxy client connection client_fd=%d attempted to call recvfrom() on a socket fd=%d that it did not create (or has already shut down)\n", client_fd, d->socket);
+    ret = errorCode = -1;
+    receivedBytes = 0;
+    address_len = 0;
+  }
 
-  int receivedBytes = MAX(ret, 0);
   int actualAddressLen = MIN(address_len, (socklen_t)d->address_len);
 
   struct Result {
@@ -1226,13 +1370,25 @@ void Getsockopt(int client_fd, uint8_t *data, uint64_t numBytes) // int getsocko
   d->option_name = Translate_SOL_SOCKET_option(d->option_name);
 
   socklen_t option_len = (socklen_t)d->option_len;
-  int ret = getsockopt(d->socket, d->level, d->option_name, (char*)option_value, &option_len);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+
+  int ret, errorCode;
+
+  if (IsSocketPartOfConnection(client_fd, d->socket))
+  {
+    ret = getsockopt(d->socket, d->level, d->option_name, (char*)option_value, &option_len);
+    errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("getsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%u, optionData=\"%s\")->%d\n", d->socket, d->level, d->option_name, option_value, d->option_len, BufferToString(option_value, option_len), ret);
-  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
+    printf("getsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%u, optionData=\"%s\")->%d\n", d->socket, d->level, d->option_name, option_value, d->option_len, BufferToString(option_value, option_len), ret);
+    if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+  }
+  else
+  {
+    fprintf(stderr, "getsockopt(): Proxy client connection client_fd=%d attempted to call getsockopt() on a socket fd=%d that it did not create (or has already shut down)\n", client_fd, d->socket);
+    ret = errorCode = -1;
+    option_len = 0;
+  }
 
   struct Result {
     int callId;
@@ -1276,13 +1432,24 @@ void Setsockopt(int client_fd, uint8_t *data, uint64_t numBytes) // int setsocko
       fprintf(stderr, "Unknown socket level %d, unable to translate socket option\n", d->level);
       break;
   }
-  int ret = setsockopt(d->socket, d->level, d->option_name, (const char *)d->option_value, actualOptionLen);
-  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+
+  int ret, errorCode;
+
+  if (IsSocketPartOfConnection(client_fd, d->socket))
+  {
+    ret = setsockopt(d->socket, d->level, d->option_name, (const char *)d->option_value, actualOptionLen);
+    errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
 
 #ifdef POSIX_SOCKET_DEBUG
-  printf("setsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%d, optionData=\"%s\")->%d\n", d->socket, d->level, d->option_name, d->option_value, d->option_len, BufferToString(d->option_value, actualOptionLen), ret);
-  if (errorCode) PRINT_SOCKET_ERROR(errorCode);
+    printf("setsockopt(socket=%d,level=%d,option_name=%d,option_value=%p,option_len=%d, optionData=\"%s\")->%d\n", d->socket, d->level, d->option_name, d->option_value, d->option_len, BufferToString(d->option_value, actualOptionLen), ret);
+    if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+  }
+  else
+  {
+    fprintf(stderr, "setsockopt(): Proxy client connection client_fd=%d attempted to call setsockopt() on a socket fd=%d that it did not create (or has already shut down)\n", client_fd, d->socket);
+    ret = errorCode = -1;
+  }
 
   struct {
     int callId;
@@ -1297,7 +1464,6 @@ void Setsockopt(int client_fd, uint8_t *data, uint64_t numBytes) // int setsocko
 
 void Getaddrinfo(int client_fd, uint8_t *data, uint64_t numBytes) // int getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res);
 {
-
 #define MAX_NODE_LEN 2048
 #define MAX_SERVICE_LEN 128
 

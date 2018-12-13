@@ -9,6 +9,7 @@
 
 #include "sha1.h"
 #include "websocket_to_posix_proxy.h"
+#include "socket_registry.h"
 
 // #define PROXY_DEBUG
 
@@ -161,7 +162,9 @@ uint8_t *WebSocketMessageData(uint8_t *data, uint64_t numBytes)
 void CloseWebSocket(int client_fd)
 {
   printf("Closing WebSocket connection %d\n", client_fd);
+  CloseAllSocketsByConnection(client_fd);
   shutdown(client_fd, SHUTDOWN_BIDIRECTIONAL);
+  close(client_fd);
 }
 
 const char *WebSocketOpcodeToString(int opcode)
@@ -209,14 +212,14 @@ THREAD_RETURN_T connection_thread(void *arg)
 
   if (!read)
   {
-    shutdown(client_fd, SHUTDOWN_BIDIRECTIONAL);
+    CloseWebSocket(client_fd);
     EXIT_THREAD(0);
   }
 
   if (read < 0)
   {
     fprintf(stderr, "Client read failed\n");
-    shutdown(client_fd, SHUTDOWN_BIDIRECTIONAL);
+    CloseWebSocket(client_fd);
     EXIT_THREAD(0);
   }
 
@@ -299,7 +302,7 @@ THREAD_RETURN_T connection_thread(void *arg)
       switch(header->opcode)
       {
       case 0x02: /*binary message*/ ProcessWebSocketMessage(client_fd, payload, payloadLength); break;
-      case 0x08: CloseWebSocket(client_fd); connectionAlive = false; break;
+      case 0x08: connectionAlive = false; break;
       default:
         fprintf(stderr, "Unknown WebSocket opcode received %x!\n", header->opcode);
         connectionAlive = false; // Kill connection
@@ -313,7 +316,7 @@ THREAD_RETURN_T connection_thread(void *arg)
     }
   }
   printf("Proxy connection closed\n");
-  shutdown(client_fd, SHUTDOWN_BIDIRECTIONAL);
+  CloseWebSocket(client_fd);
   EXIT_THREAD(0);
 }
 
