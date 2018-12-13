@@ -22,7 +22,7 @@ void CloseSocketByConnection(int proxyConnection, int usedSocket)
 	if (!IsSocketPartOfConnection(proxyConnection, usedSocket))
 		return;
 	printf("Closing socket fd %d used by proxy connection %d\n", usedSocket, proxyConnection);
-	close(usedSocket);
+	CLOSE_SOCKET(usedSocket);
 	std::vector<int> &sockets = socketsPerProxyConnection[proxyConnection];
 	sockets.erase(std::remove(sockets.begin(), sockets.end(), usedSocket), sockets.end());
 }
@@ -34,7 +34,7 @@ void CloseAllSocketsByConnection(int proxyConnection)
 	{
 		printf("Closing socket fd %d used by proxy connection %d.\n", sockets[i], proxyConnection);
 		shutdown(sockets[i], SHUTDOWN_BIDIRECTIONAL);
-		close(sockets[i]);
+		CLOSE_SOCKET(sockets[i]);
 	}
 	socketsPerProxyConnection.erase(proxyConnection);
 }

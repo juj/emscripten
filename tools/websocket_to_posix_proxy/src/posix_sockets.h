@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdio.h>
+
 #if defined(__APPLE__) || defined(____linux__)
 
 #include <sys/socket.h>
@@ -14,6 +16,7 @@
 #define SETSOCKOPT_PTR_TYPE const int*
 #define SEND_RET_TYPE ssize_t
 #define SEND_FORMATTING_SPECIFIER "%ld"
+#define CLOSE_SOCKET(x) close(x)
 
 #define GET_SOCKET_ERROR() (errno)
 
@@ -32,6 +35,7 @@
 #define SETSOCKOPT_PTR_TYPE const char*
 #define SEND_RET_TYPE int
 #define SEND_FORMATTING_SPECIFIER "%d"
+#define CLOSE_SOCKET(x) closesocket(x)
 
 #define GET_SOCKET_ERROR() (WSAGetLastError())
 

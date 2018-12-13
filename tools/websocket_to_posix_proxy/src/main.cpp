@@ -164,7 +164,7 @@ void CloseWebSocket(int client_fd)
   printf("Closing WebSocket connection %d\n", client_fd);
   CloseAllSocketsByConnection(client_fd);
   shutdown(client_fd, SHUTDOWN_BIDIRECTIONAL);
-  close(client_fd);
+  CLOSE_SOCKET(client_fd);
 }
 
 const char *WebSocketOpcodeToString(int opcode)
