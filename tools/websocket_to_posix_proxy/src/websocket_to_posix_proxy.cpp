@@ -1012,6 +1012,12 @@ void Accept(int client_fd, uint8_t *data, uint64_t numBytes) // int accept(int s
     printf("accept returned %d (address=\"%s\")\n", ret, BufferToString(address, addressLen));
     if (errorCode) PRINT_SOCKET_ERROR(errorCode);
 #endif
+
+		if (ret > 0)
+		{
+			// New connection socket created by the proxy bridge, mark it as part of this WebSocket proxy connection.
+			TrackSocketUsedByConnection(client_fd, ret);
+		}
   }
   else
   {
