@@ -54,11 +54,13 @@ SYSTEM_TASKS = [
     'gl-webgl2',
     'html5',
     'libc',
+    'libc-sockets',
     'libc++',
     'libc++_noexcept',
     'libc++abi',
     'libc-extras',
     'libc-mt',
+    'posix_proxy',
     'pthreads',
     'pthreads_stub',
 ]
@@ -354,6 +356,20 @@ def main():
       build_port('cocos2d', 'cocos2d.bc', ['-s', 'USE_COCOS2D=3', '-s', 'USE_ZLIB=1', '-s', 'USE_LIBPNG=1', '-s', 'ERROR_ON_UNDEFINED_SYMBOLS=0'])
     elif what == 'regal':
       build_port('regal', 'regal.bc', ['-s', 'USE_REGAL=1'])
+    elif what == 'libc-sockets':
+      build('''
+        #include <sys/socket.h>
+        int main() {
+          return socket(0,0,0);
+        }
+      ''', ['libc-sockets.bc'])
+    elif what == 'posix_proxy':
+      build('''
+        #include <sys/socket.h>
+        int main() {
+          return socket(0,0,0);
+        }
+      ''', ['libposix-sockets-proxy.bc'], ['-s', 'PROXY_POSIX_SOCKETS=1', '-s', 'USE_PTHREADS=1', '-s', 'PROXY_TO_PTHREAD=1'])
     else:
       logger.error('unfamiliar build target: ' + what)
       return 1
