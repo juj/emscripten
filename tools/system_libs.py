@@ -25,6 +25,11 @@ stderr = None
 
 logger = logging.getLogger('system_libs')
 
+LIBC_SOCKETS = ['socket.c', 'socketpair.c', 'shutdown.c', 'bind.c', 'connect.c',
+                'listen.c', 'accept.c', 'getsockname.c', 'getpeername.c', 'send.c',
+                'recv.c', 'sendto.c', 'recvfrom.c', 'sendmsg.c', 'recvmsg.c',
+                'getsockopt.c', 'setsockopt.c', 'freeaddrinfo.c']
+
 
 def files_in_path(path_components, filenames):
   srcdir = shared.path_from_root(*path_components)
@@ -608,6 +613,8 @@ class libc(AsanInstrumentedLibrary, MuslInternalLibrary, MTLibrary):
         'getgrouplist.c', 'initgroups.c', 'wordexp.c', 'timer_create.c',
         'faccessat.c',
     ]
+
+    blacklist += LIBC_SOCKETS
 
     # individual math files
     blacklist += [

@@ -518,6 +518,7 @@ var SyscallsLibrary = {
   __syscall97: function(which, varargs) { // setpriority
     return -{{{ cDefine('EPERM') }}};
   },
+#if PROXY_POSIX_SOCKETS == 0
   __syscall102__deps: ['$SOCKFS', '$DNS', '_read_sockaddr', '_write_sockaddr'],
   __syscall102: function(which, varargs) { // socketcall
     var call = SYSCALLS.get(), socketvararg = SYSCALLS.get();
@@ -729,6 +730,7 @@ var SyscallsLibrary = {
       default: abort('unsupported socketcall syscall ' + call);
     }
   },
+#endif // ~PROXY_POSIX_SOCKETS==0
   __syscall104: function(which, varargs) { // setitimer
     return -{{{ cDefine('ENOSYS') }}}; // unsupported feature
   },

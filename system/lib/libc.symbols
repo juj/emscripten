@@ -5,6 +5,7 @@
 -------- W _IO_getc_unlocked
 -------- W _IO_putc
 -------- W _IO_putc_unlocked
+         U __addtf3
 -------- W __aio_close
 -------- D __c_dot_utf8
 -------- D __c_dot_utf8_locale
@@ -12,6 +13,7 @@
          U __clock_gettime
 -------- T __cos
 -------- T __cosdf
+-------- T __cosl
 -------- T __crypt_blowfish
 -------- T __crypt_des
 -------- T __crypt_md5
@@ -23,6 +25,7 @@
 -------- T __ctype_tolower_loc
 -------- T __ctype_toupper_loc
 -------- T __des_setkey
+         U __divtf3
 -------- T __dn_comp
 -------- T __dn_expand
 -------- T __dns_count_addrs
@@ -35,22 +38,29 @@
 -------- T __dup3
 -------- T __duplocale
 -------- T __emscripten_pthread_data_constructor
+         U __eqtf2
 -------- T __errno_location
 -------- T __expo2
 -------- T __expo2f
+         U __extenddftf2
+         U __extendsftf2
 -------- T __fbufsize
 -------- T __fclose_ca
 -------- T __fdopen
 -------- T __fesetround
 -------- T __fgetwc_unlocked
+         U __fixtfdi
+         U __fixtfsi
 -------- T __flbf
 -------- T __floatscan
+         U __floatsitf
+         U __floatunsitf
 -------- T __flt_rounds
 -------- T __fmodeflags
 -------- T __fopen_rb_ca
 -------- T __fpclassify
 -------- T __fpclassifyf
--------- T __fpclassifyl
+         U __fpclassifyl
 -------- T __fpending
 -------- T __fpurge
 -------- T __fputwc_unlocked
@@ -80,12 +90,15 @@
 -------- T __get_resolv_conf
 -------- W __getdelim
 -------- T __getdents
+         U __getf2
 -------- T __getopt_msg
 -------- T __gettextdomain
+         U __gttf2
 -------- T __h_errno_location
--------- C __hwcap
+-------- D __hwcap
 -------- T __inet_aton
 -------- T __intscan
+-------- T __invtrigl_R
 -------- T __ipparse
 -------- T __isalnum_l
 -------- T __isalpha_l
@@ -129,10 +142,11 @@
 -------- T __lctrans_impl
 -------- T __ldexp_cexp
 -------- T __ldexp_cexpf
+         U __letf2
 -------- T __lgamma_r
 -------- T __lgammaf_r
 -------- T __lgammal_r
--------- C __libc
+-------- D __libc
 -------- T __libc_get_version
 -------- T __loc_is_allocated
          U __lock
@@ -140,6 +154,7 @@
 -------- T __lookup_ipliteral
 -------- T __lookup_name
 -------- T __lookup_serv
+         U __lttf2
 -------- T __lxstat
 -------- W __lxstat64
 -------- T __madvise
@@ -152,17 +167,24 @@
 -------- T __mremap
          U __muldc3
          U __mulsc3
+         U __multc3
+         U __multf3
 -------- T __munmap
+         U __netf2
 -------- T __newlocale
 -------- T __nl_langinfo
 -------- T __nl_langinfo_l
 -------- T __ofl_add
 -------- T __ofl_lock
 -------- T __ofl_unlock
--------- C __optpos
+-------- D __optpos
 -------- D __optreset
 -------- T __overflow
+-------- T __p1evll
+-------- D __pio2_hi
+-------- D __pio2_lo
 -------- T __pleval
+-------- T __polevll
 -------- W __posix_getopt
 -------- T __procfdname
 -------- D __progname
@@ -173,6 +195,7 @@
 -------- T __rem_pio2
 -------- T __rem_pio2_large
 -------- T __rem_pio2f
+-------- T __rem_pio2l
 -------- T __res_mkquery
 -------- T __res_msend
 -------- T __res_msend_rc
@@ -185,18 +208,18 @@
 -------- T __shgetc
 -------- T __shlim
 -------- T __shm_mapname
--------- T __signbit
--------- T __signbitf
--------- T __signbitl
+         U __signbitl
 -------- D __signgam
 -------- T __sin
 -------- T __sindf
+-------- T __sinl
 -------- T __small_fprintf
 -------- T __small_printf
 -------- T __small_sprintf
 -------- T __small_vfprintf
 -------- T __small_vsnprintf
 -------- T __small_vsprintf
+         U __stack_pointer
 -------- T __statfs
 -------- D __stderr_used
 -------- D __stdin_used
@@ -224,6 +247,7 @@
 -------- W __strtoull_internal
 -------- W __strtoumax_internal
 -------- T __strxfrm_l
+         U __subtf3
 -------- T __synccall
          U __syscall10
          U __syscall102
@@ -329,9 +353,10 @@
          U __syscall96
          U __syscall97
 -------- T __syscall_ret
--------- C __sysinfo
+-------- D __sysinfo
 -------- T __tan
 -------- T __tandf
+-------- T __tanl
 -------- T __tolower_l
 -------- T __toread
 -------- T __toread_needs_stdio_exit
@@ -344,10 +369,13 @@
 -------- T __tre_mem_alloc_impl
 -------- T __tre_mem_destroy
 -------- T __tre_mem_new_impl
+         U __trunctfdf2
+         U __trunctfsf2
 -------- T __uflow
 -------- T __unlist_locked_file
          U __unlock
 -------- T __unlockfile
+         U __unordtf2
 -------- T __uselocale
 -------- T __vfprintf_internal
 -------- W __vm_wait
@@ -367,7 +395,7 @@
 -------- T _flushlbf
 -------- D _ns_flagdata
 -------- T a64l
--------- T accept
+         U accept
 -------- T accept4
 -------- T access
 -------- T acct
@@ -384,6 +412,7 @@
 -------- T asprintf
          U atan2
          U atan2f
+         U atan2l
 -------- T atanh
 -------- T atanhf
 -------- T atanhl
@@ -394,7 +423,7 @@
 -------- T basename
 -------- T bcmp
 -------- T bcopy
--------- T bind
+         U bind
 -------- T bind_textdomain_codeset
 -------- T bindtextdomain
 -------- T bsearch
@@ -466,7 +495,7 @@
 -------- T conj
 -------- T conjf
 -------- T conjl
--------- T connect
+         U connect
 -------- T copysign
 -------- T copysignf
 -------- T copysignl
@@ -543,11 +572,7 @@
 -------- T ether_ntoa_r
 -------- T ether_ntohost
          U exp
--------- T exp10
--------- T exp10f
 -------- T exp10l
--------- T exp2
--------- T exp2f
 -------- T exp2l
          U expf
 -------- T expm1
@@ -555,6 +580,7 @@
 -------- T expm1l
          U fabs
          U fabsf
+         U fabsl
 -------- T fchdir
 -------- T fchmod
 -------- T fchmodat
@@ -611,16 +637,8 @@
 -------- T fma
 -------- T fmaf
 -------- T fmal
--------- T fmax
--------- T fmaxf
--------- T fmaxl
 -------- T fmemopen
--------- T fmin
--------- T fminf
--------- T fminl
--------- T fmod
--------- T fmodf
--------- T fmodl
+         U fmodl
 -------- T fmtmsg
 -------- T fnmatch
 -------- T fopen
@@ -640,7 +658,6 @@
 -------- T fread
 -------- W fread_unlocked
          U free
--------- T freeaddrinfo
 -------- T freeifaddrs
 -------- T freelocale
 -------- T freopen
@@ -710,7 +727,6 @@
 -------- T getopt
 -------- T getopt_long
 -------- T getopt_long_only
--------- T getpeername
 -------- T getpgid
 -------- T getpgrp
 -------- T getpid
@@ -728,8 +744,7 @@
 -------- T getservbyport_r
 -------- T getservent
 -------- T getsid
--------- T getsockname
--------- T getsockopt
+         U getsockname
 -------- T getsubopt
 -------- T gettext
 -------- T getuid
@@ -744,7 +759,7 @@
 -------- W globfree64
          U gmtime_r
 -------- T grantpt
--------- C h_errno
+-------- D h_errno
 -------- T hasmntopt
 -------- T herror
 -------- T hstrerror
@@ -857,7 +872,6 @@
 -------- W lgammal_r
 -------- T link
 -------- T linkat
--------- T listen
 -------- T llabs
 -------- T lldiv
 -------- T llrint
@@ -870,20 +884,19 @@
 -------- T lockf
 -------- W lockf64
          U log
--------- T log10
--------- T log10f
+         U log10
 -------- T log10l
 -------- T log1p
 -------- T log1pf
 -------- T log1pl
--------- T log2
--------- T log2f
+         U log2
 -------- T log2l
 -------- T logb
 -------- T logbf
 -------- T logbl
          U logf
 -------- T login_tty
+         U logl
 -------- T lrand48
 -------- T lrint
 -------- T lrintf
@@ -987,10 +1000,10 @@
 -------- T opendir
 -------- T openlog
 -------- T openpty
--------- C optarg
+-------- D optarg
 -------- D opterr
 -------- D optind
--------- C optopt
+-------- D optopt
 -------- W optreset
 -------- T pause
 -------- T pclose
@@ -1007,9 +1020,8 @@
          U posix_memalign
 -------- T posix_openpt
          U pow
--------- W pow10
--------- W pow10f
 -------- W pow10l
+         U powl
 -------- T pread
 -------- W pread64
 -------- T preadv
@@ -1053,10 +1065,9 @@
 -------- T readv
          U realloc
 -------- T realpath
--------- T recv
--------- T recvfrom
+         U recv
+         U recvfrom
 -------- T recvmmsg
--------- T recvmsg
 -------- T regcomp
 -------- T regerror
 -------- T regexec
@@ -1088,7 +1099,7 @@
 -------- T scalbln
 -------- T scalblnf
 -------- T scalblnl
--------- T scalbn
+         U scalbn
 -------- T scalbnf
 -------- T scalbnl
 -------- T scandir
@@ -1097,10 +1108,9 @@
 -------- T seed48
 -------- T seekdir
 -------- T select
--------- T send
+         U send
 -------- T sendmmsg
--------- T sendmsg
--------- T sendto
+         U sendto
 -------- T setbuf
 -------- T setbuffer
 -------- T setdomainname
@@ -1126,13 +1136,12 @@
 -------- W setrlimit64
 -------- T setservent
 -------- T setsid
--------- T setsockopt
+         U setsockopt
 -------- T setstate
 -------- T setuid
 -------- T setvbuf
 -------- T shm_open
 -------- T shm_unlink
--------- T shutdown
          U sigfillset
 -------- W signgam
 -------- T significand
@@ -1149,11 +1158,11 @@
 -------- T sleep
 -------- T snprintf
 -------- T sockatmark
--------- T socket
--------- T socketpair
+         U socket
 -------- T sprintf
          U sqrt
          U sqrtf
+         U sqrtl
 -------- T srand
 -------- T srand48
 -------- T srandom
