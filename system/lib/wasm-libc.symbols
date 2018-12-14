@@ -41,9 +41,6 @@
 -------- T log
 -------- T logf
 -------- T logl
--------- T memcpy
--------- T memmove
--------- T memset
 -------- T pow
 -------- T powf
 -------- T powl

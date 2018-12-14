@@ -19,6 +19,11 @@ from tools.shared import check_call
 stdout = None
 stderr = None
 
+LIBC_SOCKETS = ['socket.c', 'socketpair.c', 'shutdown.c', 'bind.c', 'connect.c',
+                'listen.c', 'accept.c', 'getsockname.c', 'getpeername.c', 'send.c',
+                'recv.c', 'sendto.c', 'recvfrom.c', 'sendmsg.c', 'recvmsg.c',
+                'getsockopt.c', 'setsockopt.c', 'freeaddrinfo.c']
+
 
 def call_process(cmd):
   shared.run_process(cmd, stdout=stdout, stderr=stderr)
@@ -87,6 +92,7 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
   # XXX We also need to add libc symbols that use malloc, for example strdup. It's very rare to use just them and not
   #     a normal malloc symbol (like free, after calling strdup), so we haven't hit this yet, but it is possible.
   libc_symbols = read_symbols(shared.path_from_root('system', 'lib', 'libc.symbols'))
+  libc_sockets_symbols = read_symbols(shared.path_from_root('system', 'lib', 'libc-sockets.symbols'))
   libcxx_symbols = read_symbols(shared.path_from_root('system', 'lib', 'libcxx', 'symbols'))
   libcxxabi_symbols = read_symbols(shared.path_from_root('system', 'lib', 'libcxxabi', 'symbols'))
   gl_symbols = read_symbols(shared.path_from_root('system', 'lib', 'gl.symbols'))
@@ -188,6 +194,8 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
         'faccessat.c',
     ]
 
+    blacklist += LIBC_SOCKETS
+
     # individual math files
     blacklist += [
         'abs.c', 'cos.c', 'cosf.c', 'cosl.c', 'sin.c', 'sinf.c', 'sinl.c',
@@ -226,6 +234,19 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
               break
           if not cancel:
             libc_files.append(os.path.join(musl_srcdir, dirpath, f))
+
+    # Without -fno-builtin, LLVM can optimize away or convert calls to library
+    # functions to something else based on assumptions that they behave exactly
+    # like the standard library. This can cause unexpected bugs when we use our
+    # custom standard library. The same for other libc/libm builds.
+    args = ['-Os', '-fno-builtin']
+    args += threading_flags(libname)
+    return build_libc(libname, libc_files, args)
+
+  def create_libc_sockets(libname):
+    logging.debug('building libc-sockets for cache')
+    network_dir = shared.path_from_root('system', 'lib', 'libc', 'musl', 'src', 'network')
+    libc_files = [os.path.join(network_dir, x) for x in LIBC_SOCKETS]
 
     # Without -fno-builtin, LLVM can optimize away or convert calls to library
     # functions to something else based on assumptions that they behave exactly
@@ -384,6 +405,9 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
     for dirpath, dirnames, filenames in os.walk(src_dir):
       files += [os.path.join(src_dir, f) for f in filenames]
     return build_libc(libname, files, ['-Oz'])
+
+  def create_posix_proxy(libname):
+    return build_libc(libname, [shared.path_from_root('system', 'lib', 'websocket', 'websocket_to_posix_socket.cpp')], ['-Oz'])
 
   def create_compiler_rt(libname):
     files = files_in_path(
@@ -633,6 +657,11 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
       system_libs += [Library('libgl',           ext, create_gl,             gl_symbols,             [libc_name],  False)] # noqa
 
   system_libs.append(Library(libc_name, ext, create_libc, libc_symbols, libc_deps, False))
+  if shared.Settings.PROXY_POSIX_SOCKETS:
+    system_libs.append(Library('libposix-sockets-proxy', ext, create_posix_proxy, [], [], False))
+    forced += ['libposix-sockets-proxy']
+  else:
+    system_libs.append(Library(libc_name + '-sockets', ext, create_libc_sockets, libc_sockets_symbols, libc_deps, False))
 
   # if building to wasm, we need more math code, since we have less builtins
   if shared.Settings.WASM:

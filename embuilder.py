@@ -35,6 +35,7 @@ Available operations and tasks:
   build libc
         libc-mt
         libc-extras
+        libc-sockets
         struct_info
         emmalloc
         emmalloc_debug
@@ -47,6 +48,7 @@ Available operations and tasks:
         dlmalloc_threadsafe_noerrno
         dlmalloc_threadsafe_debug_noerrno
         pthreads
+        posix_proxy
         libc++
         libc++_noexcept
         libc++abi
@@ -110,11 +112,11 @@ CXX_WITH_STDLIB = '''
 
 SYSTEM_TASKS = [
     'al', 'compiler-rt', 'gl', 'gl-mt', 'libc', 'libc-mt', 'libc-extras',
-    'emmalloc', 'emmalloc_debug', 'dlmalloc', 'dlmalloc_threadsafe', 'pthreads',
-    'dlmalloc_debug', 'dlmalloc_threadsafe_debug', 'libc++', 'libc++_noexcept',
+    'libc-sockets', 'emmalloc', 'emmalloc_debug', 'dlmalloc',
+    'dlmalloc_threadsafe', 'pthreads', 'posix_proxy', 'dlmalloc_debug',
+    'dlmalloc_threadsafe_debug', 'libc++', 'libc++_noexcept',
     'dlmalloc_debug_noerrno', 'dlmalloc_threadsafe_debug_noerrno',
-    'dlmalloc_noerrno', 'dlmalloc_threadsafe_noerrno',
-    'libc++abi', 'html5'
+    'dlmalloc_noerrno', 'dlmalloc_threadsafe_noerrno', 'libc++abi', 'html5'
 ]
 USER_TASKS = [
     'binaryen', 'bullet', 'freetype', 'icu', 'libpng', 'ogg', 'sdl2',
@@ -303,6 +305,20 @@ def main():
       build_port('cocos2d', None, ['-s', 'USE_COCOS2D=3', '-s', 'USE_ZLIB=1', '-s', 'USE_LIBPNG=1', '-s', 'ERROR_ON_UNDEFINED_SYMBOLS=0'])
     elif what == 'regal':
       build_port('regal', 'libregal.bc', ['-s', 'USE_REGAL=1'])
+    elif what == 'libc-sockets':
+      build('''
+        #include <sys/socket.h>
+        int main() {
+          return socket(0,0,0);
+        }
+      ''', ['libc-sockets.bc'])
+    elif what == 'posix_proxy':
+      build('''
+        #include <sys/socket.h>
+        int main() {
+          return socket(0,0,0);
+        }
+      ''', ['libposix-sockets-proxy.bc'], ['-s', 'PROXY_POSIX_SOCKETS=1', '-s', 'USE_PTHREADS=1', '-s', 'PROXY_TO_PTHREAD=1'])
     else:
       logger.error('unfamiliar build target: ' + what)
       sys.exit(1)
