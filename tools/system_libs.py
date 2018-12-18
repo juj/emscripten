@@ -43,7 +43,7 @@ def files_in_path(path_components, filenames):
 
 
 def get_cflags():
-  flags = []
+  flags = ['-g4']
   if shared.Settings.WASM_OBJECT_FILES:
      flags += ['-s', 'WASM_OBJECT_FILES=1']
   return flags
@@ -160,13 +160,17 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
 
     # individual files
     blacklist += [
-        'memcpy.c', 'memset.c', 'memmove.c', 'getaddrinfo.c', 'getnameinfo.c',
-        'inet_addr.c', 'res_query.c', 'res_querydomain.c', 'gai_strerror.c',
-        'proto.c', 'gethostbyaddr.c', 'gethostbyaddr_r.c', 'gethostbyname.c',
+        'memcpy.c', 'memset.c', 'memmove.c', 'getaddrinfo.c', 'freeaddrinfo.c',
+        'getnameinfo.c', 'res_query.c', 'gai_strerror.c', 'proto.c',
+        'gethostbyaddr.c', 'gethostbyaddr_r.c', 'gethostbyname.c',
         'gethostbyname2_r.c', 'gethostbyname_r.c', 'gethostbyname2.c',
         'usleep.c', 'alarm.c', 'syscall.c', '_exit.c', 'popen.c',
         'getgrouplist.c', 'initgroups.c', 'wordexp.c', 'timer_create.c',
         'faccessat.c',
+        'socket.c', 'socketpair.c', 'shutdown.c', 'bind.c', 'connect.c',
+        'listen.c', 'accept.c', 'getsockname.c', 'getpeername.c', 'send.c',
+        'recv.c', 'sendto.c', 'recvfrom.c', 'sendmsg.c', 'recvmsg.c',
+        'getsockopt.c', 'setsockopt.c'
     ]
 
     # individual math files
@@ -316,7 +320,7 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
     libcxxabi_include = shared.path_from_root('system', 'lib', 'libcxxabi', 'include')
     return build_libcxx(
       os.path.join('system', 'lib', 'libcxx'), libname, libcxx_files,
-      ['-DLIBCXX_BUILDING_LIBCXXABI=1', '-D_LIBCPP_BUILDING_LIBRARY', '-Oz', '-I' + libcxxabi_include],
+      ['-DLIBCXX_BUILDING_LIBCXXABI=1', '-D_LIBCPP_BUILDING_LIBRARY', '-g4', '-Oz', '-I' + libcxxabi_include],
       has_noexcept_version=True)
 
   # libcxxabi - just for dynamic_cast for now
@@ -339,7 +343,7 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
     libcxxabi_include = shared.path_from_root('system', 'lib', 'libcxxabi', 'include')
     return build_libcxx(
       os.path.join('system', 'lib', 'libcxxabi', 'src'), libname, libcxxabi_files,
-      ['-Oz', '-I' + libcxxabi_include])
+      ['-g4', '-Oz', '-I' + libcxxabi_include])
 
   # gl
   def create_gl(libname):
@@ -363,7 +367,10 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
     files = []
     for dirpath, dirnames, filenames in os.walk(src_dir):
       files += [os.path.join(src_dir, f) for f in filenames]
-    return build_libc(libname, files, ['-Oz'])
+    return build_libc(libname, files, ['-g4', '-Oz'])
+
+  def create_posix_proxy(libname):
+    return build_libc(libname, [shared.path_from_root('system', 'lib', 'websocket', 'websocket_to_posix_socket.cpp')], ['-Oz'])
 
   def create_compiler_rt(libname):
     files = files_in_path(
@@ -603,6 +610,10 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
     system_libs += [Library('libgl',             ext, create_gl,             gl_symbols,             [libc_name],  False)] # noqa
 
   system_libs.append(Library(libc_name, ext, create_libc, libc_symbols, libc_deps, False))
+  if shared.Settings.PROXY_POSIX_SOCKETS:
+    system_libs += [Library('posix_proxy',    ext, create_posix_proxy, [], [],     False)] # noqa
+    force.add('posix_proxy')
+
 
   # if building to wasm, we need more math code, since we have less builtins
   if shared.Settings.WASM:

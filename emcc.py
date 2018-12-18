@@ -1057,6 +1057,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       assert not (not shared.Settings.DYNAMIC_EXECUTION and options.use_closure_compiler), 'cannot have both NO_DYNAMIC_EXECUTION and closure compiler enabled at the same time'
 
       if options.emrun:
+        assert not shared.Settings.MINIMAL_RUNTIME, '--emrun is not compatible with -s MINIMAL_RUNTIME=1'
         shared.Settings.EXPORTED_RUNTIME_METHODS.append('addOnExit')
 
       if options.use_closure_compiler:
@@ -1123,13 +1124,14 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         next_arg_index += 1
         shared.Settings.FILESYSTEM = 0
         shared.Settings.FETCH = 1
-        if not shared.Settings.USE_PTHREADS:
-          exit_with_error('-s ASMFS=1 requires -s USE_PTHREADS=1 to be set!')
 
       if shared.Settings.FETCH and final_suffix in JS_CONTAINING_SUFFIXES:
         input_files.append((next_arg_index, shared.path_from_root('system', 'lib', 'fetch', 'emscripten_fetch.cpp')))
         next_arg_index += 1
         options.js_libraries.append(shared.path_from_root('src', 'library_fetch.js'))
+
+      if shared.Settings.ASMFS:
+        options.js_libraries.append(shared.path_from_root('src', 'library_asmfs.js'))
 
       forced_stdlibs = []
       if shared.Settings.DEMANGLE_SUPPORT:
@@ -1186,7 +1188,8 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE += ['$Browser']
 
       if shared.Settings.FILESYSTEM and not shared.Settings.ONLY_MY_CODE:
-        shared.Settings.EXPORTED_FUNCTIONS += ['___errno_location'] # so FS can report errno back to C
+        if shared.Settings.SUPPORT_ERRNO:
+          shared.Settings.EXPORTED_FUNCTIONS += ['___errno_location'] # so FS can report errno back to C
         # to flush streams on FS exit, we need to be able to call fflush
         # we only include it if the runtime is exitable, or when ASSERTIONS
         # (ASSERTIONS will check that streams do not need to be flushed,
@@ -1219,18 +1222,34 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         # may need, including filesystem usage from standalone file packager output (i.e.
         # file packages not built together with emcc, but that are loaded at runtime
         # separately, and they need emcc's output to contain the support they need)
+        if not shared.Settings.ASMFS:
+          shared.Settings.EXPORTED_RUNTIME_METHODS += [
+            'FS_createFolder',
+            'FS_createPath',
+            'FS_createDataFile',
+            'FS_createPreloadedFile',
+            'FS_createLazyFile',
+            'FS_createLink',
+            'FS_createDevice',
+            'FS_unlink'
+          ]
         shared.Settings.EXPORTED_RUNTIME_METHODS += [
-          'FS_createFolder',
-          'FS_createPath',
-          'FS_createDataFile',
-          'FS_createPreloadedFile',
-          'FS_createLazyFile',
-          'FS_createLink',
-          'FS_createDevice',
-          'FS_unlink',
           'getMemory',
           'addRunDependency',
-          'removeRunDependency',
+          'removeRunDependency'
+        ]
+
+      if shared.Settings.STACK_OVERFLOW_CHECK:
+        shared.Settings.EXPORTED_RUNTIME_METHODS += [
+          'writeStackCookie',
+          'checkStackCookie'
+        ]
+
+      if shared.Settings.USE_PTHREADS:
+        shared.Settings.EXPORTED_RUNTIME_METHODS += [
+          'PThread',
+          'ExitStatus',
+          'establishStackSpaceInModule'
         ]
 
       if shared.Settings.USE_PTHREADS:
@@ -1295,6 +1314,11 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         # to bootstrap struct_info, we need binaryen
         os.environ['EMCC_WASM_BACKEND_BINARYEN'] = '1'
 
+      # When MODULARIZE option is used, currently declare all module exports individually - TODO: this could be optimized
+      if shared.Settings.MODULARIZE and not shared.Settings.DECLARE_ASM_MODULE_EXPORTS:
+        shared.Settings.DECLARE_ASM_MODULE_EXPORTS = 1
+        logging.debug('MODULARIZE currently requires declaring asm.js/wasm module exports in full')
+
       if shared.Settings.WASM:
         if shared.Settings.SINGLE_FILE:
           # placeholder strings for JS glue, to be replaced with subresource locations in do_binaryen
@@ -1330,7 +1354,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
           exit_with_error('MEM_INIT_METHOD is not supported in wasm. Memory will be embedded in the wasm binary if threads are not used, and included in a separate file if threads are used.')
         options.memory_init_file = True
         # async compilation requires not interpreting (the interpreter modes needs sync input)
-        if shared.Settings.BINARYEN_ASYNC_COMPILATION == 1 and 'interpret' not in shared.Settings.BINARYEN_METHOD:
+        if shared.Settings.BINARYEN_ASYNC_COMPILATION == 1 and 'interpret' not in shared.Settings.BINARYEN_METHOD and not shared.Settings.MINIMAL_RUNTIME:
           # async compilation requires a swappable module - we swap it in when it's ready
           shared.Settings.SWAPPABLE_ASM_MODULE = 1
         else:
@@ -1342,6 +1366,24 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
             logger.warning('BINARYEN_ASYNC_COMPILATION requested, but disabled because of user options. ' + warning)
           elif 'BINARYEN_ASYNC_COMPILATION=0' not in settings_changes:
             logger.warning('BINARYEN_ASYNC_COMPILATION disabled due to user options. ' + warning)
+        # Swappable wasm module/asynchronous wasm compilation requires an indirect stub
+        # function generated to each function export from wasm module, so cannot use the
+        # concise form of grabbing exports that does not need to refer to each export individually.
+        if shared.Settings.SWAPPABLE_ASM_MODULE == 1 and not shared.Settings.DECLARE_ASM_MODULE_EXPORTS:
+          shared.Settings.DECLARE_ASM_MODULE_EXPORTS = 1
+          logging.debug('Enabling -s DECLARE_ASM_MODULE_EXPORTS=1 since -s SWAPPABLE_ASM_MODULE=1 is used')
+        # Wasm -O3 builds use Meta-DCE which is currently not compatible with -s DECLARE_ASM_MODULE_EXPORTS=0 option.
+        if options.opt_level >= 3 or options.shrink_level >= 1 and not shared.Settings.DECLARE_ASM_MODULE_EXPORTS:
+          shared.Settings.DECLARE_ASM_MODULE_EXPORTS = 1
+          logging.debug('Enabling -s DECLARE_ASM_MODULE_EXPORTS=1 since -O3/-Os build with Wasm meta-DCE is used')
+        # Wasm -O2 builds and higher minify exports, so DECLARE_ASM_MODULE_EXPORTS=0 optimization cannot be used yet.
+        if options.opt_level >= 2 and not shared.Settings.DECLARE_ASM_MODULE_EXPORTS:
+          shared.Settings.DECLARE_ASM_MODULE_EXPORTS = 1
+          logging.debug('Enabling -s DECLARE_ASM_MODULE_EXPORTS=1 since -O2 and higher Wasm builds currently minify wasm exports')
+        # Also, upstream wasm backend is not currently compatible with DECLARE_ASM_MODULE_EXPORTS==0.
+        if shared.Settings.WASM_BACKEND and not shared.Settings.DECLARE_ASM_MODULE_EXPORTS:
+          shared.Settings.DECLARE_ASM_MODULE_EXPORTS = 1
+
         # run safe-heap as a binaryen pass
         if shared.Settings.SAFE_HEAP and shared.Building.is_wasm_only():
           if shared.Settings.BINARYEN_PASSES:
@@ -1823,6 +1865,9 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         cd_target = final + '.cd'
         shutil.move(cd_target, target + '.cd')
 
+      if shared.Settings.EMIT_FUNCTION_GRAPH_DATA:
+        shutil.move(final + '.graph.json', target + '.graph.json')
+
     # exit block 'emscript'
     log_time('emscript (llvm => executable code)')
 
@@ -1935,8 +1980,8 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
 
       if shared.Settings.USE_PTHREADS:
         target_dir = os.path.dirname(os.path.abspath(target))
-        shutil.copyfile(shared.path_from_root('src', 'worker.js'),
-                        os.path.join(target_dir, shared.Settings.PTHREAD_WORKER_FILE))
+        shutil.run_c_preprocessor_on_file(shared.path_from_root('src', 'worker.js'),
+                                          os.path.join(target_dir, shared.Settings.PTHREAD_WORKER_FILE))
 
       # Generate the fetch-worker.js script for multithreaded emscripten_fetch() support if targeting pthreads.
       if shared.Settings.FETCH and shared.Settings.USE_PTHREADS:
@@ -2464,7 +2509,7 @@ def emit_js_source_maps(target, js_transform_tempfiles):
 def separate_asm_js(final, asm_target):
   """Separate out the asm.js code, if asked. Or, if necessary for another option"""
   logger.debug('separating asm')
-  shared.check_call([shared.PYTHON, shared.path_from_root('tools', 'separate_asm.py'), final, asm_target, final])
+  shared.check_call([shared.PYTHON, shared.path_from_root('tools', 'separate_asm.py'), final, asm_target, final, shared.Settings.ASM_MODULE_NAME])
 
   # extra only-my-code logic
   if shared.Settings.ONLY_MY_CODE:
@@ -2728,7 +2773,10 @@ def module_export_name_substitution():
   src = open(final).read()
   final = final + '.module_export_name_substitution.js'
   f = open(final, 'w')
-  replacement = "typeof %(EXPORT_NAME)s !== 'undefined' ? %(EXPORT_NAME)s : {}" % {"EXPORT_NAME": shared.Settings.EXPORT_NAME}
+  if shared.Settings.MINIMAL_RUNTIME:
+    replacement = shared.Settings.EXPORT_NAME
+  else:
+    replacement = "typeof %(EXPORT_NAME)s !== 'undefined' ? %(EXPORT_NAME)s : {}" % {"EXPORT_NAME": shared.Settings.EXPORT_NAME}
   f.write(src.replace(shared.JS.module_export_name_substitution_pattern, replacement))
   f.close()
   save_intermediate('module_export_name_substitution', 'js')

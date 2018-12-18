@@ -320,7 +320,7 @@ function allocate(slab, types, allocator, ptr) {
   if (allocator == ALLOC_NONE) {
     ret = ptr;
   } else {
-    ret = [typeof _malloc === 'function' ? _malloc : staticAlloc, stackAlloc, staticAlloc, dynamicAlloc][allocator === undefined ? ALLOC_STATIC : allocator](Math.max(size, singleType ? 1 : types.length));
+    ret = [typeof _malloc === 'function' ? _malloc : staticAlloc, typeof stackAlloc == 'function' ? stackAlloc : 0, staticAlloc, dynamicAlloc][allocator === undefined ? ALLOC_STATIC : allocator](Math.max(size, singleType ? 1 : types.length));
   }
 
   if (zeroinit) {
@@ -921,9 +921,9 @@ if (!ENVIRONMENT_IS_PTHREAD) { // Pthreads have already initialized these variab
 #if USE_PTHREADS
 if (ENVIRONMENT_IS_PTHREAD) {
   staticSealed = true; // The static memory area has been initialized already in the main thread, pthreads skip this.
-#if SEPARATE_ASM != 0
-  importScripts('{{{ SEPARATE_ASM }}}'); // load the separated-out asm.js
-#endif
+//#if SEPARATE_ASM != 0
+  //importScripts('{{{ SEPARATE_ASM }}}'); // load the separated-out asm.js
+//#endif
 }
 #endif
 
@@ -947,6 +947,11 @@ function abortStackOverflow(allocSize) {
   abort('Stack overflow! Attempted to allocate ' + allocSize + ' bytes on the stack, but stack has only ' + (STACK_MAX - stackSave() + allocSize) + ' bytes available!');
 }
 #endif
+
+function establishStackSpaceInModule(stackBase, stackMax) {
+  STACK_BASE = STACKTOP = stackBase;
+  STACK_MAX = stackMax;
+}
 
 #if EMTERPRETIFY
 function abortStackOverflowEmterpreter() {
@@ -1707,6 +1712,7 @@ if (!ENVIRONMENT_IS_PTHREAD) addOnPreRun(function() { if (typeof SharedArrayBuff
 
 #if ASSERTIONS
 #if FILESYSTEM == 0
+#if !ASMFS
 var /* show errors on likely calls to FS when it was not included */ FS = {
   error: function() {
     abort('Filesystem support (FS) was not included. The problem is that you are using files from JS, but files were not used from C/C++, so filesystem support was not auto-included. You can force-include filesystem support with  -s FORCE_FILESYSTEM=1');
@@ -1725,6 +1731,7 @@ var /* show errors on likely calls to FS when it was not included */ FS = {
 };
 Module['FS_createDataFile'] = FS.createDataFile;
 Module['FS_createPreloadedFile'] = FS.createPreloadedFile;
+#endif
 #endif
 #endif
 

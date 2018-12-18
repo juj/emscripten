@@ -2427,12 +2427,26 @@ class Building(object):
               '--externs', CLOSURE_EXTERNS,
               # '--variable_map_output_file', filename + '.vars',
               '--js', filename, '--js_output_file', outfile]
-      for extern in NODE_EXTERNS:
-        args.append('--externs')
-        args.append(extern)
+
+      # TODO: ONLY IF TARGETING NODE, NOT WHEN TARGETING BROWSER
+#      for extern in NODE_EXTERNS:
+#        args.append('--externs')
+#        args.append(extern)
       for extern in BROWSER_EXTERNS:
         args.append('--externs')
         args.append(extern)
+      # Closure compiler needs to know about all exports that come from the asm.js/wasm module, because to optimize for small code size,
+      # the exported symbols are added to global scope via a foreach loop in a way that evades Closure's static analysis. With an explicit
+      # externs file for the exports, Closure is able to reason about the exports.
+      if Settings.MODULE_EXPORTS:
+        # Generate an exports file that records all the exported symbols from asm.js/wasm module.
+        module_exports_suppressions = '\n'.join(['/**\n * @suppress {duplicate, undefinedVars}\n */\nvar %s;\n' % i for i in Settings.MODULE_EXPORTS])
+        exports_file = configuration.get_temp_files().get('_module_exports.js')
+        exports_file.write(module_exports_suppressions.encode())
+        exports_file.close()
+
+        args.append('--externs')
+        args.append(exports_file.name)
       if Settings.IGNORE_CLOSURE_COMPILER_ERRORS:
         args.append('--jscomp_off=*')
       if pretty:
@@ -2477,7 +2491,10 @@ class Building(object):
         logger.debug('running post-meta-DCE cleanup on shell code: ' + ' '.join(passes))
         js_file = Building.js_optimizer_no_asmjs(js_file, passes)
         # also minify the names used between js and wasm
-        js_file = Building.minify_wasm_imports_and_exports(js_file, wasm_file, minify_whitespace=minify_whitespace, debug_info=debug_info)
+        # If we are building with DECLARE_ASM_MODULE_EXPORTS=0, we must *not* minify the exports from the wasm module, since in DECLARE_ASM_MODULE_EXPORTS=0 mode, the code that
+        # reads out the exports is compacted by design that it does not have a chance to unminify the functions. If we are building with DECLARE_ASM_MODULE_EXPORTS=1, we might
+        # as well minify wasm exports to regain some of the code size loss that setting DECLARE_ASM_MODULE_EXPORTS=1 caused.
+        js_file = Building.minify_wasm_imports_and_exports(js_file, wasm_file, minify_whitespace=minify_whitespace, minify_exports=Settings.DECLARE_ASM_MODULE_EXPORTS, debug_info=debug_info)
       # finally, optionally use closure compiler to finish cleaning up the JS
       if use_closure_compiler:
         logger.debug('running closure on shell code')
@@ -2488,10 +2505,23 @@ class Building(object):
   @staticmethod
   def metadce(js_file, wasm_file, minify_whitespace, debug_info):
     logger.debug('running meta-DCE')
+    assert Settings.DECLARE_ASM_MODULE_EXPORTS, 'Internal error: Meta-DCE is currently not compatible with -s DECLARE_ASM_MODULE_EXPORTS=0, build should have occurred with -s DECLARE_ASM_MODULE_EXPORTS=1 if we reach here!'
     temp_files = configuration.get_temp_files()
     # first, get the JS part of the graph
     txt = Building.js_optimizer_no_asmjs(js_file, ['emitDCEGraph', 'noEmitAst'], return_output=True)
     graph = json.loads(txt)
+    # add exports based on the backend output, that are not present in the JS
+    exports = set()
+    for item in graph:
+      if 'export' in item:
+        exports.add(item['export'])
+    for export in Settings.MODULE_EXPORTS:
+      if export not in exports:
+        graph.append({
+          'export': export,
+          'name': 'emcc$export$' + export,
+          'reaches': []
+        })
     # ensure that functions expected to be exported to the outside are roots
     for item in graph:
       if 'export' in item:
@@ -2531,10 +2561,12 @@ class Building(object):
     return Building.js_optimizer_no_asmjs(js_file, passes, extra_info=json.dumps(extra_info))
 
   @staticmethod
-  def minify_wasm_imports_and_exports(js_file, wasm_file, minify_whitespace, debug_info):
+  def minify_wasm_imports_and_exports(js_file, wasm_file, minify_whitespace, minify_exports, debug_info):
     logger.debug('minifying wasm imports and exports')
     # run the pass
     cmd = [os.path.join(Building.get_binaryen_bin(), 'wasm-opt'), '--minify-imports-and-exports', wasm_file, '-o', wasm_file]
+    # TODO: Change the above to following when binaryen is updated:
+#    cmd = [os.path.join(Building.get_binaryen_bin(), 'wasm-opt'), '--minify-imports-and-exports' if minify_exports else '--minify-imports', wasm_file, '-o', wasm_file]
     cmd += Building.get_binaryen_feature_flags()
     if debug_info:
       cmd.append('-g')
@@ -3067,13 +3099,52 @@ def safe_copy(src, dst):
     return
   shutil.copyfile(src, dst)
 
+def find_lines_with_preprocessor_directives(file):
+  return filter(lambda x: '#if' in x or '#elif' in x, open(file, 'r').readlines())
 
-def clang_preprocess(filename):
-  # TODO: REMOVE HACK AND PASS PREPROCESSOR FLAGS TO CLANG.
-  return run_process([CLANG_CC, '-DFETCH_DEBUG=1', '-E', '-P', '-C', '-x', 'c', filename], check=True, stdout=subprocess.PIPE).stdout
+def run_c_preprocessor_on_file(src, dst):
+  # Run LLVM's C preprocessor on the given file, expanding #includes and variables found in src/setting.js.
+  # Historically, .js file preprocessing only expands variables found in #if etc. statements, and .js
+  # code uses some setting names as variables as well. For example, pthread-main.js has a variable
+  # TOTAL_MEMORY, which is also a Setting name. Therefore detect to only expand those Setting names that 
+  # are referred to if and #elif defines - but that expansion is done globally in the file, so it will
+  # preclude one from doing things like
+  #
+  # var TOTAL_MEMORY = {{{ TOTAL_MEMORY }}};
+  # if TOTAL_MEMORY > 65536
+  #
+  # Still, this should give a good balance to be compatible with existing behavior.
 
+  preprocessed = read_and_preprocess(src, True)
+  temp_file = src + '.temp.preprocessed'
+  open(temp_file, 'w').write(preprocessed)
 
-def read_and_preprocess(filename):
+  # Find the #if lines that we'll allow expanding.
+  whitelisted_defines = find_lines_with_preprocessor_directives(temp_file)
+
+  def any_string_contains(string_list, substr):
+    for s in string_list:
+      if substr in s:
+        return True
+    return False
+
+  defines = []
+  for s in Settings.attrs:
+    if any_string_contains(whitelisted_defines, s):
+      d = '-D' + s + '=' + str(Settings.attrs[s])
+      logging.debug('Expanding #define ' + d + ' when preprocessing file ' + src)
+      defines += [d]
+
+  response_filename = response_file.create_response_file(defines, TEMP_DIR)
+  preprocessed = subprocess.check_output([CLANG_CC, '-E', '-P', '-C', '-x', 'c', '@' + response_filename, temp_file])
+  try_delete(response_filename)
+
+  os.remove(temp_file)
+
+  if dst: open(dst, 'w').write(preprocessed)
+  return preprocessed
+
+def read_and_preprocess(filename, expandMacros=False):
   temp_dir = get_emscripten_temp_dir()
   # Create a settings file with the current settings to pass to the JS preprocessor
   # Note: Settings.serialize returns an array of -s options i.e. ['-s', '<setting1>', '-s', '<setting2>', ...]
@@ -3091,6 +3162,7 @@ def read_and_preprocess(filename):
     path = None
   stdout = os.path.join(temp_dir, 'stdout')
   args = [settings_file, file]
+  if expandMacros: args += ['true']
 
   run_js(path_from_root('tools/preprocessor.js'), NODE_JS, args, True, stdout=open(stdout, 'w'), cwd=path)
   out = open(stdout, 'r').read()
@@ -3127,5 +3199,5 @@ def make_fetch_worker(source_file, output_file):
     func_code = src[loc:end_loc]
     function_prologue = function_prologue + '\n' + func_code
 
-  fetch_worker_src = function_prologue + '\n' + clang_preprocess(path_from_root('src', 'fetch-worker.js'))
+  fetch_worker_src = function_prologue + '\n' + run_c_preprocessor_on_file(path_from_root('src', 'fetch-worker.js'), dst=None)
   open(output_file, 'w').write(fetch_worker_src)

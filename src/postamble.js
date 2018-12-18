@@ -464,6 +464,10 @@ if (!ENVIRONMENT_IS_PTHREAD) // EXIT_RUNTIME=0 only applies to default behavior 
 
 #if USE_PTHREADS
 if (!ENVIRONMENT_IS_PTHREAD) run();
+
+// XXXXXX HACKS
+Module._emscripten_futex_wake = _emscripten_futex_wake;
+
 #else
 run();
 #endif

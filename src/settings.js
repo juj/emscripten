@@ -217,6 +217,12 @@ var SIMD = 0;
 // Whether closure compiling is being run on this output
 var USE_CLOSURE_COMPILER = 0;
 
+// If set to 1, each asm.js/wasm module export is individually listed out to the
+// outside scope. This increases code size, and it is preferred to keep this disabled
+// when optimizing for smallest code size. If set to 0, module exports are copied
+// to parent scope via a short foreach loop.
+var DECLARE_ASM_MODULE_EXPORTS = 0;
+
 // Ignore closure warnings and errors (like on duplicate definitions)
 var IGNORE_CLOSURE_COMPILER_ERRORS = 0;
 
@@ -358,6 +364,14 @@ var WEBSOCKET_URL = 'ws://';
 // as would be present in the Sec-WebSocket-Protocol header.
 var WEBSOCKET_SUBPROTOCOL = 'binary';
 
+
+
+// If 1, the POSIX sockets API uses a proxy bridge to proxy sockets calls
+var PROXY_POSIX_SOCKETS = 0;
+
+// If 1, prints out debugging related to WebSockets calls. If 2, traces bytes communicated via the socket.
+var WEBSOCKET_DEBUG = 0;
+
 // Print out debugging information from our OpenAL implementation.
 var OPENAL_DEBUG = 0;
 
@@ -393,6 +407,24 @@ var FULL_ES2 = 0;
 // false to make GL contexts appear like WebGL contexts and to save some bytes
 // from the output.
 var GL_EMULATE_GLES_VERSION_STRING_FORMAT = 1;
+
+// If true, all GL extensions are advertised in both unprefixed WebGL extension
+// format, but also in desktop/mobile GLES/GL extension format with "GL_" prefix.
+var GL_EXTENSIONS_IN_PREFIXED_FORMAT = 1;
+
+// If true, adds support for automatically enabling all GL extensions for
+// GLES/GL emulation purposes. This takes up code size. If you set this to 0,
+// you will need to manually enable the extensions you need.
+var GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS = 1;
+
+// If set to 0, Emscripten GLES2->WebGL translation layer does not track the kind
+// of GL errors that exist in GLES2 but do not exist in WebGL. Settings this to 0
+// saves code size. (Good to keep at 1 for development)
+var GL_TRACK_ERRORS = 1;
+
+// If true, GL contexts support the explicitSwapControl context creation flag.
+// Set to 0 to save a little bit of space on projects that do not need it.
+var GL_SUPPORT_EXPLICIT_SWAP_CONTROL = 0;
 
 // Some old Android WeChat (Chromium 37?) browser has a WebGL bug that it ignores
 // the offset of a typed array view pointing to an ArrayBuffer. Set this to
@@ -431,6 +463,11 @@ var GL_FFP_ONLY = 0;
 // and set Module['preinitializedWebGLContext'] to a precreated WebGL context.
 // WebGL initialization afterwards will use this GL context to render.
 var GL_PREINITIALIZED_CONTEXT = 0;
+
+// If true, calls to glUniform*fv and glUniformMatrix*fv utilize a pool of preallocated temporary buffers for common small sizes
+// to avoid generating temporary garbage for WebGL 1. Disable this to optimize generated size of the GL library a little bit.
+// If you are only using WebGL 2 and do not support WebGL 1, this is not needed and you can turn it off.
+var GL_POOL_TEMP_BUFFERS = 1;
 
 // Enables building of stb-image, a tiny public-domain library for decoding
 // images, allowing decoding of images without using the browser's built-in
@@ -765,6 +802,12 @@ var HEADLESS = 0;
 // If 1, we force Date.now(), Math.random, etc. to return deterministic results.
 // Good for comparing builds for debugging purposes (and nothing else)
 var DETERMINISTIC = 0;
+
+
+var ASM_MODULE_NAME = 'Module["asm"]'; // If we separate out asm.js with the --separate-asm option,
+                                       // this is the name of the variable where the generated asm.js
+                                       // Module is assigned to. This name can either be a property
+                                       // of Module, or a freestanding variable name, like "var asmJsModule".
 
 // By default we emit all code in a straightforward way into the output
 // .js file. That means that if you load that in a script tag in a web
@@ -1227,6 +1270,10 @@ var OFFSCREENCANVAS_SUPPORT = 0;
 // back to Offscreen Framebuffer otherwise.
 var OFFSCREEN_FRAMEBUFFER = 0;
 
+// If nonzero, Fetch API (and hence ASMFS) supports backing to IndexedDB. If 0, IndexedDB is not utilized. Set to 0 if
+// IndexedDB support is not interesting for target application, to save a few kBytes.
+var FETCH_SUPPORT_INDEXEDDB = 1;
+
 // If nonzero, prints out debugging information in library_fetch.js
 var FETCH_DEBUG = 0;
 
@@ -1282,3 +1329,27 @@ var ENVIRONMENT_MAY_BE_WEB_OR_WORKER = 1;
 // JS -> asm.js import names. Controlled by optimization level, enabled
 // at -O1 and higher, but disabled at -g2 and higher.
 var MINIFY_ASMJS_IMPORT_NAMES = 0;
+
+// Internal: points to a file that lists all asm.js/wasm module exports, annotated
+// with suppressions for Closure compiler, that can be passed as an --externs file
+// to Closure.
+var MODULE_EXPORTS = [];
+
+// If true, function call graph dependency data is emitted to a.out.graph.json file.
+var EMIT_FUNCTION_GRAPH_DATA = 0;
+
+// If true, uses minimal size runtime without POSIX emulation or other historical features
+var MINIMAL_RUNTIME = 0;
+
+// If true, there is no "Module.canvas" object, and DOM element 'target' parameters
+// are taken to refer to CSS selectors, instead of referring to IDs
+var DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR = 0;
+
+// Tracks whether we are building with errno support enabled. Set to 0
+// to disable compiling errno support in altogether.
+var SUPPORT_ERRNO = 1;
+
+// If set to 0, drops support from HTML5 library from being able to unregister event
+// callbacks added to DOM. This can save a little bit of code size on compiled pages
+// that do not need unload functionality.
+var HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS = 1;

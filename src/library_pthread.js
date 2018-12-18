@@ -397,6 +397,7 @@ var LibraryPThread = {
             wasmModule: Module['wasmModule'],
 #else
             buffer: HEAPU8.buffer,
+            asmJsUrlOrBlob: Module["asmJsUrlOrBlob"],
 #endif
             tempDoublePtr: tempDoublePtr,
             TOTAL_MEMORY: TOTAL_MEMORY,
@@ -562,7 +563,7 @@ var LibraryPThread = {
     // Deduce which WebGL canvases (HTMLCanvasElements or OffscreenCanvases) should be passed over to the
     // Worker that hosts the spawned pthread.
     var transferredCanvasNames = attr ? {{{ makeGetValue('attr', 36, 'i32') }}} : 0; // Comma-delimited list of IDs "canvas1, canvas2, ..."
-    if (transferredCanvasNames) transferredCanvasNames = Pointer_stringify(transferredCanvasNames).trim();
+    if (transferredCanvasNames) transferredCanvasNames = UTF8ToString(transferredCanvasNames).trim();
     if (transferredCanvasNames) transferredCanvasNames = transferredCanvasNames.split(',');
 #if GL_DEBUG
     console.log('pthread_create: transferredCanvasNames="' + transferredCanvasNames + '"');
@@ -1178,3 +1179,8 @@ var LibraryPThread = {
 
 autoAddDeps(LibraryPThread, '$PThread');
 mergeInto(LibraryManager.library, LibraryPThread);
+
+if (USE_PTHREADS) {
+  DEFAULT_LIBRARY_FUNCS_TO_INCLUDE.push('emscripten_futex_wake');
+  DEFAULT_LIBRARY_FUNCS_TO_INCLUDE.push('emscripten_futex_wait');
+}

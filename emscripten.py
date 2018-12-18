@@ -89,7 +89,7 @@ def emscript(infile, outfile, memfile, libraries, compiler_engine, temp_files,
     # memory to be reclaimed
 
     with ToolchainProfiler.profile_block('get_and_parse_backend'):
-      backend_output = compile_js(infile, temp_files, DEBUG)
+      backend_output = compile_js(infile, outfile.name, temp_files, DEBUG)
       funcs, metadata, mem_init = parse_backend_output(backend_output, DEBUG)
       fixup_metadata_tables(metadata)
       funcs = fixup_functions(funcs, metadata)
@@ -109,10 +109,10 @@ def emscript(infile, outfile, memfile, libraries, compiler_engine, temp_files,
       shared.try_delete(outfile.name) # remove partial output
 
 
-def compile_js(infile, temp_files, DEBUG):
+def compile_js(infile, outfile_name, temp_files, DEBUG):
   """Compile infile with asm.js backend, return the contents of the compiled js"""
   with temp_files.get_file('.4.js') as temp_js:
-    backend_args = create_backend_args(infile, temp_js)
+    backend_args = create_backend_args(infile, outfile_name, temp_js)
 
     if DEBUG:
       logger.debug('emscript: llvm backend: ' + ' '.join(backend_args))
@@ -444,7 +444,7 @@ def write_cyberdwarf_data(outfile, metadata):
     json.dump({'cyberdwarf': metadata['cyberdwarf_data']}, f)
 
 
-def create_backend_args(infile, temp_js):
+def create_backend_args(infile, outfile_name, temp_js):
   """Create args for asm.js backend from settings dict"""
   args = [
     shared.LLVM_COMPILER, infile, '-march=js', '-filetype=asm', '-o', temp_js,
@@ -494,6 +494,8 @@ def create_backend_args(infile, temp_js):
       args += ['-emscripten-only-wasm']
   if shared.Settings.CYBERDWARF:
     args += ['-enable-cyberdwarf']
+  if shared.Settings.EMIT_FUNCTION_GRAPH_DATA:
+    args += ['-emit-function-graph-data=' + outfile_name + '.graph.json']
   return args
 
 
@@ -1453,24 +1455,36 @@ def create_the_global(metadata):
 
 def create_receiving(function_table_data, function_tables_defs, exported_implemented_functions):
   receiving = ''
-  if not shared.Settings.ASSERTIONS:
-    runtime_assertions = ''
-  else:
-    # assert on the runtime being in a valid state when calling into compiled code. The only exceptions are
-    # some support code
-    runtime_assertions = '''
-  assert(runtimeInitialized, 'you need to wait for the runtime to be ready (e.g. wait for main() to be called)');
-  assert(!runtimeExited, 'the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)');
-'''
-    receiving = [f for f in exported_implemented_functions if f not in ('_memcpy', '_memset', '_emscripten_replace_memory', '__start_module')]
-    receiving = '\n'.join('var real_' + s + ' = asm["' + s + '"]; asm["' + s + '''"] = function() {''' + runtime_assertions + '''  return real_''' + s + '''.apply(null, arguments);
-};
-''' for s in receiving)
-  if not shared.Settings.SWAPPABLE_ASM_MODULE:
-    receiving += ';\n'.join(['var ' + s + ' = Module["' + s + '"] = asm["' + s + '"]' for s in exported_implemented_functions + function_tables(function_table_data)])
-  else:
-    receiving += 'Module["asm"] = asm;\n' + ';\n'.join(['var ' + s + ' = Module["' + s + '"] = function() {' + runtime_assertions + '  return Module["asm"]["' + s + '"].apply(null, arguments) }' for s in exported_implemented_functions + function_tables(function_table_data)])
-  receiving += ';\n'
+  runtime_assertions = ''
+#  if not shared.Settings.ASSERTIONS:
+#    runtime_assertions = ''
+#  else:
+#    # assert on the runtime being in a valid state when calling into compiled code. The only exceptions are
+#    # some support code
+#    runtime_assertions = '''
+#  assert(runtimeInitialized, 'you need to wait for the runtime to be ready (e.g. wait for main() to be called)');
+#  assert(!runtimeExited, 'the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)');
+#'''
+#    receiving = [f for f in exported_implemented_functions if f not in ('_memcpy', '_memset', '_emscripten_replace_memory', '__start_module')]
+#    receiving = '\n'.join('var real_' + s + ' = asm["' + s + '"]; asm["' + s + '''"] = function() {''' + runtime_assertions + '''  return real_''' + s + '''.apply(null, arguments);
+#};
+#''' for s in receiving)
+
+  shared.Settings.MODULE_EXPORTS = module_exports = exported_implemented_functions + function_tables(function_table_data)
+
+  if not shared.Settings.MINIMAL_RUNTIME or not shared.Settings.WASM:
+    if not shared.Settings.SWAPPABLE_ASM_MODULE:
+      if shared.Settings.DECLARE_ASM_MODULE_EXPORTS:
+        receiving += ';\n'.join(['var ' + s + ' = Module["' + s + '"] = asm["' + s + '"]' for s in module_exports])
+        # TODO: Instead of the above line, we would like to use the two lines below for smaller size version of exports; but currently JS optimizer is wired to look for the exact above syntax when analyzing
+        # exports.
+  #      receiving += ''.join(['var ' + s + ' = asm["' + s + '"];\n' for s in module_exports])
+  #      receiving += 'for(var module_exported_function in asm) Module[module_exported_function] = asm[module_exported_function];\n'
+      else:
+        receiving += '(function() { for(var i in asm) this[i] = Module[i] = asm[i]; }());\n'
+    else:
+      receiving += 'Module["asm"] = asm;\n' + ';\n'.join(['var ' + s + ' = Module["' + s + '"] = function() {' + runtime_assertions + '  return Module["asm"]["' + s + '"].apply(null, arguments) }' for s in module_exports])
+    receiving += ';\n'
 
   if shared.Settings.EXPORT_FUNCTION_TABLES and not shared.Settings.WASM:
     for table in function_table_data.values():
@@ -1754,6 +1768,13 @@ function _emscripten_replace_memory(newBuffer) {
 
 
 def create_asm_end(exports):
+  if shared.Settings.MINIMAL_RUNTIME and shared.Settings.WASM:
+    return '''
+    return %s;
+    })
+    // EMSCRIPTEN_END_ASM
+    ''' % (exports)
+
   return '''
 
   return %s;

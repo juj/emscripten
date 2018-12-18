@@ -433,7 +433,10 @@ typedef struct EmscriptenWebGLContextAttributes {
   EM_BOOL antialias;
   EM_BOOL premultipliedAlpha;
   EM_BOOL preserveDrawingBuffer;
-  EM_BOOL preferLowPowerToHighPerformance;
+  union {
+    EM_BOOL preferLowPowerToHighPerformance;
+    int powerPreference; // 0 - "default", 1 - "low-power", 2 - "high-performance"
+  };
   EM_BOOL failIfMajorPerformanceCaveat;
 
   int majorVersion;
@@ -455,6 +458,8 @@ extern EMSCRIPTEN_WEBGL_CONTEXT_HANDLE emscripten_webgl_get_current_context(void
 
 extern EMSCRIPTEN_RESULT emscripten_webgl_get_drawing_buffer_size(EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context, int *width, int *height);
 
+extern EMSCRIPTEN_RESULT emscripten_webgl_get_context_attributes(EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context, EmscriptenWebGLContextAttributes *outAttributes);
+
 extern EMSCRIPTEN_RESULT emscripten_webgl_destroy_context(EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context);
 
 extern EM_BOOL emscripten_webgl_enable_extension(EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context, const char *extension);
@@ -468,6 +473,19 @@ extern EM_BOOL emscripten_is_webgl_context_lost(const char *target);
 extern EMSCRIPTEN_RESULT emscripten_webgl_commit_frame(void);
 
 extern EM_BOOL emscripten_supports_offscreencanvas(void);
+
+// Returns function pointers to WebGL 1 functions. Please avoid using this function ever - all WebGL1/GLES2 functions, even those for WebGL1 extensions, are available to user code via static linking. Calling GL functions
+// via function pointers obtained here is slow, and using this function can greatly increase resulting compiled program size. This functionality is available only for easier program code porting purposes, but be aware
+// that calling this is causing a noticeable performance and compiled code size hit.
+extern void *emscripten_webgl1_get_proc_address(const char *name);
+
+// Returns function pointers to WebGL 2 functions. Please avoid using this function ever - all WebGL2/GLES3 functions, even those for WebGL2 extensions, are available to user code via static linking. Calling GL functions
+// via function pointers obtained here is slow, and using this function can greatly increase resulting compiled program size. This functionality is available only for easier program code porting purposes, but be aware
+// that calling this is causing a noticeable performance and compiled code size hit.
+extern void *emscripten_webgl2_get_proc_address(const char *name);
+
+// Combines emscripten_webgl1_get_proc_address() and emscripten_webgl2_get_proc_address() to return function pointers to both WebGL1 and WebGL2 functions. Same drawbacks apply.
+extern void *emscripten_webgl_get_proc_address(const char *name);
 
 extern EMSCRIPTEN_RESULT emscripten_set_canvas_element_size(const char *target, int width, int height);
 extern EMSCRIPTEN_RESULT emscripten_get_canvas_element_size(const char *target, int *width, int *height);
@@ -517,6 +535,38 @@ extern void emscripten_html5_remove_all_event_listeners(void);
 #define emscripten_set_beforeunload_callback(userData, callback)                              emscripten_set_beforeunload_callback_on_thread(                   (userData),               (callback), EM_CALLBACK_THREAD_CONTEXT_MAIN_BROWSER_THREAD)
 #define emscripten_set_webglcontextlost_callback(target, userData, useCapture, callback)      emscripten_set_webglcontextlost_callback_on_thread(     (target), (userData), (useCapture), (callback), EM_CALLBACK_THREAD_CONTEXT_CALLING_THREAD)
 #define emscripten_set_webglcontextrestored_callback(target, userData, useCapture, callback)  emscripten_set_webglcontextrestored_callback_on_thread( (target), (userData), (useCapture), (callback), EM_CALLBACK_THREAD_CONTEXT_CALLING_THREAD)
+
+// Callback type for emscripten_request_animation_frame*() functions
+typedef EM_BOOL (*em_request_animation_frame_callback)(double time, void *userData);
+
+// Performs a single requestAnimationFrame() callback call on the given function
+extern long emscripten_request_animation_frame(em_request_animation_frame_callback cb, void *userData);
+
+// Cancels the registered callback before it is run
+extern void emscripten_cancel_animation_frame(long requestAnimationFrameId);
+
+// Initializes a requestAnimationFrame() loop on the given function. The specified callback function 'cb'
+// needs to keep returning EM_TRUE as long as the animation loop should continue to run. When the function
+// returns false, the animation frame loop will stop.
+extern void emscripten_request_animation_frame_loop(em_request_animation_frame_callback cb, void *userData);
+
+// Initializes a setImmediate() loop on the given function. The specified callback function 'cb'
+// needs to keep returning EM_TRUE as long as the animation loop should continue to run. When the function
+// returns false, the setImmediate() loop will stop.
+extern void emscripten_setimmediate_loop(em_request_animation_frame_callback cb, void *userData);
+
+// Initializes a setTimeout() loop on the given function. The specified callback function 'cb'
+// needs to keep returning EM_TRUE as long as the animation loop should continue to run. When the function
+// returns false, the setTimeout() loop will stop.
+extern void emscripten_settimeout_loop(em_request_animation_frame_callback cb, double msecs, void *userData);
+
+// Returns performance.now() called in JavaScript.
+extern double emscripten_performance_now(void);
+
+// Initializes a setInterval() loop on the given function. The specified callback function 'cb'
+// needs to keep returning EM_TRUE as long as the animation loop should continue to run. When the function
+// returns false, the setInterval() loop will stop.
+//extern void emscripten_setinterval(em_request_animation_frame_callback cb, double msecs, void *userData);
 
 #ifdef __cplusplus
 } // ~extern "C"

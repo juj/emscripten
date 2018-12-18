@@ -3,6 +3,7 @@
 #include <limits.h>
 #include "syscall.h"
 
+#ifndef __EMSCRIPTEN__
 int recvmmsg(int fd, struct mmsghdr *msgvec, unsigned int vlen, unsigned int flags, struct timespec *timeout)
 {
 #if LONG_MAX > INT_MAX
@@ -13,3 +14,4 @@ int recvmmsg(int fd, struct mmsghdr *msgvec, unsigned int vlen, unsigned int fla
 #endif
 	return syscall_cp(SYS_recvmmsg, fd, msgvec, vlen, flags, timeout);
 }
+#endif

@@ -45,6 +45,7 @@ static int name_from_numeric(struct address buf[static 1], const char *name, int
 	return __lookup_ipliteral(buf, name, family);
 }
 
+#ifndef __EMSCRIPTEN__
 static int name_from_hosts(struct address buf[static MAXADDRS], char canon[static 256], const char *name, int family)
 {
 	char line[512];
@@ -91,6 +92,7 @@ static int name_from_hosts(struct address buf[static MAXADDRS], char canon[stati
 	__fclose_ca(f);
 	return cnt ? cnt : badfam;
 }
+#endif
 
 struct dpc_ctx {
 	struct address *addrs;
@@ -283,6 +285,7 @@ static int addrcmp(const void *_a, const void *_b)
 	return b->sortkey - a->sortkey;
 }
 
+#ifndef __EMSCRIPTEN__
 int __lookup_name(struct address buf[static MAXADDRS], char canon[static 256], const char *name, int family, int flags)
 {
 	int cnt = 0, i, j;
@@ -396,3 +399,4 @@ int __lookup_name(struct address buf[static MAXADDRS], char canon[static 256], c
 
 	return cnt;
 }
+#endif

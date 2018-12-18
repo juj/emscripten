@@ -18,26 +18,32 @@ from tools import asm_module
 infile = sys.argv[1]
 asmfile = sys.argv[2]
 otherfile = sys.argv[3]
+asm_module_name = sys.argv[4]
+if asm_module_name.startswith('var ') or asm_module_name.startswith('let '):
+  asm_module_name_without_var = asm_module_name[4:]
+else:
+  asm_module_name_without_var = asm_module_name
+
 
 everything = open(infile).read()
 module = asm_module.AsmModule(infile).asm_js
 
 module = module[module.find('=')+1:] # strip the initial "var asm =" bit, leave just the raw module as a function
 if 'var Module' in everything:
-  everything = everything.replace(module, 'Module["asm"]')
+  everything = everything.replace(module, asm_module_name_without_var)
 else:
   # closure compiler removes |var Module|, we need to find the closured name
   # seek a pattern like (e.ENVIRONMENT), which is in the shell.js if-cascade for the ENVIRONMENT override
   import re
   m = re.search('\((\w+)\.ENVIRONMENT\)', everything)
   if not m:
-    m = re.search('(\w+)\.arguments\s*=\s*\[\];', everything)
-  assert m, 'cannot figure out the closured name of Module statically'
+    m = re.search('(\w+)\s*=\s*"__EMSCRIPTEN_PRIVATE_MODULE_EXPORT_NAME_SUBSTITUTION__"', everything)
+  assert m, 'cannot figure out the closured name of Module statically'+ everything
   closured_name = m.group(1)
   everything = everything.replace(module, closured_name + '["asm"]')
 
 o = open(asmfile, 'w')
-o.write('Module["asm"] = ')
+o.write(asm_module_name + ' = ')
 o.write(module)
 o.write(';')
 o.close()

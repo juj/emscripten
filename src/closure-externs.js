@@ -836,11 +836,6 @@ SIMD.Bool32x4.fromFloat64x2 = function() {};
 SIMD.Bool64x2.fromFloat64x2 = function() {};
 
 /**
- * @suppress {duplicate}
- */
-var GLctx = {};
-
-/**
  * @const
  */
 var WebAssembly = {};
@@ -1125,11 +1120,7 @@ var ___cxa_free_exception = function() {};
 /**
  * @suppress {duplicate}
  */
-var assert;
-/**
- * @suppress {duplicate}
- */
-var buffer;
+var global;
 /**
  * @suppress {duplicate}
  */
@@ -1158,10 +1149,6 @@ var SDL;
  * @suppress {duplicate, undefinedVars}
  */
 var SDL2;
-/**
- * @suppress {duplicate, undefinedVars}
- */
-var JSEvents;
 /**
  * @suppress {undefinedVars}
  */
@@ -1286,14 +1273,6 @@ var _emscripten_glDisableVertexAttribArray;
  */
 var _emscripten_glVertexAttribPointer;
 
-/**
- * @suppress {duplicate, undefinedVars}
- */
-var _glDrawArrays;
-/**
- * @suppress {duplicate, undefinedVars}
- */
-var _glDrawElements;
 /**
  * @suppress {duplicate, undefinedVars}
  */

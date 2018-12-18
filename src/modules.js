@@ -109,7 +109,6 @@ var LibraryManager = {
     // Core system libraries (always linked against)
     var libraries = [
       'library.js',
-      'library_browser.js',
       'library_formatString.js',
       'library_path.js',
       'library_signals.js',
@@ -357,7 +356,6 @@ function exportRuntime() {
     'getValue',
     'allocate',
     'getMemory',
-    'Pointer_stringify',
     'AsciiToString',
     'stringToAscii',
     'UTF8ArrayToString',
@@ -417,6 +415,16 @@ function exportRuntime() {
     'print',
     'printErr',
   ];
+  if (STACK_OVERFLOW_CHECK) {
+    runtimeElements.push('writeStackCookie');
+    runtimeElements.push('checkStackCookie');
+    runtimeElements.push('abortStackOverflow');
+  }
+  if (USE_PTHREADS) {
+    runtimeElements.push('PThread');
+    runtimeElements.push('ExitStatus');
+    runtimeElements.push('establishStackSpaceInModule');
+  }
   if (SUPPORT_BASE64_EMBEDDING) {
     runtimeElements.push('intArrayFromBase64');
     runtimeElements.push('tryParseAsDataURI');

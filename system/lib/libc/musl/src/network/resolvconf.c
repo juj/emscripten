@@ -5,6 +5,7 @@
 #include <string.h>
 #include <netinet/in.h>
 
+#ifndef __EMSCRIPTEN__
 int __get_resolv_conf(struct resolvconf *conf, char *search, size_t search_sz)
 {
 	char line[256];
@@ -91,3 +92,4 @@ no_resolv_conf:
 
 	return 0;
 }
+#endif
