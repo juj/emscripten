@@ -65,7 +65,7 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
 
   def read_symbols(path):
     with open(path) as f:
-      return shared.Building.parse_symbols(f.read()).defs
+      return shared.Building.parse_symbols(f.read().replace('\r\n', '\n')).defs ## XXX Do not commit \r\n -> \n replacement to upstream, it will be hardened to not allow seeing \r\ns here.
 
   default_opts = ['-Werror']
 
