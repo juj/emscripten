@@ -1192,7 +1192,6 @@ var LibraryBrowser = {
       GL.newRenderingFrameStarted();
 #endif
 
-#if USE_PTHREADS
 #if OFFSCREEN_FRAMEBUFFER
       // If the current GL context is a proxied regular WebGL context, and was initialized with implicit swap mode on the main thread, and we are on the parent thread,
       // perform the swap on behalf of the user.
