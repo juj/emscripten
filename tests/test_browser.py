@@ -4360,3 +4360,11 @@ window.close = function() {
 
   def test_modularize_Module_input(self):
     self.btest(path_from_root('tests', 'browser', 'modularize_Module_input.cpp'), '0', args=['--shell-file', path_from_root('tests', 'browser', 'modularize_Module_input.html'), '-s', 'MODULARIZE_INSTANCE=1'])
+
+  # Tests that Closure run in combination with -s ENVIRONMENT=web mode works
+  def test_closure_in_web_only_target_environment(self):
+    # Test hello world print
+    self.btest('minimal_hello.c', '0', args=['-s', 'ENVIRONMENT=web', '-O3', '--closure', '1'])
+
+    # Test hello world WebGL
+    self.btest('webgl_draw_triangle.c', '0', args=['-lGL', '-s', 'ENVIRONMENT=web', '-O3', '--closure', '1'])
