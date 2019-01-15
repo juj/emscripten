@@ -2641,6 +2641,69 @@ var LibraryJSEvents = {
   },
 #endif
 
+  emscripten_request_animation_frame: function(cb, userData) {
+    return requestAnimationFrame(function(timeStamp) {
+      Module['dynCall_idi'](cb, timeStamp, userData);
+    });
+  },
+
+  emscripten_request_animation_frame_loop: function(cb, userData) {
+    function tick(timeStamp) {
+      if (Module['dynCall_idi'](cb, timeStamp, userData)) requestAnimationFrame(tick);
+    }
+    return requestAnimationFrame(tick);
+  },
+
+  emscripten_setimmediate_loop: function(cb, userData) {
+    if (typeof setImmediate === 'undefined') {
+      // Emulate setImmediate. (note: not a complete polyfill, we don't emulate clearImmediate() to keep code size to minimum, since not needed)
+      var queue = [];
+      var m = 'setimmediate';
+      function setImmediate_cb(e) {
+        if (e.data === m) {
+          e.stopPropagation();
+          queue.shift()();
+        }
+      }
+      addEventListener("message", setImmediate_cb, true);
+
+      setImmediate = function setImmediate_polyfill(func) {
+        queue.push(func);
+        postMessage(m, "*");
+      }
+    }
+
+    function tick() {
+      if (Module['dynCall_idi'](cb, performance.now(), userData)) setImmediate(tick);
+    }
+    return setImmediate(tick);
+  },
+
+  emscripten_settimeout_loop: function(cb, msecs, userData) {
+    function tick() {
+      var t = performance.now();
+      var n = t + msecs;
+      if (Module['dynCall_idi'](cb, t, userData)) {
+        setTimeout(tick, Math.max(0, t - performance.now()));
+      }
+    }
+    return setTimeout(tick, msecs);
+  },
+
+  emscripten_cancel_animation_frame: function(id) {
+    cancelAnimationFrame(id);
+  },
+
+  emscripten_performance_now: function() {
+    return performance.now();
+  },
+
+  emscripten_get_device_pixel_ratio__proxy: 'sync',
+  emscripten_get_device_pixel_ratio__sig: 'd',
+  emscripten_get_device_pixel_ratio: function() {
+    return window.devicePixelRatio || 1.0;
+  },
+
   }
 };
 
