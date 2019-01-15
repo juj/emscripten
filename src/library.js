@@ -611,6 +611,12 @@ LibraryManager.library = {
     _exit(-1234);
   },
 
+#if MINIMAL_RUNTIME
+  atexit: function(){},
+  __cxa_atexit: function(){},
+  __cxa_thread_atexit: function(){},
+  __cxa_thread_atexit_impl: function(){},
+#else
   atexit__proxy: 'sync',
   atexit__sig: 'ii',
   atexit: function(func, arg) {
@@ -626,6 +632,7 @@ LibraryManager.library = {
   // used in rust, clang when doing thread_local statics
   __cxa_thread_atexit: 'atexit',
   __cxa_thread_atexit_impl: 'atexit',
+#endif
 
   abort: function() {
     Module['abort']();
@@ -4023,6 +4030,15 @@ LibraryManager.library = {
   },
 
   emscripten_get_now: function() { abort() }, // replaced by the postset at startup time
+#if MINIMAL_RUNTIME
+  emscripten_get_now__postset: "if (typeof self === 'object' && self['performance'] && typeof self['performance']['now'] === 'function') {\n" +
+                               "  _emscripten_get_now = function() { return self['performance']['now'](); };\n" +
+                               "} else if (typeof performance === 'object' && typeof performance['now'] === 'function') {\n" +
+                               "  _emscripten_get_now = function() { return performance['now'](); };\n" +
+                               "} else {\n" +
+                               "  _emscripten_get_now = Date.now;\n" +
+                               "}",
+#else
   emscripten_get_now__postset: "if (ENVIRONMENT_IS_NODE) {\n" +
                                "  _emscripten_get_now = function _emscripten_get_now_actual() {\n" +
                                "    var t = process['hrtime']();\n" +
@@ -4042,6 +4058,7 @@ LibraryManager.library = {
                                "} else {\n" +
                                "  _emscripten_get_now = Date.now;\n" +
                                "}",
+#endif
 
   emscripten_get_now_res: function() { // return resolution of get_now, in nanoseconds
     if (ENVIRONMENT_IS_NODE) {

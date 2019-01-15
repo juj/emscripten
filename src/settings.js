@@ -1315,3 +1315,6 @@ var ENVIRONMENT_MAY_BE_WEB_OR_WORKER = 1;
 // JS -> asm.js import names. Controlled by optimization level, enabled
 // at -O1 and higher, but disabled at -g2 and higher.
 var MINIFY_ASMJS_IMPORT_NAMES = 0;
+
+// If true, uses minimal size runtime without POSIX emulation or other historical features
+var MINIMAL_RUNTIME = 0;

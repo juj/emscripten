@@ -1037,6 +1037,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     assert not (not shared.Settings.DYNAMIC_EXECUTION and options.use_closure_compiler), 'cannot have both NO_DYNAMIC_EXECUTION and closure compiler enabled at the same time'
 
     if options.emrun:
+      assert not shared.Settings.MINIMAL_RUNTIME, '--emrun is not compatible with -s MINIMAL_RUNTIME=1'
       shared.Settings.EXPORTED_RUNTIME_METHODS.append('addOnExit')
 
     if options.use_closure_compiler:
@@ -1314,7 +1315,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         exit_with_error('MEM_INIT_METHOD is not supported in wasm. Memory will be embedded in the wasm binary if threads are not used, and included in a separate file if threads are used.')
       options.memory_init_file = True
       # async compilation requires not interpreting (the interpreter modes needs sync input)
-      if shared.Settings.BINARYEN_ASYNC_COMPILATION == 1 and 'interpret' not in shared.Settings.BINARYEN_METHOD:
+      if shared.Settings.BINARYEN_ASYNC_COMPILATION == 1 and 'interpret' not in shared.Settings.BINARYEN_METHOD and not shared.Settings.MINIMAL_RUNTIME:
         # async compilation requires a swappable module - we swap it in when it's ready
         shared.Settings.SWAPPABLE_ASM_MODULE = 1
       else:
@@ -2717,7 +2718,10 @@ def module_export_name_substitution():
   src = open(final).read()
   final = final + '.module_export_name_substitution.js'
   f = open(final, 'w')
-  replacement = "typeof %(EXPORT_NAME)s !== 'undefined' ? %(EXPORT_NAME)s : {}" % {"EXPORT_NAME": shared.Settings.EXPORT_NAME}
+  if shared.Settings.MINIMAL_RUNTIME:
+    replacement = shared.Settings.EXPORT_NAME
+  else:
+    replacement = "typeof %(EXPORT_NAME)s !== 'undefined' ? %(EXPORT_NAME)s : {}" % {"EXPORT_NAME": shared.Settings.EXPORT_NAME}
   f.write(src.replace(shared.JS.module_export_name_substitution_pattern, replacement))
   f.close()
   save_intermediate('module_export_name_substitution')

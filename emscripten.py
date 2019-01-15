@@ -1760,6 +1760,13 @@ function _emscripten_replace_memory(newBuffer) {
 
 
 def create_asm_end(exports):
+  if shared.Settings.MINIMAL_RUNTIME and shared.Settings.WASM:
+    return '''
+    return %s;
+    })
+    // EMSCRIPTEN_END_ASM
+    ''' % (exports)
+
   return '''
 
   return %s;
