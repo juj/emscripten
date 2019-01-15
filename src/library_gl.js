@@ -499,19 +499,6 @@ var LibraryGL = {
 #endif
     // Returns the context handle to the new context.
     createContext: function(canvas, webGLContextAttributes) {
-      if (typeof webGLContextAttributes['majorVersion'] === 'undefined' && typeof webGLContextAttributes['minorVersion'] === 'undefined') {
-#if USE_WEBGL2
-        // If caller did not specify a context, initialize the best one that is possibly available.
-        // To explicitly create a WebGL 1 or a WebGL 2 context, call this function with a specific
-        // majorVersion set.
-        if (typeof WebGL2RenderingContext !== 'undefined') webGLContextAttributes['majorVersion'] = 2;
-        else webGLContextAttributes['majorVersion'] = 1;
-#else
-        webGLContextAttributes['majorVersion'] = 1;
-#endif
-        webGLContextAttributes['minorVersion'] = 0;
-      }
-
 #if OFFSCREEN_FRAMEBUFFER
       // In proxied operation mode, rAF()/setTimeout() functions do not delimit frame boundaries, so can't have WebGL implementation
       // try to detect when it's ok to discard contents of the rendered backbuffer.
@@ -522,6 +509,30 @@ var LibraryGL = {
       webGLContextAttributes['preserveDrawingBuffer'] = true;
 #endif
 
+#if GL_PREINITIALIZED_CONTEXT
+      // If WebGL context has already been preinitialized for the page on the JS side, reuse that context instead. This is useful for example when
+      // the main page precompiles shaders for the application, in which case the WebGL context is created already before any Emscripten compiled
+      // code has been downloaded.
+      if (Module['preinitializedWebGLContext']) {
+        var ctx = Module['preinitializedWebGLContext'];
+#if USE_WEBGL2
+        webGLContextAttributes['majorVersion'] = (typeof WebGL2RenderingContext !== 'undefined' && ctx instanceof WebGL2RenderingContext) ? 2 : 1;
+#else
+        webGLContextAttributes['majorVersion'] = 1;
+#endif
+      } else
+#endif
+      {
+#if USE_WEBGL2
+        if (webGLContextAttributes['majorVersion'] == 2) {
+          var ctx = canvas.getContext("webgl2", webGLContextAttributes);
+        } else
+#endif
+        {
+          var ctx = canvas.getContext("webgl", webGLContextAttributes) || canvas.getContext("experimental-webgl", webGLContextAttributes);
+        }
+      }
+/*
       var ctx;
       var errorInfo = '?';
       function onContextCreationError(event) {
@@ -558,12 +569,13 @@ var LibraryGL = {
 #endif
         return 0;
       }
-
-      if (!ctx) return 0;
-      var context = GL.registerContext(ctx, webGLContextAttributes);
+*/
+      if (ctx) {
+        var context = GL.registerContext(ctx, webGLContextAttributes);
 #if TRACE_WEBGL_CALLS
-      GL.hookWebGL(ctx);
+        GL.hookWebGL(ctx);
 #endif
+      }
       return context;
     },
 
