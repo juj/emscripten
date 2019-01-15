@@ -16,6 +16,9 @@ var LibraryGL = {
   _tempFixedLengthArray: [],
 
   $GL__postset: 'var GLctx; GL.init()',
+#if HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS
+  $GL__deps: ['_removeAllHandlersOnTarget'],
+#endif
   $GL: {
 #if GL_DEBUG
     debug: true,
@@ -816,7 +819,9 @@ var LibraryGL = {
 
     deleteContext: function(contextHandle) {
       if (GL.currentContext === GL.contexts[contextHandle]) GL.currentContext = null;
-      if (typeof JSEvents === 'object') JSEvents.removeAllHandlersOnTarget(GL.contexts[contextHandle].GLctx.canvas); // Release all JS event handlers on the DOM element that the GL context is associated with since the context is now deleted.
+#if HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS
+      __removeAllHandlersOnTarget(GL.contexts[contextHandle].GLctx.canvas); // Release all JS event handlers on the DOM element that the GL context is associated with since the context is now deleted.
+#endif
       if (GL.contexts[contextHandle] && GL.contexts[contextHandle].GLctx.canvas) GL.contexts[contextHandle].GLctx.canvas.GLctxObject = undefined; // Make sure the canvas object no longer refers to the context object so there are no GC surprises.
       _free(GL.contexts[contextHandle]);
       GL.contexts[contextHandle] = null;

@@ -40,12 +40,16 @@ var LibraryJSEvents = {
       JSEvents.deferredCalls = [];
     },
 
-    registerRemoveEventListeners: function() {
-      if (!JSEvents.removeEventListenersRegistered) {
-        __ATEXIT__.push(JSEvents.removeAllEventListeners);
-        JSEvents.removeEventListenersRegistered = true;
-      }
-    },
+#if HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS
+  _removeAllEventListeners__deps: ['_eventHandlers', '_removeHandler', '_deferredCalls'],
+  _registerRemoveEventListeners__deps: ['_removeEventListenersRegistered', '_removeAllEventListeners'],
+  _registerRemoveEventListeners: function() {
+    if (!__removeEventListenersRegistered) {
+      __ATEXIT__.push(__removeAllEventListeners);
+      __removeEventListenersRegistered = true;
+    }
+  },
+#endif
 
     // Find a DOM element with the given ID.
     findEventTarget: function(target) {
@@ -146,51 +150,64 @@ var LibraryJSEvents = {
 
     isInternetExplorer: function() { return navigator.userAgent.indexOf('MSIE') !== -1 || navigator.appVersion.indexOf('Trident/') > 0; },
 
-    // Removes all event handlers on the given DOM element of the given type. Pass in eventTypeString == undefined/null to remove all event handlers regardless of the type.
-    removeAllHandlersOnTarget: function(target, eventTypeString) {
-      for(var i = 0; i < JSEvents.eventHandlers.length; ++i) {
-        if (JSEvents.eventHandlers[i].target == target && 
-          (!eventTypeString || eventTypeString == JSEvents.eventHandlers[i].eventTypeString)) {
-           JSEvents._removeHandler(i--);
+#if HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS
+  // Removes all event handlers on the given DOM element of the given type. Pass in eventTypeString == undefined/null to remove all event handlers regardless of the type.
+  _removeAllHandlersOnTarget__deps: ['_eventHandlers', '_removeHandler'],
+  _removeAllHandlersOnTarget: function(target, eventTypeString) {
+    for(var i = 0; i < __eventHandlers.length; ++i) {
+      if (__eventHandlers[i].target == target && 
+        (!eventTypeString || eventTypeString == __eventHandlers[i].eventTypeString)) {
+         __removeHandler(i--);
+       }
+    }
+  },
+
+  _removeHandler__deps: ['_eventHandlers'],
+  _removeHandler: function(i) {
+    var h = __eventHandlers[i];
+    h.target.removeEventListener(h.eventTypeString, h.eventListenerFunc, h.useCapture);
+    __eventHandlers.splice(i, 1);
+  },
+#endif
+
+  _registerOrRemoveHandler__deps: ['_eventHandlers', '_inEventHandler', '_currentEventHandler', '_runDeferredCalls'
+#if HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS
+    , '_removeHandler', '_registerRemoveEventListeners'
+#endif
+  ],
+  _registerOrRemoveHandler: function(eventHandler) {
+    var jsEventHandler = function jsEventHandler(event) {
+      // Increment nesting count for the event handler.
+      ++__inEventHandler;
+      __currentEventHandler = eventHandler;
+      // Process any old deferred calls the user has placed.
+      __runDeferredCalls();
+      // Process the actual event, calls back to user C code handler.
+      eventHandler.handlerFunc(event);
+      // Process any new deferred calls that were placed right now from this event handler.
+      __runDeferredCalls();
+      // Out of event handler - restore nesting count.
+      --__inEventHandler;
+    }
+    
+#if HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS
+    if (eventHandler.callbackfunc) {
+#endif
+      eventHandler.eventListenerFunc = jsEventHandler;
+      eventHandler.target.addEventListener(eventHandler.eventTypeString, jsEventHandler, eventHandler.useCapture);
+      __eventHandlers.push(eventHandler);
+#if HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS
+      __registerRemoveEventListeners();
+    } else {
+      for(var i = 0; i < __eventHandlers.length; ++i) {
+        if (__eventHandlers[i].target == eventHandler.target
+         && __eventHandlers[i].eventTypeString == eventHandler.eventTypeString) {
+           __removeHandler(i--);
          }
       }
-    },
-
-    _removeHandler: function(i) {
-      var h = JSEvents.eventHandlers[i];
-      h.target.removeEventListener(h.eventTypeString, h.eventListenerFunc, h.useCapture);
-      JSEvents.eventHandlers.splice(i, 1);
-    },
-    
-    registerOrRemoveHandler: function(eventHandler) {
-      var jsEventHandler = function jsEventHandler(event) {
-        // Increment nesting count for the event handler.
-        ++JSEvents.inEventHandler;
-        JSEvents.currentEventHandler = eventHandler;
-        // Process any old deferred calls the user has placed.
-        JSEvents.runDeferredCalls();
-        // Process the actual event, calls back to user C code handler.
-        eventHandler.handlerFunc(event);
-        // Process any new deferred calls that were placed right now from this event handler.
-        JSEvents.runDeferredCalls();
-        // Out of event handler - restore nesting count.
-        --JSEvents.inEventHandler;
-      }
-      
-      if (eventHandler.callbackfunc) {
-        eventHandler.eventListenerFunc = jsEventHandler;
-        eventHandler.target.addEventListener(eventHandler.eventTypeString, jsEventHandler, eventHandler.useCapture);
-        JSEvents.eventHandlers.push(eventHandler);
-        JSEvents.registerRemoveEventListeners();
-      } else {
-        for(var i = 0; i < JSEvents.eventHandlers.length; ++i) {
-          if (JSEvents.eventHandlers[i].target == eventHandler.target
-           && JSEvents.eventHandlers[i].eventTypeString == eventHandler.eventTypeString) {
-             JSEvents._removeHandler(i--);
-           }
-        }
-      }
-    },
+    }
+#endif
+  },
 
 #if USE_PTHREADS
     queueEventHandlerOnThread_iiii: function(targetThread, eventHandlerFunc, eventTypeId, eventData, userData) {
@@ -2618,8 +2635,12 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
+#if HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS
   emscripten_html5_remove_all_event_listeners: function() {
-    JSEvents.removeAllEventListeners();
+    __removeAllEventListeners();
+  },
+#endif
+
   }
 };
 

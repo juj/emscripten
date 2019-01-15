@@ -1318,3 +1318,8 @@ var MINIFY_ASMJS_IMPORT_NAMES = 0;
 
 // If true, uses minimal size runtime without POSIX emulation or other historical features
 var MINIMAL_RUNTIME = 0;
+
+// If set to 0, drops support from HTML5 library from being able to unregister event
+// callbacks added to DOM. This can save a little bit of code size on compiled pages
+// that do not need unload functionality.
+var HTML5_SUPPORT_UNREGISTERING_EVENT_HANDLERS = 1;
