@@ -163,6 +163,9 @@ Conversion functions — strings, pointers and arrays
 
   Returns a JavaScript String from a pointer, for use in compiled code.
 
+  .. note::
+  	This function is deprecated, use one of functions UTF8ToString(), AsciiToString(), UTF16ToString() or UTF32ToString() instead.
+
   :param ptr: The pointer to be converted to a ``String``.
   :param length: The length of the data in the pointer (optional).
   :returns: A JavaScript ``String`` containing the data from ``ptr``.
