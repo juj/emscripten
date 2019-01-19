@@ -339,6 +339,12 @@ def function_tables_and_exports(funcs, metadata, mem_init, glue, forwarded_data,
 
   receiving = create_receiving(function_table_data, function_tables_defs,
                                exported_implemented_functions)
+  receiving += ';\n'
+
+  if shared.Settings.WASM and shared.Settings.MINIMAL_RUNTIME:
+    post = post.replace('/*** ASM_MODULE_EXPORTS_DECLARES ***/', 'var ' + ','.join(exported_implemented_functions) + ';')
+    post = post.replace('/*** ASM_MODULE_EXPORTS ***/', receiving)
+    receiving = ''
 
   function_tables_impls = make_function_tables_impls(function_table_data)
   final_function_tables = '\n'.join(function_tables_impls) + '\n' + function_tables_defs
@@ -750,11 +756,11 @@ def get_exported_implemented_functions(all_exported_functions, all_implemented, 
   if not shared.Settings.ONLY_MY_CODE:
     if shared.Settings.ALLOW_MEMORY_GROWTH:
       funcs.append('_emscripten_replace_memory')
-    if not shared.Settings.SIDE_MODULE:
+    if not shared.Settings.SIDE_MODULE and not shared.Settings.MINIMAL_RUNTIME:
       funcs += ['stackAlloc', 'stackSave', 'stackRestore', 'establishStackSpace']
     if shared.Settings.SAFE_HEAP:
       funcs += ['setDynamicTop']
-    if not (shared.Settings.WASM and shared.Settings.SIDE_MODULE):
+    if not (shared.Settings.WASM and shared.Settings.SIDE_MODULE) and not shared.Settings.MINIMAL_RUNTIME:
       funcs += ['setThrew']
     if shared.Settings.EMTERPRETIFY:
       funcs += ['emterpret']
@@ -1405,7 +1411,10 @@ function ftCall_%s(%s) {%s
 
 
 def create_basic_funcs(function_table_sigs, invoke_function_names):
-  basic_funcs = ['abort', 'assert', 'enlargeMemory', 'getTotalMemory', 'setTempRet0', 'getTempRet0']
+  if shared.Settings.MINIMAL_RUNTIME:
+    basic_funcs = []
+  else:
+    basic_funcs = ['abort', 'assert', 'enlargeMemory', 'getTotalMemory', 'setTempRet0', 'getTempRet0']
   if shared.Settings.ABORTING_MALLOC:
     basic_funcs += ['abortOnCannotGrowMemory']
   if shared.Settings.STACK_OVERFLOW_CHECK:
@@ -1482,7 +1491,7 @@ def create_exports(exported_implemented_functions, in_table, function_table_data
 
 def create_asm_runtime_funcs():
   funcs = []
-  if not (shared.Settings.WASM and shared.Settings.SIDE_MODULE):
+  if not (shared.Settings.WASM and shared.Settings.SIDE_MODULE) and not shared.Settings.MINIMAL_RUNTIME:
     funcs += ['stackAlloc', 'stackSave', 'stackRestore', 'establishStackSpace', 'setThrew']
   if shared.Settings.SAFE_HEAP:
     funcs += ['setDynamicTop']
@@ -1533,7 +1542,10 @@ def create_receiving(function_table_data, function_tables_defs, exported_impleme
 
   if not shared.Settings.SWAPPABLE_ASM_MODULE:
     if shared.Settings.DECLARE_ASM_MODULE_EXPORTS:
-      receiving += ';\n'.join(['var ' + s + ' = Module["' + s + '"] = asm["' + s + '"]' for s in module_exports])
+      if shared.Settings.WASM and shared.Settings.MINIMAL_RUNTIME:
+        receiving += ';\n'.join([s + ' = Module["' + s + '"] = asm["' + s + '"]' for s in module_exports])
+      else:
+        receiving += ';\n'.join(['var ' + s + ' = Module["' + s + '"] = asm["' + s + '"]' for s in module_exports])
       # TODO: Instead of the above line, we would like to use the two lines below for smaller size version of exports; but currently JS optimizer is wired to look for the exact above syntax when analyzing
       # exports.
 #      receiving += ''.join(['var ' + s + ' = asm["' + s + '"];\n' for s in module_exports])
@@ -1635,6 +1647,9 @@ function setThrew(threw, value) {
   }
 }
 ''' % stack_check]
+
+  if shared.Settings.MINIMAL_RUNTIME:
+    funcs = []
 
   if need_asyncify(exports):
     funcs.append('''
@@ -1832,6 +1847,13 @@ function _emscripten_replace_memory(newBuffer) {
 
 
 def create_asm_end(exports):
+  if shared.Settings.MINIMAL_RUNTIME and shared.Settings.WASM:
+    return '''
+    return %s;
+    })
+    // EMSCRIPTEN_END_ASM
+    ''' % (exports)
+
   return '''
 
   return %s;

@@ -8825,3 +8825,45 @@ int main () {
     for closure in [[], ['--closure', '1']]:
       for opt in [['-O1']]:
         test(['-s', 'WASM=1', '-s', 'BINARYEN_ASYNC_COMPILATION=0'], closure, opt)
+
+  def test_minimal_hello_world_is_small(self):
+    smallest_code_size_args = ['-s', 'MINIMAL_RUNTIME=1',
+      '-s', 'AGGRESSIVE_VARIABLE_ELIMINATION=1',
+      '-s', 'ENVIRONMENT=web',
+      '-s', 'TEXTDECODER=2',
+      '-s', 'ABORTING_MALLOC=0',
+      '-s', 'SUPPORT_ERRNO=0',
+      '-s', 'DECLARE_ASM_MODULE_EXPORTS=0',
+      '-s', 'MALLOC=emmalloc',
+#      '-s', 'FAST_UNROLLED_MEMCPY_AND_MEMSET=0',
+      '--output_eol', 'linux']
+
+    asmjs = ['-s', 'WASM=0', '--separate-asm', '-s', 'ELIMINATE_DUPLICATE_FUNCTIONS=1'] 
+    asmjs_opts = ['-O3', '--closure', '1']
+    wasm_opts = ['-O2', '--closure', '1']
+
+    test_cases = [
+      (asmjs + asmjs_opts, { 'a.html': 665, 'a.js': 574, 'a.asm.js': 968, 'a.mem': 6}),
+      (         wasm_opts, { 'a.html': 621, 'a.js': 874, 'a.wasm': 112})
+      ]
+
+    for flags, files in test_cases:
+      args = [PYTHON, EMCC, path_from_root('tests', 'small_hello_world.c'), '-o', 'a.html'] + smallest_code_size_args + flags
+      print(' '.join(args))
+      run_process(args)
+ 
+      total_output_size = 0
+      total_expected_size = 0
+      for f in files:
+        expected_size = files[f]
+        size = os.path.getsize(f)
+        total_output_size += size
+        total_expected_size += expected_size
+        print('size of ' + f + ' == ' + str(size) + ', expected ' + str(expected_size) + ', delta=' + str(size-expected_size))
+
+      print('Total output size=' + str(total_output_size) + ' bytes, expected total size=' + str(total_expected_size) + ', delta=' + str(total_output_size - total_expected_size))
+      if total_output_size > total_expected_size:
+        print('Oops, overall generated code size regressed by ' + str(total_output_size - total_expected_size) + ' bytes!')
+      if total_output_size < total_expected_size:
+        print('Hey amazing, overall generated code size was improved by ' + str(total_expected_size - total_output_size) + ' bytes! Please update test other.test_minimal_hello_world_is_small with the new updated size!')
+      assert(total_output_size == total_expected_size)

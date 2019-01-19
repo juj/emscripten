@@ -31,8 +31,8 @@ else:
   import re
   m = re.search(r'\((\w+)\.ENVIRONMENT\)', everything)
   if not m:
-    m = re.search(r'(\w+)\.arguments\s*=\s*\[\];', everything)
-  assert m, 'cannot figure out the closured name of Module statically'
+    m = re.search(r'(\w+)\s*=\s*"__EMSCRIPTEN_PRIVATE_MODULE_EXPORT_NAME_SUBSTITUTION__"', everything)
+  assert m, 'cannot figure out the closured name of Module statically'+ everything
   closured_name = m.group(1)
   everything = everything.replace(module, closured_name + '["asm"]')
 

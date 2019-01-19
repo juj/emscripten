@@ -1357,3 +1357,8 @@ var MODULE_EXPORTS = [];
 
 // Internal (testing only): Disables the blitOffscreenFramebuffer VAO path.
 var OFFSCREEN_FRAMEBUFFER_FORBID_VAO_PATH = 0;
+
+// If true, uses minimal sized runtime without POSIX features, Module, preRun/preInit/etc.,
+// Emscripten built-in XHR loading or library_browser.js. Enable this setting to target
+// the smallest code size possible.
+var MINIMAL_RUNTIME = 0;

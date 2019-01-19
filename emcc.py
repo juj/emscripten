@@ -1046,6 +1046,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     assert not (not shared.Settings.DYNAMIC_EXECUTION and options.use_closure_compiler), 'cannot have both NO_DYNAMIC_EXECUTION and closure compiler enabled at the same time'
 
     if options.emrun:
+      assert not shared.Settings.MINIMAL_RUNTIME, '--emrun is not compatible with -s MINIMAL_RUNTIME=1'
       shared.Settings.EXPORTED_RUNTIME_METHODS.append('addOnExit')
 
     if options.use_closure_compiler:
@@ -1124,7 +1125,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       shared.Settings.EXPORTED_FUNCTIONS += ['___cxa_demangle']
       forced_stdlibs += ['libc++abi']
 
-    if not shared.Settings.ONLY_MY_CODE:
+    if not shared.Settings.ONLY_MY_CODE and not shared.Settings.MINIMAL_RUNTIME:
       # Always need malloc and free to be kept alive and exported, for internal use and other modules
       shared.Settings.EXPORTED_FUNCTIONS += ['_malloc', '_free']
       if shared.Settings.WASM_BACKEND:
@@ -1282,6 +1283,12 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       shared.Settings.DECLARE_ASM_MODULE_EXPORTS = 1
       logger.warning('Enabling -s DECLARE_ASM_MODULE_EXPORTS=1, since MODULARIZE currently requires declaring asm.js/wasm module exports in full')
 
+    # Minimal runtime uses a different default shell file
+    if shared.Settings.MINIMAL_RUNTIME:
+      if options.shell_path == shared.path_from_root('src', 'shell.html'):
+        options.shell_path = shared.path_from_root('src', 'shell_minimal_runtime.html')
+      shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE = [] # Remove the default exported functions 'memcpy', 'memset', 'malloc', 'free' - those should only be linked in if used
+
     if shared.Settings.WASM:
       if shared.Settings.SINGLE_FILE:
         # placeholder strings for JS glue, to be replaced with subresource locations in do_binaryen
@@ -1314,7 +1321,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       if any(s.startswith('MEM_INIT_METHOD=') for s in settings_changes):
         exit_with_error('MEM_INIT_METHOD is not supported in wasm. Memory will be embedded in the wasm binary if threads are not used, and included in a separate file if threads are used.')
       options.memory_init_file = True
-      if shared.Settings.BINARYEN_ASYNC_COMPILATION == 1:
+      if shared.Settings.BINARYEN_ASYNC_COMPILATION == 1 and not shared.Settings.MINIMAL_RUNTIME:
         # async compilation requires a swappable module - we swap it in when it's ready
         shared.Settings.SWAPPABLE_ASM_MODULE = 1
       else:
@@ -1912,7 +1919,11 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     with ToolchainProfiler.profile_block('memory initializer'):
       memfile = None
       if shared.Settings.MEM_INIT_METHOD > 0 or embed_memfile(options):
-        memfile = target + '.mem'
+        if shared.Settings.MINIMAL_RUNTIME:
+          # Independent of whether user is doing -o a.html or -o a.js, generate the mem init file as a.mem (and not as a.html.mem or a.js.mem)
+          memfile = target.replace('.html', '.mem').replace('.js', '.mem')
+        else:
+          memfile = target + '.mem'
 
       if memfile and not shared.Settings.WASM_BACKEND:
         # Strip the memory initializer out of the asmjs file
@@ -2102,6 +2113,13 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         modularize()
 
       module_export_name_substitution()
+
+      # Run a final regex pass to clean up items that were not possible to optimize by Closure, or unoptimalities that were left behind
+      # by processing steps that occurred after Closure.
+      if shared.Settings.MINIMAL_RUNTIME and shared.Settings.USE_CLOSURE_COMPILER and options.debug_level == 0:
+        shared.run_process([shared.PYTHON, shared.path_from_root('tools', 'hacky_postprocess_around_closure_limitations.py'), final])
+        if not shared.Settings.WASM:
+          shared.run_process([shared.PYTHON, shared.path_from_root('tools', 'hacky_postprocess_around_closure_limitations.py'), asm_target])
 
       # The JS is now final. Move it to its final location
       shutil.move(final, js_target)
@@ -2709,15 +2727,34 @@ def module_export_name_substitution():
   logger.debug('Private module export name substitution with ' + shared.Settings.EXPORT_NAME)
   src = open(final).read()
   final = final + '.module_export_name_substitution.js'
-  replacement = "typeof %(EXPORT_NAME)s !== 'undefined' ? %(EXPORT_NAME)s : {}" % {"EXPORT_NAME": shared.Settings.EXPORT_NAME}
+  if shared.Settings.MINIMAL_RUNTIME:
+    replacement = shared.Settings.EXPORT_NAME
+  else:
+    replacement = "typeof %(EXPORT_NAME)s !== 'undefined' ? %(EXPORT_NAME)s : {}" % {"EXPORT_NAME": shared.Settings.EXPORT_NAME}
   with open(final, 'w') as f:
     f.write(src.replace(shared.JS.module_export_name_substitution_pattern, replacement))
   save_intermediate('module_export_name_substitution')
 
 
+def generate_minimal_runtime_html(target, options, js_target, target_basename,
+                  asm_target, wasm_binary_target,
+                  memfile, optimizer):
+  logger.debug('generating HTML for minimal runtime')
+  shell = read_and_preprocess(options.shell_path)
+  html_contents = shell.replace('{{{ TARGET_BASENAME }}}', target_basename)
+  html_contents = tools.line_endings.convert_line_endings(html_contents, '\n', options.output_eol)
+  with open(target, 'wb') as f:
+    f.write(asbytes(html_contents))
+
+  
+
 def generate_html(target, options, js_target, target_basename,
                   asm_target, wasm_binary_target,
                   memfile, optimizer):
+  if shared.Settings.MINIMAL_RUNTIME:
+    return generate_minimal_runtime_html(target, options, js_target, target_basename, asm_target,
+      wasm_binary_target, memfile, optimizer)
+
   script = ScriptSource()
 
   logger.debug('generating HTML')
