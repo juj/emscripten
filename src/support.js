@@ -367,7 +367,8 @@ function loadWebAssemblyModule(binary, flags) {
     memoryAlign = Math.max(memoryAlign, STACK_ALIGN); // we at least need stack alignment
     assert(tableAlign === 1, 'invalid tableAlign ' + tableAlign);
     // prepare memory
-    var memoryBase = alignMemory(getMemory(memorySize + memoryAlign), memoryAlign); // TODO: add to cleanups
+    assert(memoryAlign <= 16, 'invalid memoryalign ' + memoryAlign);
+    var memoryBase = alignMemory(getMemory(memorySize + memoryAlign)); // TODO: add to cleanups
     // The static area consists of explicitly initialized data, followed by zero-initialized data.
     // The latter may need zeroing out if the MAIN_MODULE has already used this memory area before
     // dlopen'ing the SIDE_MODULE.  Since we don't know the size of the explicitly initialized data
@@ -839,5 +840,6 @@ var Runtime = {
 var GLOBAL_BASE = {{{ GLOBAL_BASE }}};
 
 #if RELOCATABLE
-GLOBAL_BASE = alignMemory(GLOBAL_BASE, {{{ MAX_GLOBAL_ALIGN || 1 }}});
+assert({{{ MAX_GLOBAL_ALIGN || 1 }}} <= 16);
+GLOBAL_BASE = alignMemory(GLOBAL_BASE);
 #endif
