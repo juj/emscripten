@@ -116,6 +116,10 @@ var LibraryManager = {
       'library_html5.js'
     ];
 
+    if (!MINIMAL_RUNTIME) {
+      libraries.push('library_browser.js');
+    }
+
     if (FILESYSTEM) {
       // Core filesystem libraries (always linked against, unless -s FILESYSTEM=0 is specified)
       libraries = libraries.concat([
