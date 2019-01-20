@@ -690,6 +690,8 @@ var PROFILING_FUNCS = 0;
 // "$Browser" to this list.
 var DEFAULT_LIBRARY_FUNCS_TO_INCLUDE = ['memcpy', 'memset', 'malloc', 'free'];
 
+var RUNTIME_FUNCS_TO_IMPORT = ['abort', 'assert', 'enlargeMemory', 'getTotalMemory', 'setTempRet0', 'getTempRet0'];
+
 // This list is also used to determine auto-exporting of library dependencies
 // (i.e., functions that might be dependencies of JS library functions, that if
 // so we must export so that if they are implemented in C they will be
@@ -1362,3 +1364,8 @@ var OFFSCREEN_FRAMEBUFFER_FORBID_VAO_PATH = 0;
 // Emscripten built-in XHR loading or library_browser.js. Enable this setting to target
 // the smallest code size possible.
 var MINIMAL_RUNTIME = 0;
+
+// If building with MINIMAL_RUNTIME=1 and application uses sbrk()/malloc(), enable this. If you
+// are not using dynamic allocations, can set this to 0 to save code size. This setting is
+// ignored when building with -s MINIMAL_RUNTIME=0.
+var USES_DYNAMIC_ALLOC = 1;

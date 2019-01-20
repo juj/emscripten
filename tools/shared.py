@@ -2499,7 +2499,7 @@ class Building(object):
         exports_file.write(module_exports_suppressions.encode())
         exports_file.close()
 
-        args.append('--js')
+        args.append('--externs')
         args.append(exports_file.name)
       if Settings.IGNORE_CLOSURE_COMPILER_ERRORS:
         args.append('--jscomp_off=*')

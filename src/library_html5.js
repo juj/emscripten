@@ -2380,7 +2380,7 @@ var LibraryJSEvents = {
   },
 
 #if USE_PTHREADS
-  emscripten_set_canvas_element_size_calling_thread__deps: ['emscripten_set_offscreencanvas_size_on_target_thread'],
+  emscripten_set_canvas_element_size_calling_thread__deps: ['emscripten_set_offscreencanvas_size_on_target_thread', '$JSEvents'],
   emscripten_set_canvas_element_size_calling_thread: function(target, width, height) {
     var canvas = JSEvents.findCanvasEventTarget(target);
     if (!canvas) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};
@@ -2463,7 +2463,7 @@ var LibraryJSEvents = {
   emscripten_set_canvas_element_size_main_thread__deps: ['emscripten_set_canvas_element_size_calling_thread'],
   emscripten_set_canvas_element_size_main_thread: function(target, width, height) { return _emscripten_set_canvas_element_size_calling_thread(target, width, height); },
 
-  emscripten_set_canvas_element_size__deps: ['emscripten_set_canvas_element_size_calling_thread', 'emscripten_set_canvas_element_size_main_thread'],
+  emscripten_set_canvas_element_size__deps: ['emscripten_set_canvas_element_size_calling_thread', 'emscripten_set_canvas_element_size_main_thread', '$JSEvents'],
   emscripten_set_canvas_element_size: function(target, width, height) {
 #if GL_DEBUG
     console.error('emscripten_set_canvas_element_size(target='+target+',width='+width+',height='+height);
@@ -2473,6 +2473,7 @@ var LibraryJSEvents = {
     else return _emscripten_set_canvas_element_size_main_thread(target, width, height);
   }, 
 #else
+  emscripten_set_canvas_element_size__deps: ['$JSEvents'],
   emscripten_set_canvas_element_size: function(target, width, height) {
 #if GL_DEBUG
     console.error('emscripten_set_canvas_element_size(target='+target+',width='+width+',height='+height);
@@ -2508,6 +2509,7 @@ var LibraryJSEvents = {
   }, 
 
 #if USE_PTHREADS
+  emscripten_get_canvas_element_size_calling_thread__deps: ['$JSEvents'],
   emscripten_get_canvas_element_size_calling_thread: function(target, width, height) {
     var canvas = JSEvents.findCanvasEventTarget(target);
     if (!canvas) return {{{ cDefine('EMSCRIPTEN_RESULT_UNKNOWN_TARGET') }}};

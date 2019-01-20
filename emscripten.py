@@ -342,7 +342,7 @@ def function_tables_and_exports(funcs, metadata, mem_init, glue, forwarded_data,
   receiving += ';\n'
 
   if shared.Settings.WASM and shared.Settings.MINIMAL_RUNTIME:
-    post = post.replace('/*** ASM_MODULE_EXPORTS_DECLARES ***/', 'var ' + ','.join(exported_implemented_functions) + ';')
+    post = post.replace('/*** ASM_MODULE_EXPORTS_DECLARES ***/', 'var ' + ','.join(shared.Settings.MODULE_EXPORTS) + ';')
     post = post.replace('/*** ASM_MODULE_EXPORTS ***/', receiving)
     receiving = ''
 
@@ -1411,10 +1411,7 @@ function ftCall_%s(%s) {%s
 
 
 def create_basic_funcs(function_table_sigs, invoke_function_names):
-  if shared.Settings.MINIMAL_RUNTIME:
-    basic_funcs = []
-  else:
-    basic_funcs = ['abort', 'assert', 'enlargeMemory', 'getTotalMemory', 'setTempRet0', 'getTempRet0']
+  basic_funcs = shared.Settings.RUNTIME_FUNCS_TO_IMPORT
   if shared.Settings.ABORTING_MALLOC:
     basic_funcs += ['abortOnCannotGrowMemory']
   if shared.Settings.STACK_OVERFLOW_CHECK:
@@ -1543,9 +1540,10 @@ def create_receiving(function_table_data, function_tables_defs, exported_impleme
   if not shared.Settings.SWAPPABLE_ASM_MODULE:
     if shared.Settings.DECLARE_ASM_MODULE_EXPORTS:
       if shared.Settings.WASM and shared.Settings.MINIMAL_RUNTIME:
-        receiving += ';\n'.join([s + ' = Module["' + s + '"] = asm["' + s + '"]' for s in module_exports])
+        receiving += '\n'.join([s + ' = asm["' + s + '"];' for s in module_exports]) + '\n'
       else:
-        receiving += ';\n'.join(['var ' + s + ' = Module["' + s + '"] = asm["' + s + '"]' for s in module_exports])
+        receiving += '\n'.join(['var ' + s + ' = asm["' + s + '"];' for s in module_exports]) + '\n'
+      receiving += 'for(var i in asm) Module[i] = asm[i];\n'
       # TODO: Instead of the above line, we would like to use the two lines below for smaller size version of exports; but currently JS optimizer is wired to look for the exact above syntax when analyzing
       # exports.
 #      receiving += ''.join(['var ' + s + ' = asm["' + s + '"];\n' for s in module_exports])
@@ -1553,8 +1551,7 @@ def create_receiving(function_table_data, function_tables_defs, exported_impleme
     else:
       receiving += 'for(var i in asm) this[i] = Module[i] = asm[i];\n'
   else:
-    receiving += 'Module["asm"] = asm;\n' + ';\n'.join(['var ' + s + ' = Module["' + s + '"] = function() {' + runtime_assertions + '  return Module["asm"]["' + s + '"].apply(null, arguments) }' for s in module_exports])
-  receiving += ';\n'
+    receiving += 'Module["asm"] = asm;\n' + '\n'.join(['var ' + s + ' = Module["' + s + '"] = function() {' + runtime_assertions + '  return Module["asm"]["' + s + '"].apply(null, arguments) };' for s in module_exports]) + '\n'
 
   if shared.Settings.EXPORT_FUNCTION_TABLES and not shared.Settings.WASM:
     for table in function_table_data.values():

@@ -4,6 +4,8 @@ import sys, re
 f = open(sys.argv[1], 'r').read()
 orig_size = len(f)
 
+f = f.strip()
+
 if '"use asm";' in f:
 	f = re.sub(r'\s*/\*\* @suppress {uselessCode} \*/\s*', '', f)
 	f = re.sub(r'\s*//\s*EMSCRIPTEN_START_FUNCS\s*', '', f)
@@ -31,7 +33,8 @@ else:
 
 f = re.sub(r'\s+', ' ', f)
 f = re.sub(r'[\n\s]+\n\s*', '\n', f)
-f = re.sub(r'([;{}=,\+\-\*/\(\)\[\]])\n', r'\1', f)
+f = re.sub(r'([;{}=,\+\-\*/\(\)\[\]])[\n]', r'\1', f)
+f = re.sub(r'([;{}=,\*/\(\)\[\]])[\s]', r'\1', f)
 
 optimized_size = len(f)
 #print('Further optimized ' + str(optimized_size - orig_size) + ' bytes (' + str(orig_size) + ' -> ' + str(optimized_size) + ' bytes, {0:.2f}'.format((optimized_size-orig_size)*100.0/orig_size) + '%)')

@@ -471,20 +471,24 @@ LibraryManager.library = {
     return HEAP8.length;
   },
 
-#if MINIMAL_RUNTIME && !ASSERTIONS && !ABORTING_MALLOC && !ALLOW_MEMORY_GROWTH
+#if MINIMAL_RUNTIME
   // If building with minimal runtime in release mode, where malloc() failures are not expected to throw and memory growth
   // is not allowed, use a really small stub for sbrk() and brk() that return failure.
   sbrk__asm: true,
   sbrk__sig: ['ii'],
   sbrk: function(increment) {
     increment = increment|0;
-    return -1;
+    var oldDynamicTop = 0;
+    oldDynamicTop = HEAP32[DYNAMICTOP_PTR>>2]|0;
+    HEAP32[DYNAMICTOP_PTR>>2] = oldDynamicTop + increment | 0;
+    return oldDynamicTop | 0;
   },
   brk__asm: true,
   brk__sig: ['ii'],
   brk: function(newDynamicTop) {
     newDynamicTop = newDynamicTop|0;
-    return -1;
+    HEAP32[DYNAMICTOP_PTR>>2] = newDynamicTop | 0;
+    return 0;
   },
 #else
   // Implement a Linux-like 'memory area' for our 'process'.
