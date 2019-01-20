@@ -688,7 +688,22 @@ var PROFILING_FUNCS = 0;
 // may be slightly misleading, as this is for any JS library element, and not
 // just functions. For example, you can include the Browser object by adding
 // "$Browser" to this list.
-var DEFAULT_LIBRARY_FUNCS_TO_INCLUDE = ['memcpy', 'memset', 'malloc', 'free'];
+var DEFAULT_LIBRARY_FUNCS_TO_INCLUDE = [
+	'memcpy',
+	'memset',
+	'malloc',
+	'free',
+	'$Pointer_stringify',
+	'$UTF8ArrayToString',
+	'$UTF8ToString',
+	'$stringToUTF8Array',
+	'$stringToUTF8',
+	'$lengthBytesUTF8'
+	];
+
+// Additional items to export from JS library. Set this option to append to
+// the above list.
+var EXTRA_LIBRARY_FUNCS_TO_INCLUDE = [];
 
 // This list is also used to determine auto-exporting of library dependencies
 // (i.e., functions that might be dependencies of JS library functions, that if

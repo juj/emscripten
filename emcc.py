@@ -1455,6 +1455,8 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     shared.Settings.PROFILING_FUNCS = options.profiling_funcs
     shared.Settings.SOURCE_MAP_BASE = options.source_map_base or ''
 
+    shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE += shared.Settings.EXTRA_LIBRARY_FUNCS_TO_INCLUDE
+
     ## Compile source code to bitcode
 
     logger.debug('compiling to bitcode')
