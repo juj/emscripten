@@ -254,6 +254,7 @@ def function_tables_and_exports(funcs, metadata, mem_init, glue, forwarded_data,
 
   pre, post = glue.split('// EMSCRIPTEN_END_FUNCS')
 
+  pre = apply_script_source(pre)
   pre = memory_and_global_initializers(pre, metadata, mem_init)
   pre, funcs_js = get_js_funcs(pre, funcs)
   all_exported_functions = get_all_exported_functions(function_table_data)
@@ -347,6 +348,13 @@ def function_tables_and_exports(funcs, metadata, mem_init, glue, forwarded_data,
 
   receiving = create_receiving(function_table_data, function_tables_defs,
                                exported_implemented_functions)
+
+  post = apply_table(post)
+
+  if shared.Settings.WASM and shared.Settings.MINIMAL_RUNTIME:
+    post = post.replace('/*** ASM_MODULE_EXPORTS_DECLARES ***/', 'var ' + ','.join(shared.Settings.MODULE_EXPORTS) + ';')
+    post = post.replace('/*** ASM_MODULE_EXPORTS ***/', receiving)
+    receiving = ''
 
   function_tables_impls = make_function_tables_impls(function_table_data)
   final_function_tables = '\n'.join(function_tables_impls) + '\n' + function_tables_defs
@@ -722,6 +730,12 @@ def apply_table(js):
   return js
 
 
+def apply_script_source(js):
+  js = js.replace('{{{ TARGET_BASENAME }}}', shared.Settings.TARGET_BASENAME)
+
+  return js
+
+
 def memory_and_global_initializers(pre, metadata, mem_init):
   if shared.Settings.SIMD == 1:
     pre = open(path_from_root(os.path.join('src', 'ecmascript_simd.js'))).read() + '\n\n' + pre
@@ -814,7 +828,7 @@ def get_exported_implemented_functions(all_exported_functions, all_implemented, 
   if not shared.Settings.ONLY_MY_CODE:
     if shared.Settings.ALLOW_MEMORY_GROWTH:
       funcs.append('_emscripten_replace_memory')
-    if not shared.Settings.SIDE_MODULE:
+    if not shared.Settings.SIDE_MODULE and not shared.Settings.MINIMAL_RUNTIME:
       funcs += ['stackAlloc', 'stackSave', 'stackRestore', 'establishStackSpace']
     if shared.Settings.EMTERPRETIFY:
       funcs += ['emterpret']
@@ -1450,7 +1464,9 @@ function ftCall_%s(%s) {%s
 
 
 def create_basic_funcs(function_table_sigs, invoke_function_names):
-  basic_funcs = ['abort', 'assert', 'setTempRet0', 'getTempRet0']
+  basic_funcs = shared.Settings.RUNTIME_FUNCS_TO_IMPORT
+  if shared.Settings.MINIMAL_RUNTIME and 'assert' in basic_funcs:
+    basic_funcs.remove('assert') # In MINIMAL_RUNTIME, assert() function is not present.
   if shared.Settings.STACK_OVERFLOW_CHECK:
     basic_funcs += ['abortStackOverflow']
   if shared.Settings.EMTERPRETIFY:
@@ -1477,9 +1493,12 @@ def create_basic_funcs(function_table_sigs, invoke_function_names):
 
 
 def create_basic_vars(exported_implemented_functions, forwarded_json, metadata):
-  basic_vars = ['DYNAMICTOP_PTR']
+  basic_vars = []
   if 'tempDoublePtr' in shared.Settings.ASM_PRIMITIVE_VARS:
     basic_vars += ['tempDoublePtr']
+
+  if shared.Settings.SAFE_HEAP or shared.Settings.USES_DYNAMIC_ALLOC or not shared.Settings.MINIMAL_RUNTIME:
+    basic_vars += ['DYNAMICTOP_PTR']
 
   if shared.Settings.RELOCATABLE:
     if not (shared.Settings.WASM and shared.Settings.SIDE_MODULE):
@@ -1528,7 +1547,7 @@ def create_exports(exported_implemented_functions, in_table, function_table_data
 
 def create_asm_runtime_funcs():
   funcs = []
-  if not (shared.Settings.WASM and shared.Settings.SIDE_MODULE):
+  if not (shared.Settings.WASM and shared.Settings.SIDE_MODULE) and not shared.Settings.MINIMAL_RUNTIME:
     funcs += ['stackAlloc', 'stackSave', 'stackRestore', 'establishStackSpace']
   if shared.Settings.ONLY_MY_CODE:
     funcs = []
@@ -1563,7 +1582,7 @@ RUNTIME_ASSERTIONS = '''
 
 def create_receiving(function_table_data, function_tables_defs, exported_implemented_functions):
   receiving = ''
-  if not shared.Settings.ASSERTIONS:
+  if not shared.Settings.ASSERTIONS or shared.Settings.MINIMAL_RUNTIME:
     runtime_assertions = ''
   else:
     runtime_assertions = RUNTIME_ASSERTIONS
@@ -1578,16 +1597,37 @@ def create_receiving(function_table_data, function_tables_defs, exported_impleme
 
   if not shared.Settings.SWAPPABLE_ASM_MODULE:
     if shared.Settings.DECLARE_ASM_MODULE_EXPORTS:
-      receiving += ';\n'.join(['var ' + s + ' = Module["' + s + '"] = asm["' + s + '"]' for s in module_exports])
-      # TODO: Instead of the above line, we would like to use the two lines below for smaller size version of exports; but currently JS optimizer is wired to look for the exact above syntax when analyzing
-      # exports.
-#      receiving += ''.join(['var ' + s + ' = asm["' + s + '"];\n' for s in module_exports])
-#      receiving += 'for(var module_exported_function in asm) Module[module_exported_function] = asm[module_exported_function];\n'
+      if shared.Settings.WASM and shared.Settings.MINIMAL_RUNTIME:
+        # In Wasm exports are assigned inside a function to variables existing in top level JS scope, i.e.
+        # var _main;
+        # WebAssembly.instantiate(Module["wasm"], imports).then((function(output) {
+        # var asm = output.instance.exports;
+        # _main = asm["_main"];
+        receiving += '\n'.join([s + ' = asm["' + s + '"];' for s in module_exports]) + '\n'
+      else:
+        if shared.Settings.MINIMAL_RUNTIME:
+          # In asm.js exports can be directly processed at top level, i.e.
+          # var asm = Module["asm"](asmGlobalArg, Module.asmLibraryArg, buffer);
+          # var _main = asm["_main"];
+          receiving += '\n'.join(['var ' + s + ' = asm["' + s + '"];' for s in module_exports]) + '\n'
+        else:
+          receiving += '\n'.join(['var ' + s + ' = Module["' + s + '"] = asm["' + s + '"];' for s in module_exports]) + '\n'
     else:
-      receiving += 'for(var i in asm) this[i] = Module[i] = asm[i];\n'
+      if shared.Settings.target_environment_may_be('node') and shared.Settings.target_environment_may_be('web'):
+        global_object = '(typeof process !== "undefined" ? global : this)'
+      elif shared.Settings.target_environment_may_be('node'):
+        global_object = 'global'
+      else:
+        global_object = 'this'
+
+      if shared.Settings.MINIMAL_RUNTIME:
+        module_assign = ''
+      else:
+        module_assign = 'Module[__exportedFunc] = '
+
+      receiving += 'for(var __exportedFunc in asm) ' + global_object + '[__exportedFunc] = ' + module_assign + 'asm[__exportedFunc];\n'
   else:
-    receiving += 'Module["asm"] = asm;\n' + ';\n'.join(['var ' + s + ' = Module["' + s + '"] = function() {' + runtime_assertions + '  return Module["asm"]["' + s + '"].apply(null, arguments) }' for s in module_exports])
-  receiving += ';\n'
+    receiving += 'Module["asm"] = asm;\n' + '\n'.join(['var ' + s + ' = Module["' + s + '"] = function() {' + runtime_assertions + '  return Module["asm"]["' + s + '"].apply(null, arguments) };' for s in module_exports]) + '\n'
 
   if shared.Settings.EXPORT_FUNCTION_TABLES and not shared.Settings.WASM:
     for table in function_table_data.values():
@@ -1672,6 +1712,10 @@ function establishStackSpace(stackBase, stackMax) {
   STACK_MAX = stackMax;
 }
 ''' % stack_check]
+
+  if shared.Settings.MINIMAL_RUNTIME:
+    # MINIMAL_RUNTIME moves stack functions to library.
+    funcs = []
 
   if need_asyncify(exports):
     funcs.append('''
@@ -1863,6 +1907,13 @@ function _emscripten_replace_memory(newBuffer) {
 
 
 def create_asm_end(exports):
+  if shared.Settings.MINIMAL_RUNTIME and shared.Settings.WASM:
+    return '''
+    return %s;
+    })
+    // EMSCRIPTEN_END_ASM
+    ''' % (exports)
+
   return '''
 
   return %s;
@@ -2216,10 +2267,9 @@ return real_''' + asmjs_mangle(s) + '''.apply(null, arguments);
 ''' for s in exported_implemented_functions if s not in ['_memcpy', '_memset', '_emscripten_replace_memory', '__start_module']])
 
   if not shared.Settings.SWAPPABLE_ASM_MODULE:
-    receiving += ';\n'.join(['var ' + asmjs_mangle(s) + ' = Module["' + asmjs_mangle(s) + '"] = asm["' + s + '"]' for s in exported_implemented_functions])
+    receiving += '\n'.join(['var ' + asmjs_mangle(s) + ' = Module["' + asmjs_mangle(s) + '"] = asm["' + s + '"];' for s in exported_implemented_functions]) + '\n'
   else:
-    receiving += 'Module["asm"] = asm;\n' + ';\n'.join(['var ' + asmjs_mangle(s) + ' = Module["' + asmjs_mangle(s) + '"] = function() { ' + runtime_assertions + ' return Module["asm"]["' + s + '"].apply(null, arguments) }' for s in exported_implemented_functions])
-  receiving += ';\n'
+    receiving += 'Module["asm"] = asm;\n' + '\n'.join(['var ' + asmjs_mangle(s) + ' = Module["' + asmjs_mangle(s) + '"] = function() { ' + runtime_assertions + ' return Module["asm"]["' + s + '"].apply(null, arguments) };' for s in exported_implemented_functions]) + '\n'
   return receiving
 
 
