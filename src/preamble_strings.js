@@ -33,7 +33,43 @@ function Pointer_stringify(ptr, length) {
   return UTF8ToString(ptr);
 }
 
-#if !MINIMAL_RUNTIME // TODO: Reintroduce these to MINIMAL_RUNTIME as library functions
+// Deprecated: This function should not be called because it is unsafe and does not provide
+// a maximum length limit of how many bytes it is allowed to write. Prefer calling the
+// function stringToUTF8Array() instead, which takes in a maximum length that can be used
+// to be secure from out of bounds writes.
+/** @deprecated */
+function writeStringToMemory(string, buffer, dontAddNull) {
+  warnOnce('writeStringToMemory is deprecated and should not be called! Use stringToUTF8() instead!');
+
+  var /** @type {number} */ lastChar, /** @type {number} */ end;
+  if (dontAddNull) {
+    // stringToUTF8Array always appends null. If we don't want to do that, remember the
+    // character that existed at the location where the null will be placed, and restore
+    // that after the write (below).
+    end = buffer + lengthBytesUTF8(string);
+    lastChar = HEAP8[end];
+  }
+  stringToUTF8(string, buffer, Infinity);
+  if (dontAddNull) HEAP8[end] = lastChar; // Restore the value under the null character.
+}
+
+function writeArrayToMemory(array, buffer) {
+#if ASSERTIONS
+  assert(array.length >= 0, 'writeArrayToMemory array must have a length (should be an array or typed array)')
+#endif
+  HEAP8.set(array, buffer);
+}
+
+function writeAsciiToMemory(str, buffer, dontAddNull) {
+  for (var i = 0; i < str.length; ++i) {
+#if ASSERTIONS
+    assert(str.charCodeAt(i) === str.charCodeAt(i)&0xff);
+#endif
+    {{{ makeSetValue('buffer++', 0, 'str.charCodeAt(i)', 'i8') }}};
+  }
+  // Null-terminate the pointer to the HEAP.
+  if (!dontAddNull) {{{ makeSetValue('buffer', 0, 0, 'i8') }}};
+}
 
 // Given a pointer 'ptr' to a null-terminated ASCII-encoded string in the emscripten HEAP, returns
 // a copy of that string as a Javascript String object.
@@ -53,8 +89,6 @@ function AsciiToString(ptr) {
 function stringToAscii(str, outPtr) {
   return writeAsciiToMemory(str, outPtr, false);
 }
-
-#endif
 
 // Given a pointer 'ptr' to a null-terminated UTF8-encoded string in the given array that contains uint8 values, returns
 // a copy of that string as a Javascript String object.
@@ -123,7 +157,16 @@ function UTF8ArrayToString(u8Array, idx) {
 // a copy of that string as a Javascript String object.
 
 function UTF8ToString(ptr) {
-  return ptr ? UTF8ArrayToString({{{ heapAndOffset('HEAPU8', 'ptr') }}}) : '';
+#if MINIMAL_RUNTIME && TEXTDECODER == 2
+  // Work around Closure inlining limitation by manually inlining UTF8ArrayToString() in here.
+  // TODO: when https://github.com/google/closure-compiler/issues/3201 is resolved, this
+  // TEXTDECODER == 2 specific block is not needed.
+  var endPtr = ptr;
+  while (HEAPU8[endPtr]) ++endPtr;
+  return UTF8Decoder.decode(HEAPU8.subarray(ptr, endPtr));
+#else
+  return UTF8ArrayToString({{{ heapAndOffset('HEAPU8', 'ptr') }}});
+#endif
 }
 
 // Copies the given Javascript String object 'str' to the given byte array at address 'outIdx',
@@ -197,8 +240,6 @@ function stringToUTF8(str, outPtr, maxBytesToWrite) {
 // Returns the number of bytes the given Javascript string takes if encoded as a UTF8 byte array, EXCLUDING the null terminator byte.
 {{{ lengthBytesUTF8 }}}
 
-#if !MINIMAL_RUNTIME // TODO: Reintroduce these to MINIMAL_RUNTIME as library functions
-
 // Given a pointer 'ptr' to a null-terminated UTF16LE-encoded string in the emscripten HEAP, returns
 // a copy of that string as a Javascript String object.
 
@@ -220,14 +261,18 @@ function UTF16ToString(ptr) {
   var idx = endPtr >> 1;
   while (HEAP16[idx]) ++idx;
   endPtr = idx << 1;
+#endif
 
-#if TEXTDECODER != 2
-  if (endPtr - ptr > 32 && UTF16Decoder) {
-#endif // TEXTDECODER != 2
+#if TEXTDECODER == 2
     return UTF16Decoder.decode(HEAPU8.subarray(ptr, endPtr));
-#if TEXTDECODER != 2
+#else
+
+#if TEXTDECODER
+  if (endPtr - ptr > 32 && UTF16Decoder) {
+#endif
+    return UTF16Decoder.decode(HEAPU8.subarray(ptr, endPtr));
+#if TEXTDECODER
   } else {
-#endif // TEXTDECODER != 2
 #endif // TEXTDECODER
     var i = 0;
 
@@ -239,7 +284,6 @@ function UTF16ToString(ptr) {
       // fromCharCode constructs a character from a UTF-16 code unit, so we can pass the UTF16 string right through.
       str += String.fromCharCode(codeUnit);
     }
-#if TEXTDECODER && TEXTDECODER != 2
   }
 #endif // TEXTDECODER
 }
@@ -367,6 +411,7 @@ function lengthBytesUTF32(str) {
   return len;
 }
 
+#if !MINIMAL_RUNTIME
 // Allocate heap space for a JS string, and write it there.
 // It is the responsibility of the caller to free() that memory.
 function allocateUTF8(str) {
@@ -383,43 +428,4 @@ function allocateUTF8OnStack(str) {
   stringToUTF8Array(str, HEAP8, ret, size);
   return ret;
 }
-
-// Deprecated: This function should not be called because it is unsafe and does not provide
-// a maximum length limit of how many bytes it is allowed to write. Prefer calling the
-// function stringToUTF8Array() instead, which takes in a maximum length that can be used
-// to be secure from out of bounds writes.
-/** @deprecated */
-function writeStringToMemory(string, buffer, dontAddNull) {
-  warnOnce('writeStringToMemory is deprecated and should not be called! Use stringToUTF8() instead!');
-
-  var /** @type {number} */ lastChar, /** @type {number} */ end;
-  if (dontAddNull) {
-    // stringToUTF8Array always appends null. If we don't want to do that, remember the
-    // character that existed at the location where the null will be placed, and restore
-    // that after the write (below).
-    end = buffer + lengthBytesUTF8(string);
-    lastChar = HEAP8[end];
-  }
-  stringToUTF8(string, buffer, Infinity);
-  if (dontAddNull) HEAP8[end] = lastChar; // Restore the value under the null character.
-}
-
-function writeArrayToMemory(array, buffer) {
-#if ASSERTIONS
-  assert(array.length >= 0, 'writeArrayToMemory array must have a length (should be an array or typed array)')
-#endif
-  HEAP8.set(array, buffer);
-}
-
-function writeAsciiToMemory(str, buffer, dontAddNull) {
-  for (var i = 0; i < str.length; ++i) {
-#if ASSERTIONS
-    assert(str.charCodeAt(i) === str.charCodeAt(i)&0xff);
-#endif
-    {{{ makeSetValue('buffer++', 0, 'str.charCodeAt(i)', 'i8') }}};
-  }
-  // Null-terminate the pointer to the HEAP.
-  if (!dontAddNull) {{{ makeSetValue('buffer', 0, 0, 'i8') }}};
-}
-
 #endif

@@ -8825,3 +8825,59 @@ int main () {
     for closure in [[], ['--closure', '1']]:
       for opt in [['-O1']]:
         test(['-s', 'WASM=1', '-s', 'BINARYEN_ASYNC_COMPILATION=0'], closure, opt)
+
+  def test_minimal_runtime_code_size(self):
+    smallest_code_size_args = ['-s', 'MINIMAL_RUNTIME=2',
+      '-s', 'AGGRESSIVE_VARIABLE_ELIMINATION=1',
+      '-s', 'ENVIRONMENT=web',
+      '-s', 'TEXTDECODER=2',
+      '-s', 'ABORTING_MALLOC=0',
+      '-s', 'ALLOW_MEMORY_GROWTH=0',
+      '-s', 'SUPPORT_ERRNO=0',
+      '-s', 'DECLARE_ASM_MODULE_EXPORTS=1',
+      '-s', 'MALLOC=emmalloc',
+      '-s', 'GL_EMULATE_GLES_VERSION_STRING_FORMAT=0',
+      '-s', 'GL_EXTENSIONS_IN_PREFIXED_FORMAT=0',
+      '-s', 'GL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS=0',
+      '-s', 'GL_TRACK_ERRORS=0',
+      '-s', 'GL_SUPPORT_EXPLICIT_SWAP_CONTROL=0',
+      '-s', 'GL_POOL_TEMP_BUFFERS=0',
+      '-s', 'FAST_UNROLLED_MEMCPY_AND_MEMSET=0',
+      '--output_eol', 'linux']
+
+    asmjs = ['-s', 'WASM=0', '--separate-asm', '-s', 'ELIMINATE_DUPLICATE_FUNCTIONS=1', '--memory-init-file', '1']
+    opts = ['-O3', '--closure', '1']
+
+    hello_world_sources = [path_from_root('tests', 'small_hello_world.c'), '-s', 'RUNTIME_FUNCS_TO_IMPORT=[]', '-s', 'USES_DYNAMIC_ALLOC=0']
+    hello_webgl_sources = [path_from_root('tests', 'minimal_webgl', 'main.cpp'), path_from_root('tests', 'minimal_webgl', 'webgl.c'), '--js-library', path_from_root('tests', 'minimal_webgl', 'library_js.js'), '-s', 'RUNTIME_FUNCS_TO_IMPORT=["abort"]']
+
+    test_cases = [
+      (asmjs + opts, hello_world_sources, { 'a.html': 789, 'a.js': 562,  'a.asm.js': 966,   'a.mem': 6}),
+      (        opts, hello_world_sources, { 'a.html': 747, 'a.js': 762,    'a.wasm': 86}),
+      (asmjs + opts, hello_webgl_sources, { 'a.html': 789, 'a.js': 6808, 'a.asm.js': 11773, 'a.mem': 404}),
+      (        opts, hello_webgl_sources, { 'a.html': 747, 'a.js': 6926,   'a.wasm': 9175})
+      ]
+
+    for case in test_cases:
+      print('\n-----------------------------\n' + str(case))
+      flags, sources, files = case
+      args = [PYTHON, EMCC, '-o', 'a.html'] + sources + smallest_code_size_args + flags
+      print('\n' + ' '.join(args))
+      run_process(args)
+      print('\n')
+
+      total_output_size = 0
+      total_expected_size = 0
+      for f in files:
+        expected_size = files[f]
+        size = os.path.getsize(f)
+        total_output_size += size
+        total_expected_size += expected_size
+        print('size of ' + f + ' == ' + str(size) + ', expected ' + str(expected_size) + ', delta=' + str(size-expected_size))
+
+      print('Total output size=' + str(total_output_size) + ' bytes, expected total size=' + str(total_expected_size) + ', delta=' + str(total_output_size - total_expected_size))
+      if total_output_size > total_expected_size:
+        print('Oops, overall generated code size regressed by ' + str(total_output_size - total_expected_size) + ' bytes!')
+      if total_output_size < total_expected_size:
+        print('Hey amazing, overall generated code size was improved by ' + str(total_expected_size - total_output_size) + ' bytes! Please update test other.test_minimal_runtime_code_size with the new updated size!')
+      assert(total_output_size == total_expected_size)

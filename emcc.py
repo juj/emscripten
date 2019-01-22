@@ -1043,6 +1043,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     assert not (not shared.Settings.DYNAMIC_EXECUTION and options.use_closure_compiler), 'cannot have both NO_DYNAMIC_EXECUTION and closure compiler enabled at the same time'
 
     if options.emrun:
+      assert not shared.Settings.MINIMAL_RUNTIME, '--emrun is not compatible with -s MINIMAL_RUNTIME=1'
       shared.Settings.EXPORTED_RUNTIME_METHODS.append('addOnExit')
 
     if options.use_closure_compiler:
@@ -1123,7 +1124,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       shared.Settings.EXPORTED_FUNCTIONS += ['___cxa_demangle']
       forced_stdlibs += ['libc++abi']
 
-    if not shared.Settings.ONLY_MY_CODE:
+    if not shared.Settings.ONLY_MY_CODE and not shared.Settings.MINIMAL_RUNTIME:
       # Always need malloc and free to be kept alive and exported, for internal use and other modules
       shared.Settings.EXPORTED_FUNCTIONS += ['_malloc', '_free']
       if shared.Settings.WASM_BACKEND:
@@ -1281,6 +1282,18 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       shared.Settings.DECLARE_ASM_MODULE_EXPORTS = 1
       logger.warning('Enabling -s DECLARE_ASM_MODULE_EXPORTS=1, since MODULARIZE currently requires declaring asm.js/wasm module exports in full')
 
+    if shared.Settings.MINIMAL_RUNTIME:
+      # Minimal runtime uses a different default shell file
+      if options.shell_path == shared.path_from_root('src', 'shell.html'):
+        options.shell_path = shared.path_from_root('src', 'shell_minimal_runtime.html')
+
+      # Remove the default exported functions 'memcpy', 'memset', 'malloc', 'free', etc. - those should only be linked in if used
+      shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE = []
+
+      # In asm.js always use memory init file to get the best code size, other modes are not supported.
+      if not shared.Settings.WASM:
+        options.memory_init_file = True
+
     if shared.Settings.WASM:
       if shared.Settings.SINGLE_FILE:
         # placeholder strings for JS glue, to be replaced with subresource locations in do_binaryen
@@ -1313,18 +1326,19 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       if any(s.startswith('MEM_INIT_METHOD=') for s in settings_changes):
         exit_with_error('MEM_INIT_METHOD is not supported in wasm. Memory will be embedded in the wasm binary if threads are not used, and included in a separate file if threads are used.')
       options.memory_init_file = True
-      if shared.Settings.BINARYEN_ASYNC_COMPILATION == 1:
-        # async compilation requires a swappable module - we swap it in when it's ready
+      if shared.Settings.BINARYEN_ASYNC_COMPILATION == 1 and not shared.Settings.MINIMAL_RUNTIME:
+        # async compilation requires a swappable module - we swap it in when it's ready (MINIMAL_RUNTIME does not need to utilize the swappable module concept)
         shared.Settings.SWAPPABLE_ASM_MODULE = 1
       else:
         # if not wasm-only, we can't do async compilation as the build can run in other
         # modes than wasm (like asm.js) which may not support an async step
         shared.Settings.BINARYEN_ASYNC_COMPILATION = 0
-        warning = 'This will reduce performance and compatibility (some browsers limit synchronous compilation), see http://kripken.github.io/emscripten-site/docs/compiling/WebAssembly.html#codegen-effects'
-        if 'BINARYEN_ASYNC_COMPILATION=1' in settings_changes:
-          logger.warning('BINARYEN_ASYNC_COMPILATION requested, but disabled because of user options. ' + warning)
-        elif 'BINARYEN_ASYNC_COMPILATION=0' not in settings_changes:
-          logger.warning('BINARYEN_ASYNC_COMPILATION disabled due to user options. ' + warning)
+        if not shared.Settings.MINIMAL_RUNTIME: # In MINIMAL_RUNTIME, compilation is always asynchronous
+          warning = 'This will reduce performance and compatibility (some browsers limit synchronous compilation), see http://kripken.github.io/emscripten-site/docs/compiling/WebAssembly.html#codegen-effects'
+          if 'BINARYEN_ASYNC_COMPILATION=1' in settings_changes:
+            logger.warning('BINARYEN_ASYNC_COMPILATION requested, but disabled because of user options. ' + warning)
+          elif 'BINARYEN_ASYNC_COMPILATION=0' not in settings_changes:
+            logger.warning('BINARYEN_ASYNC_COMPILATION disabled due to user options. ' + warning)
 
       if not shared.Settings.DECLARE_ASM_MODULE_EXPORTS:
         # Swappable wasm module/asynchronous wasm compilation requires an indirect stub
@@ -1430,6 +1444,10 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE = []
       options.separate_asm = True
       shared.Settings.FINALIZE_ASM_JS = False
+
+    # MINIMAL_RUNTIME always use separate .asm.js file for best performance and memory usage
+    if shared.Settings.MINIMAL_RUNTIME and not shared.Settings.WASM:
+      options.separate_asm = True
 
     if shared.Settings.GLOBAL_BASE < 0:
       shared.Settings.GLOBAL_BASE = 8 # default if nothing else sets it
@@ -1912,7 +1930,11 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     with ToolchainProfiler.profile_block('memory initializer'):
       memfile = None
       if shared.Settings.MEM_INIT_METHOD > 0 or embed_memfile(options):
-        memfile = target + '.mem'
+        if shared.Settings.MINIMAL_RUNTIME:
+          # Independent of whether user is doing -o a.html or -o a.js, generate the mem init file as a.mem (and not as a.html.mem or a.js.mem)
+          memfile = target.replace('.html', '.mem').replace('.js', '.mem')
+        else:
+          memfile = target + '.mem'
 
       if memfile and not shared.Settings.WASM_BACKEND:
         # Strip the memory initializer out of the asmjs file
@@ -2102,6 +2124,15 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         modularize()
 
       module_export_name_substitution()
+
+      # Run a final regex pass to clean up items that were not possible to optimize by Closure, or unoptimalities that were left behind
+      # by processing steps that occurred after Closure.
+      if shared.Settings.MINIMAL_RUNTIME == 2 and shared.Settings.USE_CLOSURE_COMPILER and options.debug_level == 0:
+        # Process .js runtime file
+        shared.run_process([shared.PYTHON, shared.path_from_root('tools', 'hacky_postprocess_around_closure_limitations.py'), final])
+        # Process .asm.js file
+        if not shared.Settings.WASM:
+          shared.run_process([shared.PYTHON, shared.path_from_root('tools', 'hacky_postprocess_around_closure_limitations.py'), asm_target])
 
       # The JS is now final. Move it to its final location
       shutil.move(final, js_target)
@@ -2709,15 +2740,33 @@ def module_export_name_substitution():
   logger.debug('Private module export name substitution with ' + shared.Settings.EXPORT_NAME)
   src = open(final).read()
   final = final + '.module_export_name_substitution.js'
-  replacement = "typeof %(EXPORT_NAME)s !== 'undefined' ? %(EXPORT_NAME)s : {}" % {"EXPORT_NAME": shared.Settings.EXPORT_NAME}
+  if shared.Settings.MINIMAL_RUNTIME:
+    replacement = shared.Settings.EXPORT_NAME
+  else:
+    replacement = "typeof %(EXPORT_NAME)s !== 'undefined' ? %(EXPORT_NAME)s : {}" % {"EXPORT_NAME": shared.Settings.EXPORT_NAME}
   with open(final, 'w') as f:
     f.write(src.replace(shared.JS.module_export_name_substitution_pattern, replacement))
   save_intermediate('module_export_name_substitution')
 
 
+def generate_minimal_runtime_html(target, options, js_target, target_basename,
+                  asm_target, wasm_binary_target,
+                  memfile, optimizer):
+  logger.debug('generating HTML for minimal runtime')
+  shell = read_and_preprocess(options.shell_path)
+  html_contents = shell.replace('{{{ TARGET_BASENAME }}}', target_basename)
+  html_contents = tools.line_endings.convert_line_endings(html_contents, '\n', options.output_eol)
+  with open(target, 'wb') as f:
+    f.write(asbytes(html_contents))
+
+
 def generate_html(target, options, js_target, target_basename,
                   asm_target, wasm_binary_target,
                   memfile, optimizer):
+  if shared.Settings.MINIMAL_RUNTIME:
+    return generate_minimal_runtime_html(target, options, js_target, target_basename, asm_target,
+      wasm_binary_target, memfile, optimizer)
+
   script = ScriptSource()
 
   logger.debug('generating HTML')

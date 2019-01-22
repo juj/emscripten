@@ -39,12 +39,14 @@ var LibraryJSEvents = {
       JSEvents.deferredCalls = [];
     },
 
+#if !MINIMAL_RUNTIME // In minimal runtime, there is no concept of the page running vs being closed, and hence __ATEXIT__ is not present
     registerRemoveEventListeners: function() {
       if (!JSEvents.removeEventListenersRegistered) {
         __ATEXIT__.push(JSEvents.removeAllEventListeners);
         JSEvents.removeEventListenersRegistered = true;
       }
     },
+#endif
 
     // Find a DOM element with the given ID.
     findEventTarget: function(target) {
@@ -180,7 +182,9 @@ var LibraryJSEvents = {
         eventHandler.eventListenerFunc = jsEventHandler;
         eventHandler.target.addEventListener(eventHandler.eventTypeString, jsEventHandler, eventHandler.useCapture);
         JSEvents.eventHandlers.push(eventHandler);
+#if !MINIMAL_RUNTIME // In minimal runtime, there is no concept of the page running vs being closed, and hence __ATEXIT__ is not present
         JSEvents.registerRemoveEventListeners();
+#endif
       } else {
         for(var i = 0; i < JSEvents.eventHandlers.length; ++i) {
           if (JSEvents.eventHandlers[i].target == eventHandler.target
@@ -192,6 +196,7 @@ var LibraryJSEvents = {
     },
 
 #if USE_PTHREADS
+    queueEventHandlerOnThread_iiii__deps: ['$stackSave', '$stackAlloc', '$stackRestore'],
     queueEventHandlerOnThread_iiii: function(targetThread, eventHandlerFunc, eventTypeId, eventData, userData) {
       var stackTop = stackSave();
       var varargs = stackAlloc(12);
@@ -277,7 +282,7 @@ var LibraryJSEvents = {
       if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, keyEventData, userData);
       else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, keyEventData, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, keyEventData, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -381,7 +386,7 @@ var LibraryJSEvents = {
         JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, mouseEventData, userData);
       } else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, JSEvents.mouseEvent, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, JSEvents.mouseEvent, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -507,7 +512,7 @@ var LibraryJSEvents = {
       if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, wheelEvent, userData);
       else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, wheelEvent, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, wheelEvent, userData)) e.preventDefault();
     };
     // The 'mousewheel' event as implemented in Safari 6.0.5
     var mouseWheelHandlerFunc = function(event) {
@@ -517,7 +522,7 @@ var LibraryJSEvents = {
       {{{ makeSetValue('JSEvents.wheelEvent', C_STRUCTS.EmscriptenWheelEvent.deltaY, '-(e["wheelDeltaY"] ? e["wheelDeltaY"] : e["wheelDelta"]) /* 1. Invert to unify direction with the DOM Level 3 wheel event. 2. MSIE does not provide wheelDeltaY, so wheelDelta is used as a fallback. */', 'double') }}};
       {{{ makeSetValue('JSEvents.wheelEvent', C_STRUCTS.EmscriptenWheelEvent.deltaZ, '0 /* Not available */', 'double') }}};
       {{{ makeSetValue('JSEvents.wheelEvent', C_STRUCTS.EmscriptenWheelEvent.deltaMode, '0 /* DOM_DELTA_PIXEL */', 'i32') }}};
-      var shouldCancel = Module['dynCall_iiii'](callbackfunc, eventTypeId, JSEvents.wheelEvent, userData);
+      var shouldCancel = dynCall_iiii(callbackfunc, eventTypeId, JSEvents.wheelEvent, userData);
       if (shouldCancel) {
         e.preventDefault();
       }
@@ -592,7 +597,7 @@ var LibraryJSEvents = {
       if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, uiEvent, userData);
       else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, uiEvent, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, uiEvent, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -647,7 +652,7 @@ var LibraryJSEvents = {
       if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, focusEvent, userData);
       else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, focusEvent, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, focusEvent, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -721,7 +726,7 @@ var LibraryJSEvents = {
         JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, deviceOrientationEvent, userData);
       } else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, JSEvents.deviceOrientationEvent, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, JSEvents.deviceOrientationEvent, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -788,7 +793,7 @@ var LibraryJSEvents = {
         JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, deviceMotionEvent, userData);
       } else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, JSEvents.deviceMotionEvent, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, JSEvents.deviceMotionEvent, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -870,7 +875,7 @@ var LibraryJSEvents = {
       if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, orientationChangeEvent, userData);
       else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, orientationChangeEvent, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, orientationChangeEvent, userData)) e.preventDefault();
     };
 
     if (eventTypeString == "orientationchange" && window.screen.mozOrientation !== undefined) {
@@ -997,7 +1002,7 @@ var LibraryJSEvents = {
       if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, fullscreenChangeEvent, userData);
       else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, fullscreenChangeEvent, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, fullscreenChangeEvent, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -1067,7 +1072,7 @@ var LibraryJSEvents = {
       if (strategy.canvasResizedCallbackTargetThread) JSEvents.queueEventHandlerOnThread_iiii(strategy.canvasResizedCallbackTargetThread, strategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, strategy.canvasResizedCallbackUserData);
       else
 #endif
-      Module['dynCall_iiii'](strategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, strategy.canvasResizedCallbackUserData);
+      dynCall_iiii(strategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, strategy.canvasResizedCallbackUserData);
     }
 
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
@@ -1191,7 +1196,7 @@ var LibraryJSEvents = {
           if (__currentFullscreenStrategy.canvasResizedCallbackTargetThread) JSEvents.queueEventHandlerOnThread_iiii(__currentFullscreenStrategy.canvasResizedCallbackTargetThread, __currentFullscreenStrategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, __currentFullscreenStrategy.canvasResizedCallbackUserData);
           else
 #endif
-          Module['dynCall_iiii'](__currentFullscreenStrategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, __currentFullscreenStrategy.canvasResizedCallbackUserData);
+          dynCall_iiii(__currentFullscreenStrategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, __currentFullscreenStrategy.canvasResizedCallbackUserData);
         }
       }
     }
@@ -1306,7 +1311,7 @@ var LibraryJSEvents = {
       if (__currentFullscreenStrategy.canvasResizedCallbackTargetThread) JSEvents.queueEventHandlerOnThread_iiii(__currentFullscreenStrategy.canvasResizedCallbackTargetThread, __currentFullscreenStrategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, __currentFullscreenStrategy.canvasResizedCallbackUserData);
       else
 #endif
-      Module['dynCall_iiii'](__currentFullscreenStrategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, __currentFullscreenStrategy.canvasResizedCallbackUserData);
+      dynCall_iiii(__currentFullscreenStrategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, __currentFullscreenStrategy.canvasResizedCallbackUserData);
     }
   },
 
@@ -1409,7 +1414,7 @@ var LibraryJSEvents = {
         if (strategy.canvasResizedCallbackTargetThread) JSEvents.queueEventHandlerOnThread_iiii(strategy.canvasResizedCallbackTargetThread, strategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, strategy.canvasResizedCallbackUserData);
         else
 #endif
-        Module['dynCall_iiii'](strategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, strategy.canvasResizedCallbackUserData);
+        dynCall_iiii(strategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, strategy.canvasResizedCallbackUserData);
       }
     }
     __restoreOldWindowedStyle = restoreWindowedState;
@@ -1422,7 +1427,7 @@ var LibraryJSEvents = {
       if (strategy.canvasResizedCallbackTargetThread) JSEvents.queueEventHandlerOnThread_iiii(strategy.canvasResizedCallbackTargetThread, strategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, strategy.canvasResizedCallbackUserData);
       else
 #endif
-      Module['dynCall_iiii'](strategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, strategy.canvasResizedCallbackUserData);
+      dynCall_iiii(strategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, strategy.canvasResizedCallbackUserData);
     }
 
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
@@ -1463,7 +1468,7 @@ var LibraryJSEvents = {
         if (__currentFullscreenStrategy.canvasResizedCallbackTargetThread) JSEvents.queueEventHandlerOnThread_iiii(__currentFullscreenStrategy.canvasResizedCallbackTargetThread, __currentFullscreenStrategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, __currentFullscreenStrategy.canvasResizedCallbackUserData);
         else
 #endif
-      Module['dynCall_iiii'](__currentFullscreenStrategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, __currentFullscreenStrategy.canvasResizedCallbackUserData);
+      dynCall_iiii(__currentFullscreenStrategy.canvasResizedCallback, {{{ cDefine('EMSCRIPTEN_EVENT_CANVASRESIZED') }}}, 0, __currentFullscreenStrategy.canvasResizedCallbackUserData);
     }
 
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
@@ -1504,7 +1509,7 @@ var LibraryJSEvents = {
       if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, pointerlockChangeEvent, userData);
       else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, pointerlockChangeEvent, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, pointerlockChangeEvent, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -1550,7 +1555,7 @@ var LibraryJSEvents = {
       if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, 0, userData);
       else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, 0, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, 0, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -1718,7 +1723,7 @@ var LibraryJSEvents = {
       if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, visibilityChangeEvent, userData);
       else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, visibilityChangeEvent, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, visibilityChangeEvent, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -1825,7 +1830,7 @@ var LibraryJSEvents = {
       if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, touchEvent, userData);
       else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, touchEvent, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, touchEvent, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -1919,7 +1924,7 @@ var LibraryJSEvents = {
       if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, gamepadEvent, userData);
       else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, gamepadEvent, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, gamepadEvent, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -1998,7 +2003,7 @@ var LibraryJSEvents = {
       var e = event || window.event;
 
       // Note: This is always called on the main browser thread, since it needs synchronously return a value!
-      var confirmationMessage = Module['dynCall_iiii'](callbackfunc, eventTypeId, 0, userData);
+      var confirmationMessage = dynCall_iiii(callbackfunc, eventTypeId, 0, userData);
       
       if (confirmationMessage) {
         confirmationMessage = UTF8ToString(confirmationMessage);
@@ -2063,7 +2068,7 @@ var LibraryJSEvents = {
       if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, batteryEvent, userData);
       else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, batteryEvent, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, batteryEvent, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -2442,7 +2447,7 @@ var LibraryJSEvents = {
       if (targetThread) JSEvents.queueEventHandlerOnThread_iiii(targetThread, callbackfunc, eventTypeId, 0, userData);
       else
 #endif
-      if (Module['dynCall_iiii'](callbackfunc, eventTypeId, 0, userData)) e.preventDefault();
+      if (dynCall_iiii(callbackfunc, eventTypeId, 0, userData)) e.preventDefault();
     };
 
     var eventHandler = {
@@ -2533,7 +2538,7 @@ var LibraryJSEvents = {
     return {{{ cDefine('EMSCRIPTEN_RESULT_SUCCESS') }}};
   },
 
-  emscripten_set_offscreencanvas_size_on_target_thread_js__deps: ['$stringToNewUTF8'],
+  emscripten_set_offscreencanvas_size_on_target_thread_js__deps: ['$stringToNewUTF8', '$stackSave', '$stackAlloc', '$stackRestore'],
   emscripten_set_offscreencanvas_size_on_target_thread_js: function(targetThread, targetCanvas, width, height) {
     var stackTop = stackSave();
     var varargs = stackAlloc(12);
@@ -2573,6 +2578,7 @@ var LibraryJSEvents = {
     else return _emscripten_set_canvas_element_size_main_thread(target, width, height);
   }, 
 #else
+  emscripten_set_canvas_element_size__deps: ['$JSEvents'],
   emscripten_set_canvas_element_size: function(target, width, height) {
 #if GL_DEBUG
     console.error('emscripten_set_canvas_element_size(target='+target+',width='+width+',height='+height);
@@ -2588,7 +2594,7 @@ var LibraryJSEvents = {
   },
 #endif
 
-  _set_canvas_element_size__deps: ['emscripten_set_canvas_element_size'],
+  _set_canvas_element_size__deps: ['emscripten_set_canvas_element_size', '$stackSave', '$stackAlloc', '$stackRestore'],
   _set_canvas_element_size: function(target, width, height) {
 #if GL_DEBUG
     console.error('_set_canvas_element_size(target='+target+',width='+width+',height='+height);
@@ -2658,7 +2664,7 @@ var LibraryJSEvents = {
 #endif
 
   // JavaScript-friendly API, returns pair [width, height]
-  _get_canvas_element_size__deps: ['emscripten_get_canvas_element_size'],
+  _get_canvas_element_size__deps: ['emscripten_get_canvas_element_size', '$stackSave', '$stackAlloc', '$stackRestore'],
   _get_canvas_element_size: function(target) {
     var stackTop = stackSave();
     var w = stackAlloc(8);
@@ -2713,7 +2719,7 @@ var LibraryJSEvents = {
 
   emscripten_request_animation_frame: function(cb, userData) {
     return requestAnimationFrame(function(timeStamp) {
-      Module['dynCall_idi'](cb, timeStamp, userData);
+      dynCall_idi(cb, timeStamp, userData);
     });
   },
 
@@ -2723,7 +2729,7 @@ var LibraryJSEvents = {
 
   emscripten_request_animation_frame_loop: function(cb, userData) {
     function tick(timeStamp) {
-      if (Module['dynCall_idi'](cb, timeStamp, userData)) {
+      if (dynCall_idi(cb, timeStamp, userData)) {
         requestAnimationFrame(tick);
       }
     }
@@ -2759,7 +2765,7 @@ var LibraryJSEvents = {
   emscripten_set_immediate: function(cb, userData) {
     __polyfill_set_immediate();
     return setImmediate(function() {
-      Module['dynCall_vi'](cb, userData);
+      dynCall_vi(cb, userData);
     });
   },
 
@@ -2771,7 +2777,7 @@ var LibraryJSEvents = {
   emscripten_set_immediate_loop: function(cb, userData) {
     __polyfill_set_immediate();
     function tick() {
-      if (Module['dynCall_ii'](cb, userData)) {
+      if (dynCall_ii(cb, userData)) {
         setImmediate(tick);
       }
     }
@@ -2780,7 +2786,7 @@ var LibraryJSEvents = {
 
   emscripten_set_timeout: function(cb, msecs, userData) {
     return setTimeout(function() {
-      Module['dynCall_vi'](cb, userData);
+      dynCall_vi(cb, userData);
     }, msecs);
   },
 
@@ -2792,7 +2798,7 @@ var LibraryJSEvents = {
     function tick() {
       var t = performance.now();
       var n = t + msecs;
-      if (Module['dynCall_idi'](cb, t, userData)) {
+      if (dynCall_idi(cb, t, userData)) {
         setTimeout(tick,
 #if WASM
           // Save a little bit of code space: modern browsers should treat negative setTimeout as timeout of 0 (https://stackoverflow.com/questions/8430966/is-calling-settimeout-with-a-negative-delay-ok)
@@ -2809,7 +2815,7 @@ var LibraryJSEvents = {
 
   emscripten_set_interval: function(cb, msecs, userData) {
     return setInterval(function() {
-      Module['dynCall_vi'](cb, userData)
+      dynCall_vi(cb, userData)
     }, msecs);
   },
 

@@ -583,6 +583,26 @@ LibraryManager.library = {
 #endif // USE_PTHREADS
   },
 
+#if MINIMAL_RUNTIME
+  // If building with minimal runtime in release mode, where malloc() failures are not expected to throw and memory growth
+  // is not allowed, use a really small stub for sbrk() and brk() that return failure.
+  sbrk__asm: true,
+  sbrk__sig: ['ii'],
+  sbrk: function(increment) {
+    increment = increment|0;
+    var oldDynamicTop = 0;
+    oldDynamicTop = HEAP32[DYNAMICTOP_PTR>>2]|0;
+    HEAP32[DYNAMICTOP_PTR>>2] = oldDynamicTop + increment | 0;
+    return oldDynamicTop | 0;
+  },
+  brk__asm: true,
+  brk__sig: ['ii'],
+  brk: function(newDynamicTop) {
+    newDynamicTop = newDynamicTop|0;
+    HEAP32[DYNAMICTOP_PTR>>2] = newDynamicTop | 0;
+    return 0;
+  },
+#else
   // Implement a Linux-like 'memory area' for our 'process'.
   // Changes the size of the memory area by |bytes|; returns the
   // address of the previous top ('break') of the memory area
@@ -686,6 +706,7 @@ LibraryManager.library = {
 #endif
     return 0;
   },
+#endif // MINIMAL_RUNTIME && !ASSERTIONS && !ABORTING_MALLOC && !ALLOW_MEMORY_GROWTH
 
   system__deps: ['__setErrNo'],
   system: function(command) {
@@ -700,6 +721,7 @@ LibraryManager.library = {
   // stdlib.h
   // ==========================================================================
 
+#if !MINIMAL_RUNTIME
   // tiny, fake malloc/free implementation. If the program actually uses malloc,
   // a compiled version will be used; this will only be used if the runtime
   // needs to allocate something, for which this is good enough if otherwise
@@ -720,7 +742,8 @@ LibraryManager.library = {
 #if ASSERTIONS == 2
     warnOnce('using stub free (reference it from C to have the real one included)');
 #endif
-},
+  },
+#endif
 
   abs: 'Math_abs',
   labs: 'Math_abs',
@@ -739,6 +762,12 @@ LibraryManager.library = {
     _exit(-1234);
   },
 
+#if MINIMAL_RUNTIME
+  atexit: function(){},
+  __cxa_atexit: function(){},
+  __cxa_thread_atexit: function(){},
+  __cxa_thread_atexit_impl: function(){},
+#else
   atexit__proxy: 'sync',
   atexit__sig: 'ii',
   atexit: function(func, arg) {
@@ -754,6 +783,7 @@ LibraryManager.library = {
   // used in rust, clang when doing thread_local statics
   __cxa_thread_atexit: 'atexit',
   __cxa_thread_atexit_impl: 'atexit',
+#endif
 
   abort: function() {
     Module['abort']();
@@ -1594,6 +1624,60 @@ LibraryManager.library = {
     self.LLVM_SAVEDSTACKS.splice(p, 1);
     stackRestore(ret);
   },
+
+#if MINIMAL_RUNTIME
+  $abortStackOverflow: function(allocSize) {
+    abort('Stack overflow! Attempted to allocate ' + allocSize + ' bytes on the stack, but stack has only ' + (STACK_MAX - stackSave() + allocSize) + ' bytes available!');
+  },
+
+  $stackAlloc__asm: true,
+  $stackAlloc__sig: 'ii',
+  $stackAlloc__deps: ['$abortStackOverflow'],
+  $stackAlloc: function(size) {
+    size = size|0;
+    var ret = 0;
+    ret = STACKTOP;
+    STACKTOP = (STACKTOP + size)|0;
+    STACKTOP = (STACKTOP + 15)&-16;
+#if ASSERTIONS || STACK_OVERFLOW_CHECK >= 2
+    if ((STACKTOP|0) >= (STACK_MAX|0)) abortStackOverflow(size|0);
+#endif
+    return ret|0;
+  },
+
+  $stackSave__asm: true,
+  $stackSave__sig: 'i',
+  $stackSave: function() {
+    return STACKTOP|0;
+  },
+
+  $stackRestore__asm: true,
+  $stackRestore__sig: 'vi',
+  $stackRestore: function(top) {
+    top = top|0;
+    STACKTOP = top;
+  },
+
+  $establishStackSpace__asm: true,
+  $establishStackSpace__sig: 'vii',
+  $establishStackSpace: function(stackBase, stackMax) {
+    stackBase = stackBase|0;
+    stackMax = stackMax|0;
+    STACKTOP = stackBase;
+    STACK_MAX = stackMax;
+  },
+
+  $setThrew__asm: true,
+  $setThrew__sig: 'vii',
+  $setThrew: function(threw, value) {
+    threw = threw|0;
+    value = value|0;
+    if ((__THREW__|0) == 0) {
+      __THREW__ = threw;
+      threwValue = value;
+    }
+  },
+#endif
 
   __cxa_pure_virtual: function() {
     ABORT = true;

@@ -63,7 +63,7 @@ mergeInto(LibraryManager.library, {
     Browser.safeSetTimeout(_emscripten_async_resume, ms);
   },
 
-  emscripten_alloc_async_context__deps: ['__async_cur_frame'],
+  emscripten_alloc_async_context__deps: ['__async_cur_frame', '$stackAlloc'],
   emscripten_alloc_async_context__sig: 'iii',
   emscripten_alloc_async_context__asm: true,
   emscripten_alloc_async_context: function(len, sp) {
