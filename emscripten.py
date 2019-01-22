@@ -750,8 +750,6 @@ def get_exported_implemented_functions(all_exported_functions, all_implemented, 
   if not shared.Settings.ONLY_MY_CODE:
     if shared.Settings.ALLOW_MEMORY_GROWTH:
       funcs.append('_emscripten_replace_memory')
-    if not shared.Settings.SIDE_MODULE:
-      funcs += ['stackAlloc', 'stackSave', 'stackRestore', 'establishStackSpace']
     if shared.Settings.SAFE_HEAP:
       funcs += ['setDynamicTop']
     if not (shared.Settings.WASM and shared.Settings.SIDE_MODULE):
@@ -1483,7 +1481,7 @@ def create_exports(exported_implemented_functions, in_table, function_table_data
 def create_asm_runtime_funcs():
   funcs = []
   if not (shared.Settings.WASM and shared.Settings.SIDE_MODULE):
-    funcs += ['stackAlloc', 'stackSave', 'stackRestore', 'establishStackSpace', 'setThrew']
+    funcs += ['setThrew']
   if shared.Settings.SAFE_HEAP:
     funcs += ['setDynamicTop']
   if shared.Settings.ONLY_MY_CODE:
@@ -1598,44 +1596,8 @@ def create_runtime_funcs_asmjs(exports):
   if shared.Settings.ONLY_MY_CODE:
     return []
 
-  if shared.Settings.ASSERTIONS or shared.Settings.STACK_OVERFLOW_CHECK >= 2:
-    stack_check = '  if ((STACKTOP|0) >= (STACK_MAX|0)) abortStackOverflow(size|0);\n'
-  else:
-    stack_check = ''
-
-  funcs = ['''
-function stackAlloc(size) {
-  size = size|0;
-  var ret = 0;
-  ret = STACKTOP;
-  STACKTOP = (STACKTOP + size)|0;
-  STACKTOP = (STACKTOP + 15)&-16;
-  %s
-  return ret|0;
-}
-function stackSave() {
-  return STACKTOP|0;
-}
-function stackRestore(top) {
-  top = top|0;
-  STACKTOP = top;
-}
-function establishStackSpace(stackBase, stackMax) {
-  stackBase = stackBase|0;
-  stackMax = stackMax|0;
-  STACKTOP = stackBase;
-  STACK_MAX = stackMax;
-}
-function setThrew(threw, value) {
-  threw = threw|0;
-  value = value|0;
-  if ((__THREW__|0) == 0) {
-    __THREW__ = threw;
-    threwValue = value;
-  }
-}
-''' % stack_check]
-
+  funcs = []
+  
   if need_asyncify(exports):
     funcs.append('''
 function setAsync() {

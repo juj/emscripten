@@ -1581,6 +1581,58 @@ LibraryManager.library = {
     stackRestore(ret);
   },
 
+  $abortStackOverflow: function(allocSize) {
+    abort('Stack overflow! Attempted to allocate ' + allocSize + ' bytes on the stack, but stack has only ' + (STACK_MAX - stackSave() + allocSize) + ' bytes available!');
+  },
+
+  $stackAlloc__asm: true,
+  $stackAlloc__sig: 'ii',
+  $stackAlloc__deps: ['$abortStackOverflow'],
+  $stackAlloc: function(size) {
+    size = size|0;
+    var ret = 0;
+    ret = STACKTOP;
+    STACKTOP = (STACKTOP + size)|0;
+    STACKTOP = (STACKTOP + 15)&-16;
+#if ASSERTIONS || STACK_OVERFLOW_CHECK >= 2
+    if ((STACKTOP|0) >= (STACK_MAX|0)) abortStackOverflow(size|0);
+#endif
+    return ret|0;
+  },
+
+  $stackSave__asm: true,
+  $stackSave__sig: 'i',
+  $stackSave: function() {
+    return STACKTOP|0;
+  },
+
+  $stackRestore__asm: true,
+  $stackRestore__sig: 'vi',
+  $stackRestore: function(top) {
+    top = top|0;
+    STACKTOP = top;
+  },
+
+  $establishStackSpace__asm: true,
+  $establishStackSpace__sig: 'vii',
+  $establishStackSpace: function(stackBase, stackMax) {
+    stackBase = stackBase|0;
+    stackMax = stackMax|0;
+    STACKTOP = stackBase;
+    STACK_MAX = stackMax;
+  },
+
+  $setThrew__asm: true,
+  $setThrew__sig: 'vii',
+  $setThrew: function(threw, value) {
+    threw = threw|0;
+    value = value|0;
+    if ((__THREW__|0) == 0) {
+      __THREW__ = threw;
+      threwValue = value;
+    }
+  },
+
   __cxa_pure_virtual: function() {
     ABORT = true;
     throw 'Pure virtual function called!';

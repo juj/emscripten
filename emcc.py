@@ -1075,7 +1075,8 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       ]
     if shared.Settings.USE_PTHREADS:
       # These runtime methods are called from worker.js
-      shared.Settings.EXPORTED_RUNTIME_METHODS += ['establishStackSpace', 'dynCall_ii']
+      shared.Settings.EXPORTED_RUNTIME_METHODS += ['dynCall_ii']
+      shared.Settings.EXPORTED_FUNCIONS += ['$establishStackSpace']
 
     if shared.Settings.MODULARIZE_INSTANCE:
       shared.Settings.MODULARIZE = 1
