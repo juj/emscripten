@@ -1390,7 +1390,6 @@ var TEST_MEMORY_GROWTH_FAILS = 0;
 // (think of this as advanced manual DCE)
 var ASM_PRIMITIVE_VARS = ['__THREW__', 'threwValue', 'setjmpId', 'tempInt', 'tempBigInt', 'tempBigIntS', 'tempValue', 'tempDouble', 'tempFloat', 'tempDoublePtr', 'STACKTOP', 'STACK_MAX']
 
-
 // If true, uses minimal sized runtime without POSIX features, Module, preRun/preInit/etc.,
 // Emscripten built-in XHR loading or library_browser.js. Enable this setting to target
 // the smallest code size possible.
@@ -1415,3 +1414,7 @@ var RUNTIME_FUNCS_TO_IMPORT = ['abort', 'setTempRet0', 'getTempRet0']
 // Internal: stores the base name of the output file (-o TARGET_BASENAME.js)
 var TARGET_BASENAME = '';
 
+// If set to 1, only generate minimal detected amount of basic/primitive imports to asm.js/wasm
+// module. If 0, all basic runtime elements are generated, independent of whether they have
+// been detected to be used or not.
+var MINIMAL_ASM_PRIMITIVE_IMPORTS = 0;
