@@ -8882,10 +8882,10 @@ int main () {
     hello_webgl_sources = [path_from_root('tests', 'minimal_webgl', 'main.cpp'), path_from_root('tests', 'minimal_webgl', 'webgl.c'), '--js-library', path_from_root('tests', 'minimal_webgl', 'library_js.js'), '-s', 'RUNTIME_FUNCS_TO_IMPORT=["abort"]', '-s', 'USES_DYNAMIC_ALLOC=2']
 
     test_cases = [
-      (asmjs + opts, hello_world_sources, {'a.html': 789, 'a.js': 586,  'a.asm.js': 804,   'a.mem': 6}),
-      (opts, hello_world_sources, {'a.html': 747, 'a.js': 712,    'a.wasm': 86}),
-      (asmjs + opts, hello_webgl_sources, {'a.html': 789, 'a.js': 6846, 'a.asm.js': 11451, 'a.mem': 404}),
-      (opts, hello_webgl_sources, {'a.html': 747, 'a.js': 6875,   'a.wasm': 9175})
+      (asmjs + opts, hello_world_sources, {'a.html': 789, 'a.js': 615,  'a.asm.js': 804,   'a.mem': 6}),
+      (opts, hello_world_sources, {'a.html': 747, 'a.js': 741,    'a.wasm': 86}),
+      (asmjs + opts, hello_webgl_sources, {'a.html': 789, 'a.js': 6590, 'a.asm.js': 11451, 'a.mem': 404}),
+      (opts, hello_webgl_sources, {'a.html': 747, 'a.js': 6621,   'a.wasm': 9175})
     ]
 
     success = True
