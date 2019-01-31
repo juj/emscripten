@@ -8884,8 +8884,8 @@ int main () {
     test_cases = [
       (asmjs + opts, hello_world_sources, {'a.html': 789, 'a.js': 615,  'a.asm.js': 804,   'a.mem': 6}),
       (opts, hello_world_sources, {'a.html': 747, 'a.js': 741,    'a.wasm': 86}),
-      (asmjs + opts, hello_webgl_sources, {'a.html': 789, 'a.js': 6590, 'a.asm.js': 11451, 'a.mem': 404}),
-      (opts, hello_webgl_sources, {'a.html': 747, 'a.js': 6621,   'a.wasm': 9175})
+      (asmjs + opts, hello_webgl_sources, {'a.html': 789, 'a.js': 6492, 'a.asm.js': 11451, 'a.mem': 404}),
+      (opts, hello_webgl_sources, {'a.html': 747, 'a.js': 6523,   'a.wasm': 9175})
     ]
 
     success = True
