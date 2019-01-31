@@ -1874,17 +1874,19 @@ var LibraryGL = {
         break;
     }
 #endif
-    if (!data) {
-      GLctx.bufferData(target, size, usage);
-    } else {
 #if USE_WEBGL2
-      if (GL.currentContext.supportsWebGL2EntryPoints) { // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
+    if (GL.currentContext.supportsWebGL2EntryPoints) { // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
+      if (data) {
         GLctx.bufferData(target, HEAPU8, usage, data, size);
-        return;
+      } else {
+        GLctx.bufferData(target, size, usage);
       }
+    } else {
 #endif
-      GLctx.bufferData(target, HEAPU8.subarray(data, data+size), usage);
+      GLctx.bufferData(target, data ? HEAPU8.subarray(data, data+size) : size, usage);
+#if USE_WEBGL2
     }
+#endif
   },
 
   glBufferSubData__sig: 'viiii',
