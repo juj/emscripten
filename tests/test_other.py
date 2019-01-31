@@ -8890,6 +8890,11 @@ int main () {
 
     success = True
 
+    def print_percent(actual, expected):
+      if actual == expected:
+        return ''
+      return ' ({:+.2f}%)'.format((actual-expected)*100.0/expected)
+
     for case in test_cases:
       print('\n-----------------------------\n' + str(case))
       flags, sources, files = case
@@ -8903,7 +8908,7 @@ int main () {
       for f in files:
         expected_size = files[f]
         size = os.path.getsize(f)
-        print('size of ' + f + ' == ' + str(size) + ', expected ' + str(expected_size) + ', delta=' + str(size - expected_size))
+        print('size of ' + f + ' == ' + str(size) + ', expected ' + str(expected_size) + ', delta=' + str(size - expected_size) + print_percent(size, expected_size))
 
         # Hack: Generated .mem initializer files have different sizes on different platforms (Windows gives x, CircleCI Linux gives x-17 bytes, my home Linux gives x+2 bytes..)
         # TODO: identify what is causing this (until that, expected .mem initializer file sizes are conservative estimates that do not contribute to total size)
@@ -8914,7 +8919,7 @@ int main () {
         total_output_size += size
         total_expected_size += expected_size
 
-      print('Total output size=' + str(total_output_size) + ' bytes, expected total size=' + str(total_expected_size) + ', delta=' + str(total_output_size - total_expected_size))
+      print('Total output size=' + str(total_output_size) + ' bytes, expected total size=' + str(total_expected_size) + ', delta=' + str(total_output_size - total_expected_size) + print_percent(total_output_size, total_expected_size))
       if total_output_size > total_expected_size:
         print('Oops, overall generated code size regressed by ' + str(total_output_size - total_expected_size) + ' bytes!')
       if total_output_size < total_expected_size:
