@@ -849,7 +849,10 @@ var LibraryGL = {
     makeContextCurrent: function(contextHandle) {
       // Deactivating current context?
       if (!contextHandle) {
-        GLctx = Module.ctx = GL.currentContext = null;
+#if !MINIMAL_RUNTIME // In MINIMAL_RUNTIME, deprecated Module.ctx no longer exists
+        Module.ctx = 
+#endif
+        GLctx = GL.currentContext = null;
         return true;
       }
       var context = GL.contexts[contextHandle];
@@ -863,7 +866,10 @@ var LibraryGL = {
 #endif
         return false;
       }
-      GLctx = Module.ctx = context.GLctx; // Active WebGL context object.
+#if !MINIMAL_RUNTIME // In MINIMAL_RUNTIME, deprecated Module.ctx no longer exists
+      Module.ctx =
+#endif      
+      GLctx = context.GLctx; // Active WebGL context object.
       GL.currentContext = context; // Active Emscripten GL layer context object.
       return true;
     },

@@ -2276,7 +2276,10 @@ var LibraryJSEvents = {
   // an integer pointer as a token value to represent the GL context activation from another thread. (when this function is called, the main browser thread
   // has already accepted the GL context activation for our pthread, so that side is good)
   _emscripten_proxied_gl_context_activated_from_main_browser_thread: function(contextHandle) {
-    GLctx = Module.ctx = GL.currentContext = contextHandle;
+#if !MINIMAL_RUNTIME // In MINIMAL_RUNTIME, deprecated Module.ctx no longer exists
+    Module.ctx =
+#endif
+    GLctx = GL.currentContext = contextHandle;
     GL.currentContextIsProxied = true;
   },
 #else
@@ -2480,7 +2483,7 @@ var LibraryJSEvents = {
   emscripten_is_webgl_context_lost__sig: 'ii',
   emscripten_is_webgl_context_lost: function(target) {
     // TODO: In the future if multiple GL contexts are supported, use the 'target' parameter to find the canvas to query.
-    return Module.ctx ? Module.ctx.isContextLost() : true; // No context ~> lost context.
+    return GLctx ? GLctx.isContextLost() : true; // No context ~> lost context.
   },
 
 #if USE_PTHREADS
