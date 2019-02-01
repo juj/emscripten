@@ -2483,7 +2483,7 @@ var LibraryJSEvents = {
   emscripten_is_webgl_context_lost__sig: 'ii',
   emscripten_is_webgl_context_lost: function(target) {
     // TODO: In the future if multiple GL contexts are supported, use the 'target' parameter to find the canvas to query.
-    return GLctx ? GLctx.isContextLost() : true; // No context ~> lost context.
+    return !GLctx || GLctx.isContextLost(); // No context ~> lost context.
   },
 
 #if USE_PTHREADS
