@@ -2180,7 +2180,7 @@ var LibraryJSEvents = {
   emscripten_webgl_commit_frame: 'emscripten_webgl_do_commit_frame',
 #endif
 
-  emscripten_webgl_do_create_context__deps: ['$GL', '$JSEvents', '_emscripten_webgl_power_preferences', '_findEventTarget'],
+  emscripten_webgl_do_create_context__deps: ['$GL', '$JSEvents', '_emscripten_webgl_power_preferences', '_findEventTarget', '_findCanvasEventTarget'],
   // This function performs proxying manually, depending on the style of context that is to be created.
   emscripten_webgl_do_create_context: function(target, attributes) {
     var contextAttributes = {};
@@ -2201,16 +2201,10 @@ var LibraryJSEvents = {
     contextAttributes.proxyContextToMainThread = HEAP32[a + ({{{ C_STRUCTS.EmscriptenWebGLContextAttributes.proxyContextToMainThread }}}>>2)];
     contextAttributes.renderViaOffscreenBackBuffer = HEAP32[a + ({{{ C_STRUCTS.EmscriptenWebGLContextAttributes.renderViaOffscreenBackBuffer }}}>>2)];
 
+    var canvas = __findCanvasEventTarget(target);
+
+#if GL_DEBUG
     var targetStr = UTF8ToString(target);
-    var canvas;
-#if OFFSCREENCANVAS_SUPPORT
-    if ((!targetStr || targetStr === '#canvas') && Module['canvas']) {
-      canvas = (Module['canvas'].id && GL.offscreenCanvases[Module['canvas'].id]) ? (GL.offscreenCanvases[Module['canvas'].id].offscreenCanvas || __findEventTarget(Module['canvas'].id)) : Module['canvas'];
-    } else {
-      canvas = GL.offscreenCanvases[targetStr] ? GL.offscreenCanvases[targetStr].offscreenCanvas : __findEventTarget(targetStr);
-    }
-#else
-    canvas = (!targetStr || targetStr === '#canvas') ? Module['canvas'] : __findEventTarget(targetStr);
 #endif
 
 #if USE_PTHREADS
