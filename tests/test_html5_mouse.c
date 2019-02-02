@@ -115,18 +115,18 @@ int main()
   emscripten_set_canvas_size(400, 300);
   EM_ASM(Module['canvas'].style.backgroundColor = 'black';);
 
-  EMSCRIPTEN_RESULT ret = emscripten_set_click_callback(0, 0, 1, mouse_callback);
+  EMSCRIPTEN_RESULT ret = emscripten_set_click_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 1, mouse_callback);
   TEST_RESULT(emscripten_set_click_callback);
-  ret = emscripten_set_mousedown_callback(0, 0, 1, mouse_callback);
+  ret = emscripten_set_mousedown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 1, mouse_callback);
   TEST_RESULT(emscripten_set_mousedown_callback);
-  ret = emscripten_set_mouseup_callback(0, 0, 1, mouse_callback);
+  ret = emscripten_set_mouseup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 1, mouse_callback);
   TEST_RESULT(emscripten_set_mouseup_callback);
-  ret = emscripten_set_dblclick_callback(0, 0, 1, mouse_callback);
+  ret = emscripten_set_dblclick_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 1, mouse_callback);
   TEST_RESULT(emscripten_set_dblclick_callback);
-  ret = emscripten_set_mousemove_callback(0, 0, 1, mouse_callback);
+  ret = emscripten_set_mousemove_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 1, mouse_callback);
   TEST_RESULT(emscripten_set_mousemove_callback);
 
-  ret = emscripten_set_wheel_callback(0, 0, 1, wheel_callback);
+  ret = emscripten_set_wheel_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 1, wheel_callback);
   TEST_RESULT(emscripten_set_wheel_callback);
 
 #ifdef AUTOMATE_SUCCESS
@@ -153,7 +153,7 @@ int main()
   }
 
   // Test that unregistering a callback works. Clicks should no longer be received.
-  ret = emscripten_set_click_callback(0, 0, 1, 0);
+  ret = emscripten_set_click_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 1, 0);
   TEST_RESULT(emscripten_set_click_callback);
 
   EM_ASM(
