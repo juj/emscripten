@@ -1289,6 +1289,9 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       # Remove the default exported functions 'memcpy', 'memset', 'malloc', 'free', etc. - those should only be linked in if used
       shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE = []
 
+      # Always use the new HTML5 API event target lookup rules
+      shared.Settings.DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR = 1
+
       # In asm.js always use memory init file to get the best code size, other modes are not supported.
       if not shared.Settings.WASM:
         options.memory_init_file = True
