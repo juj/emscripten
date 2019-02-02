@@ -766,7 +766,7 @@ var LibraryGL = {
 
     registerContext: function(ctx, webGLContextAttributes) {
       var handle = _malloc(8); // Make space on the heap to store GL context attributes that need to be accessible as shared between threads.
-#if ASSERTIONS
+#if GL_ASSERTIONS
       assert(handle, 'malloc() failed in GL.registerContext!');
 #endif
 #if GL_SUPPORT_EXPLICIT_SWAP_CONTROL
@@ -1431,7 +1431,10 @@ var LibraryGL = {
 
   _computeUnpackAlignedImageSize: function(width, height, sizePerPixel, alignment) {
     function roundedToNextMultipleOf(x, y) {
-      return Math.ceil(x/y)*y;
+#if GL_ASSERTIONS
+      assert((y & (y-1)) === 0, 'Unpack alignment must be a power of 2! (Allowed values per WebGL spec are 1, 2, 4 or 8)');
+#endif
+      return (x + y - 1) & -y;
     }
     var plainRowSize = width * sizePerPixel;
     var alignedRowSize = roundedToNextMultipleOf(plainRowSize, alignment);
@@ -1635,10 +1638,7 @@ var LibraryGL = {
       return;
     }
 #endif
-
-    var pixelData = null;
-    if (pixels) pixelData = emscriptenWebGLGetTexPixelData(type, format, width, height, pixels, internalFormat);
-    GLctx.texImage2D(target, level, internalFormat, width, height, border, format, type, pixelData);
+    GLctx.texImage2D(target, level, internalFormat, width, height, border, format, type, pixels ? emscriptenWebGLGetTexPixelData(type, format, width, height, pixels, internalFormat) : null);
   },
 
   glTexSubImage2D__sig: 'viiiiiiiii',
@@ -3779,7 +3779,7 @@ var LibraryGL = {
     {{{ makeSetValue('count', '0', 'len', 'i32') }}};
     for (var i = 0; i < len; ++i) {
       var id = GL.shaders.indexOf(result[i]);
-#if ASSERTIONS
+#if GL_ASSERTIONS
       assert(id !== -1, 'shader not bound to local id');
 #endif
       {{{ makeSetValue('shaders', 'i*4', 'id', 'i32') }}};
@@ -4368,7 +4368,7 @@ var LibraryGL = {
   glVertexAttribPointer: function(index, size, type, normalized, stride, ptr) {
 #if FULL_ES2
     var cb = GL.currentContext.clientBuffers[index];
-#if ASSERTIONS
+#if GL_ASSERTIONS
     assert(cb, index);
 #endif
     if (!GL.currArrayBuffer) {
@@ -4396,7 +4396,7 @@ var LibraryGL = {
   glVertexAttribIPointer: function(index, size, type, stride, ptr) {
 #if FULL_ES3
     var cb = GL.currentContext.clientBuffers[index];
-#if ASSERTIONS
+#if GL_ASSERTIONS
     assert(cb, index);
 #endif
     if (!GL.currArrayBuffer) {
@@ -4425,7 +4425,7 @@ var LibraryGL = {
   glEnableVertexAttribArray: function(index) {
 #if FULL_ES2
     var cb = GL.currentContext.clientBuffers[index];
-#if ASSERTIONS
+#if GL_ASSERTIONS
     assert(cb, index);
 #endif
     cb.enabled = true;
@@ -4437,7 +4437,7 @@ var LibraryGL = {
   glDisableVertexAttribArray: function(index) {
 #if FULL_ES2
     var cb = GL.currentContext.clientBuffers[index];
-#if ASSERTIONS
+#if GL_ASSERTIONS
     assert(cb, index);
 #endif
     cb.enabled = false;
