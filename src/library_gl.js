@@ -2632,9 +2632,7 @@ var LibraryGL = {
 #if GL_ASSERTIONS
     GL.validateGLObjectID(GL.programs, program, 'glGetUniformBlockIndex', 'program');
 #endif
-    program = GL.programs[program];
-    uniformBlockName = UTF8ToString(uniformBlockName);
-    return GLctx['getUniformBlockIndex'](program, uniformBlockName);
+    return GLctx['getUniformBlockIndex'](GL.programs[program], UTF8ToString(uniformBlockName));
   },
 
   glGetActiveUniformBlockiv__sig: 'viiii',
@@ -4130,8 +4128,7 @@ var LibraryGL = {
 #if GL_ASSERTIONS
     GL.validateGLObjectID(GL.programs, program, 'glBindAttribLocation', 'program');
 #endif
-    name = UTF8ToString(name);
-    GLctx.bindAttribLocation(GL.programs[program], index, name);
+    GLctx.bindAttribLocation(GL.programs[program], index, UTF8ToString(name));
   },
 
   glBindFramebuffer__sig: 'vii',
