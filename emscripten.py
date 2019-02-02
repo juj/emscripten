@@ -1001,7 +1001,12 @@ def make_function_tables_defs(implemented_functions, all_implemented, function_t
         target = i
       name = 'b' + str(i)
       if not shared.Settings.ASSERTIONS:
-        code = 'abort(%s);' % target
+        if 'abort' in shared.Settings.RUNTIME_FUNCS_TO_IMPORT:
+          code = 'abort(%s);' % target
+        else:
+          # Advanced use: developers is generating code that does not include the function 'abort()'. Generate invalid
+          # function pointers to be no-op passthroughs that silently continue execution.
+          code = '\n/*execution is supposed to abort here, but you did not include "abort" in RUNTIME_FUNCS_TO_IMPORT (to save code size?). Silently trucking through, enjoy :)*/\n'
       else:
         code = 'nullFunc_' + sig + '(%d);' % target
       if sig[0] != 'v':

@@ -1394,6 +1394,7 @@ var MINIMAL_RUNTIME = 0;
 // ignored when building with -s MINIMAL_RUNTIME=0.
 var USES_DYNAMIC_ALLOC = 1;
 
+// Advanced manual dead code elimination:
 // Specifies the set of runtime JS functions that should be imported to the asm.js/wasm module.
 // Remove elements from this list to make build smaller if some of these are not needed.
 // In Wasm -O3/-Os builds, adjusting this is not necessary, as the Meta-DCE pass is able to
