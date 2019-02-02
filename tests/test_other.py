@@ -8876,16 +8876,16 @@ int main () {
                                '--output_eol', 'linux']
 
     asmjs = ['-s', 'WASM=0', '--separate-asm', '-s', 'ELIMINATE_DUPLICATE_FUNCTIONS=1', '--memory-init-file', '1']
-    opts = ['-O3', '--closure', '1', '-DNDEBUG']
+    opts = ['-O3', '--closure', '1', '-DNDEBUG', '-ffast-math']
 
     hello_world_sources = [path_from_root('tests', 'small_hello_world.c'), '-s', 'RUNTIME_FUNCS_TO_IMPORT=[]', '-s', 'USES_DYNAMIC_ALLOC=0']
-    hello_webgl_sources = [path_from_root('tests', 'minimal_webgl', 'main.cpp'), path_from_root('tests', 'minimal_webgl', 'webgl.c'), '--js-library', path_from_root('tests', 'minimal_webgl', 'library_js.js'), '-s', 'RUNTIME_FUNCS_TO_IMPORT=["abort"]', '-s', 'USES_DYNAMIC_ALLOC=2']
+    hello_webgl_sources = [path_from_root('tests', 'minimal_webgl', 'main.cpp'), path_from_root('tests', 'minimal_webgl', 'webgl.c'), '--js-library', path_from_root('tests', 'minimal_webgl', 'library_js.js'), '-s', 'RUNTIME_FUNCS_TO_IMPORT=[]', '-s', 'USES_DYNAMIC_ALLOC=2']
 
     test_cases = [
 #      (asmjs + opts, hello_world_sources, {'a.html': 789, 'a.js': 615,  'a.asm.js': 804, 'a.mem': 6}),
 #      (opts, hello_world_sources, {'a.html': 747, 'a.js': 741, 'a.wasm': 86}),
-#      (asmjs + opts, hello_webgl_sources, {'a.html': 789, 'a.js': 6223, 'a.asm.js': 11451, 'a.mem': 404}),
-      (opts, hello_webgl_sources, {'a.html': 623, 'a.js': 5225, 'a.wasm': 9060})
+      (asmjs + opts, hello_webgl_sources, {'a.html': 665, 'a.js': 5116, 'a.asm.js': 11397, 'a.mem': 321}),
+      (opts, hello_webgl_sources, {'a.html': 623, 'a.js': 5127, 'a.wasm': 8978})
     ]
 
     success = True
