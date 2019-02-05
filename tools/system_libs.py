@@ -684,12 +684,14 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
   else:
     system_libs += [Library('libpthreads_stub',  ext, create_pthreads_stub,  stub_pthreads_symbols,  [libc_name],  False)] # noqa
 
-  system_libs.append(Library(libc_name, ext, create_libc, libc_symbols, libc_deps, False))
   if shared.Settings.PROXY_POSIX_SOCKETS:
     system_libs.append(Library('libposix-sockets-proxy', ext, create_posix_proxy, [], [], False))
-    forced += ['libposix-sockets-proxy']
+    libc_deps += ['libposix-sockets-proxy']
   else:
     system_libs.append(Library(libc_name + '-sockets', ext, create_libc_sockets, libc_sockets_symbols, libc_deps, False))
+    libc_deps += [libc_name + '-sockets']
+
+  system_libs.append(Library(libc_name, ext, create_libc, libc_symbols, libc_deps, False))
 
   # if building to wasm, we need more math code, since we have less builtins
   if shared.Settings.WASM:
