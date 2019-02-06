@@ -1420,3 +1420,8 @@ var RUNTIME_FUNCS_TO_IMPORT = ['abort', 'setTempRet0', 'getTempRet0']
 
 // Internal: stores the base name of the output file (-o TARGET_BASENAME.js)
 var TARGET_BASENAME = '';
+
+// If set to 1, disables old deprecated HTML5 API event target lookup behavior. When enabled,
+// there is no "Module.canvas" object, no magic "null" default handling, and DOM element
+// 'target' parameters are taken to refer to CSS selectors, instead of referring to DOM IDs.
+var DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR = 0;
