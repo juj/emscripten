@@ -1057,7 +1057,7 @@ function exportedAsmFunc(func) {
   if (!MAIN_MODULE && !SIDE_MODULE) {
     return func;
   } else {
-    return "Module['" + func + "]";
+    return "Module['" + func + "']";
   }
 }
 
