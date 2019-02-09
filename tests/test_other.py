@@ -7939,15 +7939,15 @@ int main() {
     # test on libc++: see effects of emulated function pointers
     if self.is_wasm_backend():
       self.run_metadce_tests(path_from_root('tests', 'hello_libcxx.cpp'), [
-        (['-O2'], 32, [], ['waka'], 226582,  20,  33, 564), # noqa
+        (['-O2'], 31, [], ['waka'], 226582,  20,  33, 565), # noqa
         (['-O2', '-s', 'EMULATED_FUNCTION_POINTERS=1'],
-                  32, [], ['waka'], 226582,  20,  33, 564), # noqa
+                  31, [], ['waka'], 226582,  20,  33, 565), # noqa
       ]) # noqa
     else:
       self.run_metadce_tests(path_from_root('tests', 'hello_libcxx.cpp'), [
-        (['-O2'], 34, ['abort'], ['waka'], 196709,  28,   36, 653), # noqa
+        (['-O2'], 31, ['abort'], ['waka'], 196709,  28,   36, 653), # noqa
         (['-O2', '-s', 'EMULATED_FUNCTION_POINTERS=1'],
-                  34, ['abort'], ['waka'], 196709,  28,   37, 635), # noqa
+                  31, ['abort'], ['waka'], 196709,  28,   37, 635), # noqa
       ]) # noqa
 
   def test_binaryen_metadce_hello(self):
@@ -7976,7 +7976,7 @@ int main() {
                    0, [],        [],           8,   0,    0,  0), # noqa; totally empty!
         # we don't metadce with linkable code! other modules may want stuff
         (['-O3', '-s', 'MAIN_MODULE=1'],
-                1533, [],        [],      226403,  28,   93, None), # noqa; don't compare the # of functions in a main module, which changes a lot
+                1569, [],        [],      226403,  28,   93 None), # noqa; don't compare the # of functions in a main module, which changes a lot
       ]) # noqa
 
   # ensures runtime exports work, even with metadce
