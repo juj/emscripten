@@ -29,7 +29,16 @@ else:
 	f = f.replace('}new TextDecoder("utf8");', '}')
 	f = f.replace(';new TextDecoder("utf-16le");', ';')
 	f = f.replace('}new TextDecoder("utf-16le");', '}')
+
+	# var a;a||(a=Module)
+	# ->
+	# var a=Module;
 	f = re.sub(r'var (\w);\1\|\|\(\1=Module\);', r'var \1=Module;', f)
+
+	# var Module=function(Module){Module =Module || {};var a=Module;
+	# ->
+	# var Module=function(a){
+	f = re.sub(r'\s*function\s*\(Module\)\s*{\s*Module\s*=\s*Module\s*\|\|\s*{\s*}\s*;\s*var\s+(\w+)\s*=\s*Module\s*;', r'function(\1){', f)
 
 f = re.sub(r'\s+', ' ', f)
 f = re.sub(r'[\n\s]+\n\s*', '\n', f)

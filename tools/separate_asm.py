@@ -83,7 +83,7 @@ else:
   everything = everything.replace(asm_search, closured_name + '["asm"]')
 
 o = open(asmfile, 'w')
-o.write(asm_module_name + ' = ')
+o.write(asm_module_name + '=')
 o.write(asm_replace)
 o.close()
 
