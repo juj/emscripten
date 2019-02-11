@@ -15,15 +15,21 @@ WebSockets API provides connection-oriented message-framed bidirectional asynchr
 
 Emscripten provides a passthrough API for accessing the WebSockets API from C/C++ code. This is useful for developers who would prefer not to write any JavaScript code, or deal with the C/C++ and JavaScript language interop. See the system include file <emscripten/websocket.h> for details. One benefit that the Emscripten WebSockets API provides over manual WebSockets access in JavaScript is the ability to share access to a WebSocket handle across multiple threads, something that can be time consuming to develop from scratch.
 
+To target Emscripten WebSockets API, you must link it in with a "-lwebsocket.js" linker directive.
+
 Emulated POSIX TCP Sockets over WebSockets
 ==========================================
 
 If you have existing TCP networking code written in C/C++ that utilizes the Posix Sockets API, by default Emscripten attempts to emulate such connections to take place over the WebSocket protocol instead. For this to work, you will need to use something like WebSockify on the server side to enable the TCP server stack to receive incoming WebSocket connections. This emulation is not very complete at the moment, it is likely that you will run into problems out of the box and need to adapt the code to work within the limitations that this emulation provides.
 
+This is the default build mode for POSIX sockets, no linker flags or option settings are needed to enable it.
+
 Full POSIX Sockets over WebSocket Proxy Server
 ==============================================
 
 Emscripten provides a native POSIX Sockets proxy server program, located in directory tools/websocket_to_posix_proxy/, that allows full POSIX Sockets API access from a web browser. This support works by proxying all POSIX Sockets API calls from the browser to the Emscripten POSIX Sockets proxy server (via transparent use of WebSockets API), and the proxy server then performs the native TCP/UDP calls on behalf of the page. This allows a web browser page to run full TCP & UDP connections, act as a server to accept incoming connections, and perform host name lookups and reverse lookups. Because all API calls are individually proxied, this support can be slow. This support is mostly useful for developing testing infrastructure and debugging.
+
+To use POSIX sockets proxying, link the application with flags "-lwebsocket.js -s PROXY_POSIX_SOCKETS=1 -s USE_PTHREADS=1 -s PROXY_TO_PTHREAD=1". That is, POSIX sockets proxying builds on top of the Emscripten WebSockets library, and requires multithreading and proxying the application main() to a pthread.
 
 For an example of how the POSIX Sockets proxy server works in an Emscripten client program, see the file tests/websocket/tcp_echo_client.cpp.
 
