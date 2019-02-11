@@ -1715,7 +1715,7 @@ int main(int argc, char **argv) {
     src = open(path_from_root('tests', 'core', 'test_memorygrowth.c')).read()
 
     # Fail without memory growth
-    self.do_run(src, 'Cannot enlarge memory arrays')
+    self.do_run(src, 'oom')
     fail = open('src.cpp.o.js').read()
 
     # Win with it
@@ -1755,7 +1755,7 @@ int main(int argc, char **argv) {
       src = open(path_from_root('tests', 'core', 'test_memorygrowth_2.c')).read()
 
       # Fail without memory growth
-      self.do_run(src, 'Cannot enlarge memory arrays')
+      self.do_run(src, 'oom')
       fail = open('src.cpp.o.js').read()
 
       # Win with it
