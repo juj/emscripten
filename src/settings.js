@@ -1430,6 +1430,13 @@ var SUPPORT_LONGJMP = 1;
 // 'target' parameters are taken to refer to CSS selectors, instead of referring to DOM IDs.
 var DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR = 0;
 
+// Specifies whether the generated .html file is run through html-minifier. The set of
+// optimization passes run by html-minifier depends on debug and optimization levels. In
+// -g2 and higher, no minification is performed. In -g1, minification is done, but whitespace
+// is retained. Minification requires at least -O1 or -Os to be used. Pass -s MINIFY_HTML=0
+// to explicitly choose to disable HTML minification altogether.
+var MINIFY_HTML = 1;
+
 // Legacy settings that have been removed, and the values they are now fixed to. These can no
 // longer be changed:
 // [OPTION_NAME, POSSIBLE_VALUES, ERROR_EXPLANATION], where POSSIBLE_VALUES is an array of values that will
