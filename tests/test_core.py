@@ -16,6 +16,7 @@ import time
 import unittest
 from textwrap import dedent
 
+
 if __name__ == '__main__':
   raise Exception('do not run this file directly; do something like: tests/runner.py')
 
@@ -589,9 +590,9 @@ class TestCoreBase(RunnerCore):
     Building.emar('cr', 'liba.a', ['a1.c.o', 'a2.c.o'])
     Building.emar('cr', 'libb.a', ['b1.c.o', 'b2.c.o'])
 
-    Building.link(['main.c.o', 'liba.a', 'libb.a'], 'all.bc')
+    Building.link_to_object(['main.c.o', 'liba.a', 'libb.a'], 'all.o')
 
-    self.do_ll_run('all.bc', 'result: 1')
+    self.do_ll_run('all.o', 'result: 1')
 
   def test_if(self):
     self.do_run_in_out_file_test('tests', 'core', 'test_if')
@@ -1715,7 +1716,7 @@ int main(int argc, char **argv) {
     src = open(path_from_root('tests', 'core', 'test_memorygrowth.c')).read()
 
     # Fail without memory growth
-    self.do_run(src, 'Cannot enlarge memory arrays')
+    self.do_run(src, 'OOM')
     fail = open('src.cpp.o.js').read()
 
     # Win with it
@@ -1755,7 +1756,7 @@ int main(int argc, char **argv) {
       src = open(path_from_root('tests', 'core', 'test_memorygrowth_2.c')).read()
 
       # Fail without memory growth
-      self.do_run(src, 'Cannot enlarge memory arrays')
+      self.do_run(src, 'OOM')
       fail = open('src.cpp.o.js').read()
 
       # Win with it
@@ -2066,10 +2067,10 @@ The current type of b is: 9
 
     Building.emcc('supp.cpp')
     Building.emcc('main.cpp')
-    Building.link(['supp.cpp.o', 'main.cpp.o'], 'all.bc')
+    Building.link_to_object(['supp.cpp.o', 'main.cpp.o'], 'all.o')
 
     # This will fail! See explanation near the warning we check for, in the compiler source code
-    run_process([PYTHON, EMCC, 'all.bc'] + self.emcc_args, check=False, stderr=PIPE)
+    run_process([PYTHON, EMCC, 'all.o'] + self.emcc_args, check=False, stderr=PIPE)
 
     # Check for warning in the generated code
     generated = open('src.cpp.o.js').read()
@@ -6927,8 +6928,8 @@ err = err = function(){};
 
     Building.emcc(module_name, ['-g'])
     Building.emcc(main_name, ['-g'])
-    all_name = 'all.bc'
-    Building.link([module_name + '.o', main_name + '.o'], all_name)
+    all_name = 'all.o'
+    Building.link_to_object([module_name + '.o', main_name + '.o'], all_name)
 
     try:
       self.do_ll_run(all_name, '*nothingatall*', assert_returncode=None)
@@ -7736,6 +7737,15 @@ extern "C" {
     self.maybe_closure()
     self.do_run(open(path_from_root('tests', 'small_hello_world.c')).read(), 'hello')
 
+  # Test that printf() works in MINIMAL_RUNTIME=1
+  @no_emterpreter
+  @no_wasm_backend('MINIMAL_RUNTIME not yet available in Wasm backend')
+  def test_minimal_runtime_hello_world_printf(self):
+    for fs in [['-s', 'NO_FILESYSTEM=1'], ['-s', 'FORCE_FILESYSTEM=1']]:
+      self.emcc_args = ['-s', 'MINIMAL_RUNTIME=1'] + fs
+      self.maybe_closure()
+      self.do_run(open(path_from_root('tests', 'hello_world.c')).read(), 'hello, world!')
+
   # Tests global initializer with -s MINIMAL_RUNTIME=1
   @no_emterpreter
   @no_wasm_backend('MINIMAL_RUNTIME not yet available in Wasm backend')
@@ -7805,19 +7815,19 @@ asm3 = make_run('asm3', emcc_args=['-O3'], settings={'WASM': 0})
 asm2g = make_run('asm2g', emcc_args=['-O2', '-g'], settings={'WASM': 0, 'ASSERTIONS': 1, 'SAFE_HEAP': 1})
 
 # Main wasm test modes
-binaryen0 = make_run('binaryen0', emcc_args=['-O0'])
-binaryen1 = make_run('binaryen1', emcc_args=['-O1'])
-binaryen2 = make_run('binaryen2', emcc_args=['-O2'])
-binaryen3 = make_run('binaryen3', emcc_args=['-O3'])
-binaryens = make_run('binaryens', emcc_args=['-Os'])
-binaryenz = make_run('binaryenz', emcc_args=['-Oz'])
+wasm0 = make_run('wasm0', emcc_args=['-O0'])
+wasm1 = make_run('wasm1', emcc_args=['-O1'])
+wasm2 = make_run('wasm2', emcc_args=['-O2'])
+wasm3 = make_run('wasm3', emcc_args=['-O3'])
+wasms = make_run('wasms', emcc_args=['-Os'])
+wasmz = make_run('wasmz', emcc_args=['-Oz'])
 
-wasmobj0 = make_run('wasmobj0', emcc_args=['-O0'], settings={'WASM_OBJECT_FILES': 1})
-wasmobj1 = make_run('wasmobj1', emcc_args=['-O1'], settings={'WASM_OBJECT_FILES': 1})
-wasmobj2 = make_run('wasmobj2', emcc_args=['-O2'], settings={'WASM_OBJECT_FILES': 1})
-wasmobj3 = make_run('wasmobj3', emcc_args=['-O3'], settings={'WASM_OBJECT_FILES': 1})
-wasmobjs = make_run('wasmobjs', emcc_args=['-Os'], settings={'WASM_OBJECT_FILES': 1})
-wasmobjz = make_run('wasmobjz', emcc_args=['-Oz'], settings={'WASM_OBJECT_FILES': 1})
+wasmlto0 = make_run('wasmlto0', emcc_args=['-O0'], settings={'WASM_OBJECT_FILES': 0})
+wasmlto1 = make_run('wasmlto1', emcc_args=['-O1'], settings={'WASM_OBJECT_FILES': 0})
+wasmlto2 = make_run('wasmlto2', emcc_args=['-O2'], settings={'WASM_OBJECT_FILES': 0})
+wasmlto3 = make_run('wasmlto3', emcc_args=['-O3'], settings={'WASM_OBJECT_FILES': 0})
+wasmltos = make_run('wasmltos', emcc_args=['-Os'], settings={'WASM_OBJECT_FILES': 0})
+wasmltoz = make_run('wasmltoz', emcc_args=['-Oz'], settings={'WASM_OBJECT_FILES': 0})
 
 
 # Secondary test modes - run directly when there is a specific need
@@ -7827,7 +7837,7 @@ asm2f = make_run('asm2f', emcc_args=['-Oz'], settings={'PRECISE_F32': 1, 'ALLOW_
 asm2nn = make_run('asm2nn', emcc_args=['-O2'], settings={'WASM': 0}, env={'EMCC_NATIVE_OPTIMIZER': '0'})
 
 # wasm
-binaryen2s = make_run('binaryen2s', emcc_args=['-O2'], settings={'SAFE_HEAP': 1})
+wasm2s = make_run('wasm2s', emcc_args=['-O2'], settings={'SAFE_HEAP': 1})
 
 # emterpreter
 asmi = make_run('asmi', emcc_args=[], settings={'ASM_JS': 2, 'EMTERPRETIFY': 1, 'WASM': 0})

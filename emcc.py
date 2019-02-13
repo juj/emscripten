@@ -819,7 +819,6 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     for i in range(len(newargs)): # find input files XXX this a simple heuristic. we should really analyze based on a full understanding of gcc params,
                                   # right now we just assume that what is left contains no more |-x OPT| things
       arg = newargs[i]
-
       if i > 0:
         prev = newargs[i - 1]
         if prev in ('-MT', '-MF', '-MQ', '-D', '-U', '-o', '-x',
@@ -846,7 +845,11 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
           elif file_suffix.endswith(HEADER_ENDINGS):
             input_files.append((i, arg))
             has_header_inputs = True
-          elif file_suffix.endswith(ASSEMBLY_ENDINGS) or shared.Building.is_bitcode(arg): # this should be bitcode, make sure it is valid
+          elif file_suffix.endswith(ASSEMBLY_ENDINGS) or shared.Building.is_bitcode(arg) or shared.Building.is_ar(arg):
+            input_files.append((i, arg))
+          elif 'WASM_OBJECT_FILES=0' not in settings_changes and shared.Building.is_wasm(arg):
+            # this is before libraries, since wasm static libraries (wasm.so that contains wasm) are just
+            # object files to be linked
             input_files.append((i, arg))
           elif file_suffix.endswith(STATICLIB_ENDINGS + DYNAMICLIB_ENDINGS):
             # if it's not, and it's a library, just add it to libs to find later
@@ -859,10 +862,8 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
                 break
             libs.append((i, l))
             newargs[i] = ''
-          elif 'WASM_OBJECT_FILES=1' in settings_changes and shared.Building.is_wasm(arg):
-            input_files.append((i, arg))
           else:
-            logger.warning(arg + ' is not valid LLVM bitcode')
+            logger.warning(arg + ' is not a valid input file')
         elif file_suffix.endswith(STATICLIB_ENDINGS):
           if not shared.Building.is_ar(arg):
             if shared.Building.is_bitcode(arg):
@@ -951,7 +952,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     if error_on_missing_libraries_cmdline:
       shared.Settings.ERROR_ON_MISSING_LIBRARIES = int(error_on_missing_libraries_cmdline[len('ERROR_ON_MISSING_LIBRARIES='):])
 
-    settings_changes.append(system_js_libraries_setting_str(libs, lib_dirs, settings_changes, input_files))
+    settings_changes.append(process_libraries(libs, lib_dirs, settings_changes, input_files))
 
     # If not compiling to JS, then we are compiling to an intermediate bitcode objects or library, so
     # ignore dynamic linking, since multiple dynamic linkings can interfere with each other
@@ -990,6 +991,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     shared.verify_settings()
 
     # Reconfigure the cache now that settings have been applied (e.g. WASM_OBJECT_FILES)
+    # TODO: remove
     shared.reconfigure_cache()
 
     # Note the exports the user requested
@@ -1007,8 +1009,10 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       shared.Settings.STACK_OVERFLOW_CHECK = 2
 
     if shared.Settings.WASM_OBJECT_FILES and not shared.Settings.WASM_BACKEND:
-      logger.error('WASM_OBJECT_FILES can only be used with wasm backend')
-      return 1
+      if 'WASM_OBJECT_FILES=1' in settings_changes:
+        logger.error('WASM_OBJECT_FILES can only be used with wasm backend')
+        return 1
+      shared.Settings.WASM_OBJECT_FILES = 0
 
     if not shared.Settings.STRICT:
       # The preprocessor define EMSCRIPTEN is deprecated. Don't pass it to code in strict mode. Code should use the define __EMSCRIPTEN__ instead.
@@ -1120,6 +1124,8 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       input_files.append((next_arg_index, shared.path_from_root('system', 'lib', 'fetch', 'emscripten_fetch.cpp')))
       next_arg_index += 1
       options.js_libraries.append(shared.path_from_root('src', 'library_fetch.js'))
+      if shared.Settings.USE_PTHREADS:
+        shared.Settings.FETCH_WORKER_FILE = unsuffixed(os.path.basename(target)) + '.fetch.js'
 
     forced_stdlibs = []
     if shared.Settings.DEMANGLE_SUPPORT:
@@ -1199,7 +1205,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     else:
       options.js_libraries.append(shared.path_from_root('src', 'library_pthread_stub.js'))
 
-    if shared.Settings.FORCE_FILESYSTEM:
+    if shared.Settings.FORCE_FILESYSTEM and not shared.Settings.MINIMAL_RUNTIME:
       # when the filesystem is forced, we export by default methods that filesystem usage
       # may need, including filesystem usage from standalone file packager output (i.e.
       # file packages not built together with emcc, but that are loaded at runtime
@@ -1311,7 +1317,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       shared.Settings.STRICT = 1
 
       # Always use the new HTML5 API event target lookup rules (TODO: enable this when the other PR lands)
-      # shared.Settings.DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR = 1
+      shared.Settings.DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR = 1
 
       # In asm.js always use memory init file to get the best code size, other modes are not currently supported.
       if not shared.Settings.WASM:
@@ -1691,8 +1697,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
             # We have a specified target (-o <target>), which is not JavaScript or HTML, and
             # we have multiple files: Link them
             logger.debug('link: ' + str(linker_inputs) + specified_target)
-            # Sort arg tuples and pass the extracted values to link.
-            shared.Building.link(linker_inputs, specified_target)
+            shared.Building.link_to_object(linker_inputs, specified_target)
         logger.debug('stopping at bitcode')
         if shared.Settings.SIDE_MODULE:
           exit_with_error('SIDE_MODULE must only be used when compiling to an executable shared library, and not when emitting LLVM bitcode. That is, you should be emitting a .wasm file (for wasm) or a .js file (for asm.js). Note that when compiling to a typical native suffix for a shared library (.so, .dylib, .dll; which many build systems do) then Emscripten emits an LLVM bitcode file, which you should then compile to .wasm or .js with SIDE_MODULE.')
@@ -1769,7 +1774,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
             lto_level = options.opt_level
           else:
             lto_level = 0
-          final = shared.Building.link_lld(linker_inputs, DEFAULT_FINAL, options.llvm_opts, lto_level)
+          final = shared.Building.link_lld(linker_inputs, DEFAULT_FINAL, lto_level=lto_level)
         else:
           final = shared.Building.link(linker_inputs, DEFAULT_FINAL, force_archive_contents=force_archive_contents, temp_files=misc_temp_files, just_calculate=just_calculate)
       else:
@@ -2022,13 +2027,12 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         with open(worker_output, 'w') as f:
           f.write(shared.read_and_preprocess(shared.path_from_root('src', 'worker.js'), expand_macros=True))
 
-      # Generate the fetch-worker.js script for multithreaded emscripten_fetch() support if targeting pthreads.
+      # Generate the fetch.js worker script for multithreaded emscripten_fetch() support if targeting pthreads.
       if shared.Settings.FETCH and shared.Settings.USE_PTHREADS:
-        if shared.Settings.WASM:
-          # FIXME(https://github.com/emscripten-core/emscripten/issues/7024)
-          logger.warning('Blocking calls to the fetch API do not work under WASM')
+        if shared.Settings.WASM_BACKEND:
+          logger.warning('Bug/TODO: Blocking calls to the fetch API do not currently work under WASM backend (https://github.com/emscripten-core/emscripten/issues/7024)')
         else:
-          shared.make_fetch_worker(final, os.path.join(os.path.dirname(os.path.abspath(target)), 'fetch-worker.js'))
+          shared.make_fetch_worker(final, shared.Settings.FETCH_WORKER_FILE)
 
     # exit block 'memory initializer'
     log_time('memory initializer')
@@ -3001,7 +3005,7 @@ def worker_js_script(proxy_worker_filename):
   return web_gl_client_src + '\n' + proxy_client_src
 
 
-def system_js_libraries_setting_str(libs, lib_dirs, settings_changes, input_files):
+def process_libraries(libs, lib_dirs, settings_changes, input_files):
   libraries = []
 
   # Find library files

@@ -1029,7 +1029,7 @@ var WASM_BACKEND = 0;
 
 // Whether to compile object files as wasm as opposed to the default
 // of using LLVM IR.
-var WASM_OBJECT_FILES = 0;
+var WASM_OBJECT_FILES = 1;
 
 // An optional comma-separated list of script hooks to run after binaryen,
 // in binaryen's /scripts dir.
@@ -1293,6 +1293,10 @@ var FETCH_DEBUG = 0;
 
 // If nonzero, enables emscripten_fetch API.
 var FETCH = 0;
+
+// Internal: name of the file containing the Fetch *.fetch.js, if relevant
+// Do not set yourself.
+var FETCH_WORKER_FILE = '';
 
 // If set to 1, uses the multithreaded filesystem that is implemented within the
 // asm.js module, using emscripten_fetch. Implies -s FETCH=1.

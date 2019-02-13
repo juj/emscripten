@@ -462,9 +462,11 @@ If manually bisecting:
     # chrome's limit on IndexedDB item sizes, see
     # https://cs.chromium.org/chromium/src/content/renderer/indexed_db/webidbdatabase_impl.cc?type=cs&q=%22The+serialized+value+is+too+large%22&sq=package:chromium&g=0&l=177
     # https://cs.chromium.org/chromium/src/out/Debug/gen/third_party/blink/public/mojom/indexeddb/indexeddb.mojom.h?type=cs&sq=package:chromium&g=0&l=60
-    for extra_size in (0, 50 * 1024 * 1024, 100 * 1024 * 1024, 150 * 1024 * 1024):
+    for extra_size in (0, 1 * 1024 * 1024, 100 * 1024 * 1024, 150 * 1024 * 1024):
+      if is_chrome() and extra_size >= 100 * 1024 * 1024:
+        continue
       create_test_file('somefile.txt', '''load me right before running the code please''' + ('_' * extra_size))
-      print(os.path.getsize('somefile.txt'))
+      print('size:', os.path.getsize('somefile.txt'))
       run_process([PYTHON, EMCC, 'main.cpp', '--use-preload-cache', '--js-library', 'test.js', '--preload-file', 'somefile.txt', '-o', 'page.html', '-s', 'ALLOW_MEMORY_GROWTH=1'])
       self.run_browser('page.html', 'You should see |load me right before|.', '/report_result?1')
       self.run_browser('page.html', 'You should see |load me right before|.', '/report_result?2')
@@ -793,17 +795,17 @@ window.close = function() {
       create_test_file(to + '.js', js_mod(open('test.js').read()))
 
     # run with noProxy, but make main thread fail
-    copy('two', lambda original: re.sub(r'function _main\(\$(.+),\$(.+)\) {', r'function _main($\1,$\2) { if (ENVIRONMENT_IS_WEB) { var xhr = new XMLHttpRequest(); xhr.open("GET", "http://localhost:%s/report_result?999");xhr.send(); return; }' % self.test_port, original),
+    copy('two', lambda original: re.sub(r'function _main\(\$(.+),\$(.+)\) {', r'function _main($\1,$\2) { if (ENVIRONMENT_IS_WEB) { var xhr = new XMLHttpRequest(); xhr.open("GET", "http://localhost:%s/report_result?999");xhr.send(); return; }' % self.port, original),
          lambda original: original.replace('function doReftest() {', 'function doReftest() { return; ')) # don't reftest on main thread, it would race
     self.run_browser('two.html?noProxy', None, ['/report_result?999'])
-    copy('two', lambda original: re.sub(r'function _main\(\$(.+),\$(.+)\) {', r'function _main($\1,$\2) { if (ENVIRONMENT_IS_WEB) { var xhr = new XMLHttpRequest(); xhr.open("GET", "http://localhost:%s/report_result?999");xhr.send(); return; }' % self.test_port, original))
+    copy('two', lambda original: re.sub(r'function _main\(\$(.+),\$(.+)\) {', r'function _main($\1,$\2) { if (ENVIRONMENT_IS_WEB) { var xhr = new XMLHttpRequest(); xhr.open("GET", "http://localhost:%s/report_result?999");xhr.send(); return; }' % self.port, original))
     self.run_browser('two.html', None, ['/report_result?0']) # this is still cool
 
     # run without noProxy, so proxy, but make worker fail
-    copy('three', lambda original: re.sub(r'function _main\(\$(.+),\$(.+)\) {', r'function _main($\1,$\2) { if (ENVIRONMENT_IS_WORKER) { var xhr = new XMLHttpRequest(); xhr.open("GET", "http://localhost:%s/report_result?999");xhr.send(); return; }' % self.test_port, original),
+    copy('three', lambda original: re.sub(r'function _main\(\$(.+),\$(.+)\) {', r'function _main($\1,$\2) { if (ENVIRONMENT_IS_WORKER) { var xhr = new XMLHttpRequest(); xhr.open("GET", "http://localhost:%s/report_result?999");xhr.send(); return; }' % self.port, original),
          lambda original: original.replace('function doReftest() {', 'function doReftest() { return; ')) # don't reftest on main thread, it would race
     self.run_browser('three.html', None, ['/report_result?999'])
-    copy('three', lambda original: re.sub(r'function _main\(\$(.+),\$(.+)\) {', r'function _main($\1,$\2) { if (ENVIRONMENT_IS_WORKER) { var xhr = new XMLHttpRequest(); xhr.open("GET", "http://localhost:%s/report_result?999");xhr.send(); return; }' % self.test_port, original))
+    copy('three', lambda original: re.sub(r'function _main\(\$(.+),\$(.+)\) {', r'function _main($\1,$\2) { if (ENVIRONMENT_IS_WORKER) { var xhr = new XMLHttpRequest(); xhr.open("GET", "http://localhost:%s/report_result?999");xhr.send(); return; }' % self.port, original))
     self.run_browser('three.html?noProxy', None, ['/report_result?0']) # this is still cool
 
   @requires_graphics_hardware
@@ -1573,7 +1575,7 @@ keydown(100);keyup(100); // trigger the end
         </script>
       </body>
       </html>
-    ''' % self.test_port)
+    ''' % self.port)
     html_file.close()
 
     for file_data in [1, 0]:
@@ -1626,7 +1628,7 @@ keydown(100);keyup(100); // trigger the end
         </script>
       </body>
       </html>
-    """ % self.test_port)
+    """ % self.port)
     html_file.close()
 
     c_source_filename = "checksummer.c"
@@ -1652,7 +1654,7 @@ keydown(100);keyup(100); // trigger the end
     data = os.urandom(10 * chunkSize + 1) # 10 full chunks and one 1 byte chunk
     checksum = zlib.adler32(data) & 0xffffffff # Python 2 compatibility: force bigint
 
-    server = multiprocessing.Process(target=test_chunked_synchronous_xhr_server, args=(True, chunkSize, data, checksum, self.test_port))
+    server = multiprocessing.Process(target=test_chunked_synchronous_xhr_server, args=(True, chunkSize, data, checksum, self.port))
     server.start()
     self.run_browser(main, 'Chunked binary synchronous XHR in Web Workers!', '/report_result?' + str(checksum))
     server.terminate()
@@ -2202,7 +2204,7 @@ void *getBindBuffer() {
         }
       }
       Module._note(4); // this happens too early! and is overwritten when the mem init arrives
-    ''' % self.test_port)
+    ''' % self.port)
 
     # with assertions, we notice when memory was written to too early
     self.btest('mem_init.cpp', expected='9', args=['-s', 'WASM=0', '--pre-js', 'pre.js', '--post-js', 'post.js', '--memory-init-file', '1'])
@@ -2232,7 +2234,7 @@ void *getBindBuffer() {
           }
           console.log('WARNING: ' + x);
         };
-      ''' % self.test_port)
+      ''' % self.port)
       self.btest('mem_init_request.cpp', expected=status, args=['-s', 'WASM=0', '--pre-js', 'pre.js', '--memory-init-file', '1'])
 
     test('test.html.mem', '1')
@@ -2304,7 +2306,7 @@ void *getBindBuffer() {
         xhr.send();
         setTimeout(function() { window.close() }, 1000);
       }, 1000);
-    ''' % self.test_port
+    ''' % self.port
 
     create_test_file('pre_runtime.js', r'''
       Module.onRuntimeInitialized = function(){
@@ -4046,12 +4048,17 @@ window.close = function() {
   @requires_graphics_hardware
   def test_webgl_offscreen_framebuffer_state_restoration(self):
     for args in [
-        # full state restoration path
+        # full state restoration path on WebGL 1.0
         ['-s', 'USE_WEBGL2=0', '-s', 'OFFSCREEN_FRAMEBUFFER_FORBID_VAO_PATH=1'],
-        # VAO path
+        # VAO path on WebGL 1.0
         ['-s', 'USE_WEBGL2=0'],
-        # blitFramebuffer path
-        ['-s', 'USE_WEBGL2=1'],
+        ['-s', 'USE_WEBGL2=1', '-DTEST_WEBGL2=0'],
+        # VAO path on WebGL 2.0
+        ['-s', 'USE_WEBGL2=1', '-DTEST_WEBGL2=1', '-DTEST_ANTIALIAS=1', '-DTEST_REQUIRE_VAO=1'],
+        # full state restoration path on WebGL 2.0
+        ['-s', 'USE_WEBGL2=1', '-DTEST_WEBGL2=1', '-DTEST_ANTIALIAS=1', '-s', 'OFFSCREEN_FRAMEBUFFER_FORBID_VAO_PATH=1'],
+        # blitFramebuffer path on WebGL 2.0 (falls back to VAO on Firefox < 67)
+        ['-s', 'USE_WEBGL2=1', '-DTEST_WEBGL2=1', '-DTEST_ANTIALIAS=0'],
       ]:
       cmd = args + ['-lGL', '-s', 'OFFSCREEN_FRAMEBUFFER=1', '-DEXPLICIT_SWAP=1']
       self.btest('webgl_offscreen_framebuffer_swap_with_bad_state.c', '0', args=cmd)
@@ -4146,6 +4153,19 @@ window.close = function() {
   def test_fetch_sync_xhr(self):
     shutil.copyfile(path_from_root('tests', 'gears.png'), 'gears.png')
     self.btest('fetch/sync_xhr.cpp', expected='1', args=['--std=c++11', '-s', 'FETCH_DEBUG=1', '-s', 'FETCH=1', '-s', 'WASM=0', '-s', 'USE_PTHREADS=1', '-s', 'PROXY_TO_PTHREAD=1'])
+
+  # Tests emscripten_fetch() usage when user passes none of the main 3 flags (append/replace/no_download).
+  # In that case, in append is implicitly understood.
+  @requires_threads
+  def test_fetch_implicit_append(self):
+    shutil.copyfile(path_from_root('tests', 'gears.png'), 'gears.png')
+    self.btest('fetch/example_synchronous_fetch.cpp', expected='200', args=['-s', 'FETCH=1', '-s', 'WASM=0', '-s', 'USE_PTHREADS=1', '-s', 'PROXY_TO_PTHREAD=1'])
+
+  # Tests synchronous emscripten_fetch() usage from wasm pthread in fastcomp.
+  @no_wasm_backend("fetch API uses an asm.js based web worker to run synchronous XHRs and IDB operations")
+  def test_fetch_sync_xhr_in_wasm(self):
+    shutil.copyfile(path_from_root('tests', 'gears.png'), 'gears.png')
+    self.btest('fetch/example_synchronous_fetch.cpp', expected='200', args=['-s', 'FETCH=1', '-s', 'WASM=1', '-s', 'USE_PTHREADS=1', '-s', 'PROXY_TO_PTHREAD=1'])
 
   # Tests that the Fetch API works for synchronous XHRs when used with --proxy-to-worker.
   @requires_threads
@@ -4518,7 +4538,7 @@ window.close = function() {
   @no_wasm_backend('this tests asm.js support')
   def test_two_separate_asm_files_on_same_page(self):
     html_file = open('main.html', 'w')
-    html_file.write(open(path_from_root('tests', 'two_separate_asm_files.html')).read().replace('localhost:8888', 'localhost:%s' % self.test_port))
+    html_file.write(open(path_from_root('tests', 'two_separate_asm_files.html')).read().replace('localhost:8888', 'localhost:%s' % self.port))
     html_file.close()
 
     cmd = [PYTHON, EMCC, path_from_root('tests', 'modularize_separate_asm.c'), '-o', 'page1.js', '-s', 'WASM=0', '--separate-asm', '-s', 'MODULARIZE=1', '-s', 'EXPORT_NAME=Module1', '-s', 'SEPARATE_ASM_MODULE_NAME=ModuleForPage1["asm"]']
@@ -4536,7 +4556,7 @@ window.close = function() {
   @no_wasm_backend('this tests asm.js support')
   def test_encapsulated_asmjs_page_load(self):
     html_file = open('main.html', 'w')
-    html_file.write(open(path_from_root('tests', 'encapsulated_asmjs_page_load.html')).read().replace('localhost:8888', 'localhost:%s' % self.test_port))
+    html_file.write(open(path_from_root('tests', 'encapsulated_asmjs_page_load.html')).read().replace('localhost:8888', 'localhost:%s' % self.port))
     html_file.close()
 
     cmd = [PYTHON, EMCC, path_from_root('tests', 'modularize_separate_asm.c'), '-o', 'a.js', '-s', 'WASM=0', '--separate-asm', '-s', 'MODULARIZE=1', '-s', 'EXPORT_NAME=EmscriptenCode', '-s', 'SEPARATE_ASM_MODULE_NAME="var EmscriptenCode"']
