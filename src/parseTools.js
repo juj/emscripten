@@ -8,6 +8,13 @@
 
 //"use strict";
 
+// Load struct and define information.
+if (STRUCT_INFO) {
+  var temp = JSON.parse(read(STRUCT_INFO));
+  C_STRUCTS = temp.structs;
+  C_DEFINES = temp.defines;
+}
+
 // Does simple 'macro' substitution, using Django-like syntax,
 // {{{ code }}} will be replaced with |eval(code)|.
 // NOTE: Be careful with that ret check. If ret is |0|, |ret ? ret.toString() : ''| would result in ''!
@@ -1534,6 +1541,12 @@ function makeRetainedCompilerSettings() {
     } catch(e){}
   }
   return ret;
+}
+
+// Safe way to access a C define. We check that we don't add library functions with missing defines.
+function cDefine(key) {
+  if (key in C_DEFINES) return C_DEFINES[key];
+  throw 'Missing C define ' + key + '! If you just added it to struct_info.json, you need to ./emcc --clear-cache';
 }
 
 // In wasm, the heap size must be a multiple of 64KB.
