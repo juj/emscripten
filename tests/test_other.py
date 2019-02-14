@@ -4940,7 +4940,7 @@ Size of file is: 32
     proc = run_process([PYTHON, EMCC, path_from_root('tests', 'hello_world.c'), '-s', 'DISABLE_EXCEPTION_CATCH=1'], stderr=PIPE, check=False)
     self.assertNotEqual(proc.returncode, 0)
     self.assertContained('Assigning a non-existent settings attribute "DISABLE_EXCEPTION_CATCH"', proc.stderr)
-    self.assertContained('did you mean one of DISABLE_EXCEPTION_CATCHING?', proc.stderr)
+    self.assertContained('did you mean one of DISABLE_EXCEPTION_CATCHING', proc.stderr)
     # no suggestions
     proc = run_process([PYTHON, EMCC, path_from_root('tests', 'hello_world.c'), '-s', 'CHEEZ=1'], stderr=PIPE, check=False)
     self.assertNotEqual(proc.returncode, 0)
