@@ -7939,9 +7939,9 @@ int main() {
     # test on libc++: see effects of emulated function pointers
     if self.is_wasm_backend():
       self.run_metadce_tests(path_from_root('tests', 'hello_libcxx.cpp'), [
-        (['-O2'], 31, [], ['waka'], 226582,  20,  33, 565), # noqa
+        (['-O2'], 31, [], ['waka'], 226582,  20,  31, 563), # noqa
         (['-O2', '-s', 'EMULATED_FUNCTION_POINTERS=1'],
-                  31, [], ['waka'], 226582,  20,  33, 565), # noqa
+                  31, [], ['waka'], 226582,  20,  31, 563), # noqa
       ]) # noqa
     else:
       self.run_metadce_tests(path_from_root('tests', 'hello_libcxx.cpp'), [
