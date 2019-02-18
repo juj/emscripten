@@ -1048,6 +1048,14 @@ function makeDynCall(sig) {
   }
 }
 
+function exportedAsmFunc(func) {
+  if (!MAIN_MODULE && !SIDE_MODULE) {
+    return func;
+  } else {
+    return "Module['" + func + "']";
+  }
+}
+
 var TWO_TWENTY = Math.pow(2, 20);
 
 // Given two values and an operation, returns the result of that operation.

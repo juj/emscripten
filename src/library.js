@@ -504,14 +504,14 @@ LibraryManager.library = {
 #if WASM
     var PAGE_MULTIPLE = {{{ getPageSize() }}};
     size = alignUp(size, PAGE_MULTIPLE); // round up to wasm page size
-    var old = Module['buffer'];
+    var old = {{{ exportedAsmFunc('buffer') }}};
     var oldSize = old.byteLength;
     // native wasm support
     try {
       var result = wasmMemory.grow((size - oldSize) / {{{ WASM_PAGE_SIZE }}}); // .grow() takes a delta compared to the previous size
       if (result !== (-1 | 0)) {
         // success in native wasm memory growth, get the buffer from the memory
-        return Module['buffer'] = wasmMemory.buffer;
+        return {{{ exportedAsmFunc('buffer') }}} = wasmMemory.buffer;
       } else {
         return null;
       }
@@ -529,16 +529,7 @@ LibraryManager.library = {
     } catch(e) {
       return false;
     }
-    Module['_emscripten_replace_memory'](newBuffer);
-    HEAP8 = new Int8Array(newBuffer);
-    HEAP16 = new Int16Array(newBuffer);
-    HEAP32 = new Int32Array(newBuffer);
-    HEAPU8 = new Uint8Array(newBuffer);
-    HEAPU16 = new Uint16Array(newBuffer);
-    HEAPU32 = new Uint32Array(newBuffer);
-    HEAPF32 = new Float32Array(newBuffer);
-    HEAPF64 = new Float64Array(newBuffer);
-    buffer = newBuffer;
+    {{{ exportedAsmFunc('_emscripten_replace_memory') }}}(newBuffer);
     return newBuffer;
 #endif
   },
@@ -655,7 +646,7 @@ LibraryManager.library = {
 #endif // USE_PTHREADS
   },
 
-#if MINIMAL_RUNTIME && !ASSERTIONS && !ALLOW_MEMORY_GROWTH
+#if MINIMAL_RUNTIME && !ASSERTIONS && !ALLOW_MEMORY_GROWTH && !ABORTING_MALLOC
 
 // If USES_DYNAMIC_ALLOC is not defined, do not compile in sbrk() or brk(), so that user gets a linker error if they attempt
 // to call into malloc() that would sbrk().
