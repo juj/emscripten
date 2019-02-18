@@ -4955,7 +4955,7 @@ Size of file is: 32
     proc = run_process([PYTHON, EMCC, path_from_root('tests', 'hello_world.c'), '-s', 'DISABLE_EXCEPTION_CATCH=1'], stderr=PIPE, check=False)
     self.assertNotEqual(proc.returncode, 0)
     self.assertContained('Assigning a non-existent settings attribute "DISABLE_EXCEPTION_CATCH"', proc.stderr)
-    self.assertContained('did you mean one of DISABLE_EXCEPTION_CATCHING?', proc.stderr)
+    self.assertContained('did you mean one of DISABLE_EXCEPTION_CATCHING', proc.stderr)
     # no suggestions
     proc = run_process([PYTHON, EMCC, path_from_root('tests', 'hello_world.c'), '-s', 'CHEEZ=1'], stderr=PIPE, check=False)
     self.assertNotEqual(proc.returncode, 0)
@@ -7968,15 +7968,15 @@ int main() {
     # test on libc++: see effects of emulated function pointers
     if self.is_wasm_backend():
       self.run_metadce_tests(path_from_root('tests', 'hello_libcxx.cpp'), [
-        (['-O2'], 32, [], ['waka'], 226582,  20,  32, 565), # noqa
+        (['-O2'], 31, [], ['waka'], 226582,  20,  31, 564), # noqa
         (['-O2', '-s', 'EMULATED_FUNCTION_POINTERS=1'],
-                  32, [], ['waka'], 226582,  20,  32, 565), # noqa
+                  31, [], ['waka'], 226582,  20,  31, 564), # noqa
       ]) # noqa
     else:
       self.run_metadce_tests(path_from_root('tests', 'hello_libcxx.cpp'), [
-        (['-O2'], 34, ['abort'], ['waka'], 196709,  28,   37, 660), # noqa
+        (['-O2'], 31, ['abort'], ['waka'], 196709,  28,   37, 660), # noqa
         (['-O2', '-s', 'EMULATED_FUNCTION_POINTERS=1'],
-                  34, ['abort'], ['waka'], 196709,  28,   18, 621), # noqa
+                  31, ['abort'], ['waka'], 196709,  28,   18, 621), # noqa
       ]) # noqa
 
   def test_binaryen_metadce_hello(self):
@@ -8005,7 +8005,7 @@ int main() {
                    0, [],        [],           8,   0,    0,  0), # noqa; totally empty!
         # we don't metadce with linkable code! other modules may want stuff
         (['-O3', '-s', 'MAIN_MODULE=1'],
-                1533, [],        [],      226057,  28,   85, None), # noqa; don't compare the # of functions in a main module, which changes a lot
+                1569, [],        [],      226057,  28,   85, None), # noqa; don't compare the # of functions in a main module, which changes a lot
       ]) # noqa
 
   # ensures runtime exports work, even with metadce
