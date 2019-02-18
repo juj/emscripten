@@ -17,20 +17,29 @@ else:
     f = re.sub(r'\s*//\s*EMSCRIPTEN_START_ASM\s*', '', f)
     f = re.sub(r'\s*//\s*EMSCRIPTEN_END_ASM\s*', '', f)
 
-    # https://github.com/google/closure-compiler/issues/3185
-    f = re.sub(r';new Int8Array\(\w+\);', ';', f)
-    f = re.sub(r';new Int16Array\(\w+\);', ';', f)
-    f = re.sub(r';new Int32Array\(\w+\);', ';', f)
-    f = re.sub(r';new Uint8Array\(\w+\);', ';', f)
-    f = re.sub(r';new Uint16Array\(\w+\);', ';', f)
-    f = re.sub(r';new Uint32Array\(\w+\);', ';', f)
-    f = re.sub(r';new Float32Array\(\w+\);', ';', f)
-    f = re.sub(r';new Float64Array\(\w+\);', ';', f)
-    f = f.replace(';new TextDecoder("utf8");', ';')
-    f = f.replace('}new TextDecoder("utf8");', '}')
-    f = f.replace(';new TextDecoder("utf-16le");', ';')
-    f = f.replace('}new TextDecoder("utf-16le");', '}')
-    f = re.sub(r'var (\w);\1\|\|\(\1=Module\);', r'var \1=Module;', f)
+	# https://github.com/google/closure-compiler/issues/3185
+	f = re.sub(r';new Int8Array\(\w+\);', ';', f)
+	f = re.sub(r';new Int16Array\(\w+\);', ';', f)
+	f = re.sub(r';new Int32Array\(\w+\);', ';', f)
+	f = re.sub(r';new Uint8Array\(\w+\);', ';', f)
+	f = re.sub(r';new Uint16Array\(\w+\);', ';', f)
+	f = re.sub(r';new Uint32Array\(\w+\);', ';', f)
+	f = re.sub(r';new Float32Array\(\w+\);', ';', f)
+	f = re.sub(r';new Float64Array\(\w+\);', ';', f)
+	f = f.replace(';new TextDecoder("utf8");', ';')
+	f = f.replace('}new TextDecoder("utf8");', '}')
+	f = f.replace(';new TextDecoder("utf-16le");', ';')
+	f = f.replace('}new TextDecoder("utf-16le");', '}')
+
+	# var a;a||(a=Module)
+	# ->
+	# var a=Module;
+	f = re.sub(r'var (\w);\1\|\|\(\1=Module\);', r'var \1=Module;', f)
+
+	# var Module=function(Module){Module =Module || {};var a=Module;
+	# ->
+	# var Module=function(a){
+	f = re.sub(r'\s*function\s*\(Module\)\s*{\s*Module\s*=\s*Module\s*\|\|\s*{\s*}\s*;\s*var\s+(\w+)\s*=\s*Module\s*;', r'function(\1){', f)
 
 f = re.sub(r'\s+', ' ', f)
 f = re.sub(r'[\n\s]+\n\s*', '\n', f)
