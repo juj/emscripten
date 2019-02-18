@@ -4,7 +4,7 @@ if (!({{{ASM_MODULE_NAME}}})) throw 'Must load asm.js Module in to variable {{{A
 
 #include "runtime_safe_heap.js"
 
-#if ASSERTIONS
+#if ASSERTIONS || SAFE_HEAP
 /** @type {function(*, string=)} */
 function assert(condition, text) {
   if (!condition) throw text;
@@ -109,6 +109,23 @@ var HEAPU16 = new Uint16Array(buffer);
 var HEAPU32 = new Uint32Array(buffer);
 var HEAPF32 = new Float32Array(buffer);
 var HEAPF64 = new Float64Array(buffer);
+
+#if ALLOW_MEMORY_GROWTH
+function updateGlobalBuffer(newBuffer) {
+  buffer = newBuffer;
+}
+
+function updateGlobalBufferViews() {
+  HEAP8 = new Int8Array(buffer);
+  HEAP16 = new Int16Array(buffer);
+  HEAP32 = new Int32Array(buffer);
+  HEAPU8 = new Uint8Array(buffer);
+  HEAPU16 = new Uint16Array(buffer);
+  HEAPU32 = new Uint32Array(buffer);
+  HEAPF32 = new Float32Array(buffer);
+  HEAPF64 = new Float64Array(buffer);
+}
+#endif
 
 #if !WASM
 HEAPU8.set(new Uint8Array(Module['mem']), GLOBAL_BASE);

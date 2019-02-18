@@ -1706,7 +1706,7 @@ int main(int argc, char **argv) {
     src = open(path_from_root('tests', 'core', 'test_runtime_stacksave.c')).read()
     self.do_run(src, 'success')
 
-  def test_memorygrowth(self):
+  def check_memory_growth(self):
     self.maybe_closure()
     self.emcc_args += ['-s', 'ALLOW_MEMORY_GROWTH=0'] # start with 0
     # With typed arrays in particular, it is dangerous to use more memory than TOTAL_MEMORY,
@@ -1722,26 +1722,21 @@ int main(int argc, char **argv) {
     self.do_run(src, '*pre: hello,4.955*\n*hello,4.955*\n*hello,4.955*')
     win = open('src.cpp.o.js').read()
 
-    if '-O2' in self.emcc_args and not self.is_wasm():
-      # Make sure ALLOW_MEMORY_GROWTH generates different code (should be less optimized)
-      possible_starts = ['// EMSCRIPTEN_START_FUNCS', 'var TOTAL_MEMORY']
-      code_start = None
-      for s in possible_starts:
-        if fail.find(s) >= 0:
-          code_start = s
-          break
-      assert code_start is not None, 'Generated code must contain one of ' + str(possible_starts)
-
-      fail = fail[fail.find(code_start):]
-      win = win[win.find(code_start):]
-      assert len(fail) < len(win), 'failing code - without memory growth on - is more optimized, and smaller' + str([len(fail), len(win)])
-
     # Tracing of memory growths should work
     self.set_setting('EMSCRIPTEN_TRACING', 1)
     self.emcc_args += ['--tracing']
     self.do_run(src, '*pre: hello,4.955*\n*hello,4.955*\n*hello,4.955*')
 
-  def test_memorygrowth_2(self):
+  def test_memorygrowth(self):
+    self.check_memory_growth()
+
+  @no_wasm_backend('Wasm backend does not yet support MINIMAL_RUNTIME')
+  @no_emterpreter
+  def test_minimal_runtime_memorygrowth(self):
+    self.emcc_args += ['-s', 'MINIMAL_RUNTIME=1']
+    self.check_memory_growth()
+
+  def check_memorygrowth_2(self):
     self.emcc_args += ['-s', 'ALLOW_MEMORY_GROWTH=0'] # start with 0
 
     emcc_args = self.emcc_args[:]
@@ -1762,18 +1757,27 @@ int main(int argc, char **argv) {
       self.do_run(src, '*pre: hello,4.955*\n*hello,4.955*\n*hello,4.955*')
       win = open('src.cpp.o.js').read()
 
-      if '-O2' in self.emcc_args and not self.is_wasm():
-        # Make sure ALLOW_MEMORY_GROWTH generates different code (should be less optimized)
-        code_start = 'var TOTAL_MEMORY'
-        fail = fail[fail.find(code_start):]
-        win = win[win.find(code_start):]
-        assert len(fail) < len(win), 'failing code - without memory growth on - is more optimized, and smaller' + str([len(fail), len(win)])
-
     test()
+
+  def test_memorygrowth_2(self):
+    self.check_memorygrowth_2()
+
+  @no_wasm_backend('Wasm backend does not yet support MINIMAL_RUNTIME')
+  @no_emterpreter
+  def test_minimal_runtime_memorygrowth_2(self):
+    self.emcc_args += ['-s', 'MINIMAL_RUNTIME=1']
+    self.check_memorygrowth_2()
 
   def test_memorygrowth_3(self):
     # checks handling of malloc failure properly
     self.emcc_args += ['-s', 'ALLOW_MEMORY_GROWTH=0', '-s', 'ABORTING_MALLOC=0', '-s', 'SAFE_HEAP']
+    self.do_run_in_out_file_test('tests', 'core', 'test_memorygrowth_3')
+
+  @no_wasm_backend('Wasm backend does not yet support MINIMAL_RUNTIME')
+  @no_emterpreter
+  def test_minimal_runtime_memorygrowth_3(self):
+    # checks handling of malloc failure properly
+    self.emcc_args += ['-s', 'MINIMAL_RUNTIME=1', '-s', 'ALLOW_MEMORY_GROWTH=0', '-s', 'ABORTING_MALLOC=0', '-s', 'SAFE_HEAP']
     self.do_run_in_out_file_test('tests', 'core', 'test_memorygrowth_3')
 
   def test_memorygrowth_wasm_mem_max(self):
