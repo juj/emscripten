@@ -285,7 +285,7 @@ def run_on_chunk(command):
     # avoid throwing keyboard interrupts from a child process
     raise Exception()
 
-def run_on_js(filename, passes, js_engine, source_map=False, extra_info=None, just_split=False, just_concat=False):
+def run_on_js(filename, passes, js_engine, source_map=False, extra_info=None, just_split=False, just_concat=False, extra_closure_externs=[], extra_closure_annotations=[]):
   with ToolchainProfiler.profile_block('js_optimizer.split_markers'):
     if not isinstance(passes, list):
       passes = [passes]
@@ -477,7 +477,7 @@ EMSCRIPTEN_FUNCS();
             f.write(suffix_marker)
         if closure:
           if DEBUG: print('running closure on shell code', file=sys.stderr)
-          cld = shared.Building.closure_compiler(cld, pretty='minifyWhitespace' not in passes)
+          cld = shared.Building.closure_compiler(cld, pretty='minifyWhitespace' not in passes, extra_closure_externs=extra_closure_externs, extra_closure_annotations=extra_closure_annotations)
           temp_files.note(cld)
         elif cleanup:
           if DEBUG: print('running cleanup on shell code', file=sys.stderr)
@@ -544,12 +544,12 @@ EMSCRIPTEN_FUNCS();
 
   return filename
 
-def run(filename, passes, js_engine=shared.NODE_JS, source_map=False, extra_info=None, just_split=False, just_concat=False):
+def run(filename, passes, js_engine=shared.NODE_JS, source_map=False, extra_info=None, just_split=False, just_concat=False, extra_closure_externs=[], extra_closure_annotations=[]):
   if 'receiveJSON' in passes: just_split = True
   if 'emitJSON' in passes: just_concat = True
   js_engine = shared.listify(js_engine)
   with ToolchainProfiler.profile_block('js_optimizer.run_on_js'):
-    return temp_files.run_and_clean(lambda: run_on_js(filename, passes, js_engine, source_map, extra_info, just_split, just_concat))
+    return temp_files.run_and_clean(lambda: run_on_js(filename, passes, js_engine, source_map, extra_info, just_split, just_concat, extra_closure_externs, extra_closure_annotations))
 
 if __name__ == '__main__':
   ToolchainProfiler.record_process_start()
