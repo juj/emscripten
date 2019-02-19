@@ -11,6 +11,16 @@ function assert(condition, text) {
 }
 #endif
 
+#if ASSERTIONS
+function warnOnce(text) {
+  if (!warnOnce.shown) warnOnce.shown = {};
+  if (!warnOnce.shown[text]) {
+    warnOnce.shown[text] = 1;
+    err(text);
+  }
+}
+#endif
+
 function abort(what) {
   throw what;
 }

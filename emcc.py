@@ -3074,6 +3074,14 @@ def worker_js_script(proxy_worker_filename):
   return web_gl_client_src + '\n' + proxy_client_src
 
 
+def remove_duplicates_preserve_order(input):
+  output = []
+  for x in input:
+    if x not in output:
+      output.append(x)
+  return output
+
+
 def process_libraries(libs, lib_dirs, settings_changes, input_files):
   libraries = []
 
@@ -3100,7 +3108,7 @@ def process_libraries(libs, lib_dirs, settings_changes, input_files):
 
   # Certain linker flags imply some link libraries to be pulled in by default.
   libraries += shared.Building.path_to_system_js_libraries_for_settings(settings_changes)
-  return 'SYSTEM_JS_LIBRARIES="' + ','.join(libraries) + '"'
+  return 'SYSTEM_JS_LIBRARIES="' + ','.join(remove_duplicates_preserve_order(libraries)) + '"'
 
 
 class ScriptSource(object):

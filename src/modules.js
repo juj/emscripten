@@ -192,10 +192,12 @@ var LibraryManager = {
     }
 
     if (USE_WEBGL2) {
+      libraries.push('library_webgl.js');
       libraries.push('library_webgl2.js');
     }
 
     if (LEGACY_GL_EMULATION) {
+      libraries.push('library_webgl.js');
       libraries.push('library_glemu.js');
     }
 

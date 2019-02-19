@@ -2788,7 +2788,7 @@ class Building(object):
     if 'USE_SDL=2' in link_settings:
       system_js_libraries += ['library_egl.js', 'library_webgl.js']
     if 'USE_WEBGL2=1' in link_settings:
-      system_js_libraries += ['library_webgl2.js']
+      system_js_libraries += ['library_webgl.js', 'library_webgl2.js']
     return [path_from_root('src', x) for x in system_js_libraries]
 
   @staticmethod
