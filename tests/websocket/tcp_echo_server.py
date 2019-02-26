@@ -1,4 +1,6 @@
-import socket, sys
+import socket
+import sys
+
 
 def listen():
   s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -13,6 +15,7 @@ def listen():
         break
       conn.sendall(data)
     conn.close()
+
 
 if __name__ == "__main__":
   listen()
