@@ -2,9 +2,10 @@
 
 #include <stdio.h>
 
-#if defined(__APPLE__) || defined(____linux__)
+#if defined(__APPLE__) || defined(__linux__)
 
 #include <sys/socket.h>
+#include <signal.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <netdb.h>
