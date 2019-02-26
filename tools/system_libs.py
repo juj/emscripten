@@ -685,8 +685,8 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
     system_libs += [Library('libpthreads_stub',  ext, create_pthreads_stub,  stub_pthreads_symbols,  [libc_name],  False)] # noqa
 
   if shared.Settings.PROXY_POSIX_SOCKETS:
-    system_libs.append(Library('libposix-sockets-proxy', ext, create_posix_proxy, [], [], False))
-    libc_deps += ['libposix-sockets-proxy']
+    system_libs.append(Library('libc-sockets-proxy', ext, create_posix_proxy, [], [], False))
+    libc_deps += ['libc-sockets-proxy']
   else:
     system_libs.append(Library(libc_name + '-sockets', ext, create_libc_sockets, libc_sockets_symbols, libc_deps, False))
     libc_deps += [libc_name + '-sockets']
