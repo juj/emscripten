@@ -2,10 +2,10 @@
          U __syscall102
          U __syscall221
          U __syscall_ret
+         U free
 -------- T accept
 -------- T bind
 -------- T connect
-         U free
 -------- T freeaddrinfo
 -------- T getpeername
 -------- T getsockname
