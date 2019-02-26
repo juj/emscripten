@@ -244,13 +244,13 @@ def main():
           return socket(0,0,0);
         }
       ''', ['libc-sockets.bc'])
-    elif what == 'posix_proxy':
+    elif what == 'libc-sockets-proxy':
       build('''
         #include <sys/socket.h>
         int main() {
           return socket(0,0,0);
         }
-      ''', ['libposix-sockets-proxy.bc'], ['-s', 'PROXY_POSIX_SOCKETS=1', '-s', 'USE_PTHREADS=1', '-s', 'PROXY_TO_PTHREAD=1'])
+      ''', ['libc-sockets-proxy.bc'], ['-s', 'PROXY_POSIX_SOCKETS=1', '-s', 'USE_PTHREADS=1', '-s', 'PROXY_TO_PTHREAD=1'])
     else:
       logger.error('unfamiliar build target: ' + what)
       return 1
