@@ -7976,7 +7976,7 @@ int main() {
                    0, [],        [],           8,   0,    0,  0), # noqa; totally empty!
         # we don't metadce with linkable code! other modules may want stuff
         (['-O3', '-s', 'MAIN_MODULE=1'],
-                1569, [],        [],      226403,  28,   93 None), # noqa; don't compare the # of functions in a main module, which changes a lot
+                1569, [],        [],      226403,  28,   93, None), # noqa; don't compare the # of functions in a main module, which changes a lot
       ]) # noqa
 
   # ensures runtime exports work, even with metadce
