@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 
 // Uncomment to enable debug printing
 // #define POSIX_SOCKET_DEBUG
@@ -20,6 +21,14 @@
 
 extern "C"
 {
+
+in_addr_t inet_addr(const char *cp)
+{
+	struct in_addr val;
+	if (inet_aton(cp, &val))
+		return val.s_addr;
+	return INADDR_NONE;
+}
 
 static void *memdup(const void *ptr, size_t sz)
 {
