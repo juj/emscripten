@@ -2589,6 +2589,7 @@ class Building(object):
       logger.debug('closure compiler: ' + ' '.join(args))
       proc = run_process(args, stderr=PIPE, check=False)
       if proc.returncode != 0:
+        sys.stderr.write(open(filename, 'r').read())
         sys.stderr.write(proc.stderr)
         exit_with_error('closure compiler failed (rc: %d)', proc.returncode)
 

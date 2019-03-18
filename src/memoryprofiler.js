@@ -376,8 +376,9 @@ var emscriptenMemoryProfiler = {
           calls.sort(function(a,b) { return b[sortIdx] - a[sortIdx]; });
         }
         html += '<h4>Allocation sites with more than ' + this.formatBytes(this.trackedCallstackMinSizeBytes) + ' of accumulated allocations, or more than ' + this.trackedCallstackMinAllocCount + ' simultaneously outstanding allocations:</h4>'
+        var demangler = typeof demangleAll !== 'undefined' ? demangleAll : function(x) { return x; };
         for (var i in calls) {
-          if (calls[i].length == 3) calls[i] = [calls[i][0], calls[i][1], calls[i][2], demangleAll(calls[i][2])];
+          if (calls[i].length == 3) calls[i] = [calls[i][0], calls[i][1], calls[i][2], demangler(calls[i][2])];
           html += "<b>" + this.formatBytes(calls[i][1]) + '/' + calls[i][0] + " allocs</b>: " + calls[i][3] + "<br />";
         }
       }
