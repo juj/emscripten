@@ -80,7 +80,9 @@ var LibraryManager = {
       libraries.push('library_exceptions.js');
     }
 
-    if (!MINIMAL_RUNTIME) {
+    if (MINIMAL_RUNTIME) {
+      libraries.push('library_stack_trace.js');
+    } else {
       libraries.push('library_browser.js');
     }
 

@@ -773,7 +773,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       options.post_js += open(shared.path_from_root('src', 'cpuprofiler.js')).read() + '\n'
 
     if options.memory_profiler:
-      options.post_js += open(shared.path_from_root('src', 'memoryprofiler.js')).read() + '\n'
+      shared.Settings.MEMORYPROFILER = 1
 
     if options.thread_profiler:
       options.post_js += open(shared.path_from_root('src', 'threadprofiler.js')).read() + '\n'
@@ -1306,6 +1306,9 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     # variables. This provides safety via encapsulation. See src/shell_minimal_runtime.html for an example.
     if shared.Settings.MINIMAL_RUNTIME and not shared.Settings.SEPARATE_ASM_MODULE_NAME and not shared.Settings.WASM and shared.Settings.MODULARIZE:
       shared.Settings.SEPARATE_ASM_MODULE_NAME = 'var ' + shared.Settings.EXPORT_NAME
+
+    if not shared.Settings.MINIMAL_RUNTIME:
+      options.post_js += open(shared.path_from_root('src', 'memoryprofiler.js')).read() + '\n'
 
     if shared.Settings.MODULARIZE and shared.Settings.SEPARATE_ASM and not shared.Settings.WASM and not shared.Settings.SEPARATE_ASM_MODULE_NAME:
       exit_with_error('Targeting asm.js with --separate-asm and -s MODULARIZE=1 requires specifying the target variable name to which the asm.js module is loaded into. See https://github.com/emscripten-core/emscripten/pull/7949 for details')
