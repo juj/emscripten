@@ -47,12 +47,25 @@
 #endif // WASM
 #else // MODULARIZE
   var Module = {};
+#if USE_PTHREADS
+  Module['worker'] = "{{{ PTHREAD_WORKER_FILE }}}";
+#endif
+
 #if WASM
+#if MEM_INIT_METHOD == 1
+  Promise.all([b('{{{ TARGET_BASENAME }}}.js'), b('{{{ TARGET_BASENAME }}}.wasm'), b('{{{ TARGET_BASENAME }}}.mem')]).then((r) => {
+    Module.wasm = r[1];
+    Module.mem = r[2];
+    var url = URL.createObjectURL(new Blob([r[0]], { type: 'application/javascript' }));
+    s(url).then(() => { URL.revokeObjectURL(url) });
+  });
+#else
   Promise.all([b('{{{ TARGET_BASENAME }}}.js'), b('{{{ TARGET_BASENAME }}}.wasm')]).then((r) => {
     Module.wasm = r[1];
     var url = URL.createObjectURL(new Blob([r[0]], { type: 'application/javascript' }));
     s(url).then(() => { URL.revokeObjectURL(url) });
   });
+#endif
 #else
 #if MEM_INIT_METHOD == 1
   Promise.all([b('{{{ TARGET_BASENAME }}}.js'), s('{{{ TARGET_BASENAME }}}.asm.js'), b('{{{ TARGET_BASENAME }}}.mem')]).then((r) => {

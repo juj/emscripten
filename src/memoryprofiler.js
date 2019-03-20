@@ -3,6 +3,8 @@
 // University of Illinois/NCSA Open Source License.  Both these licenses can be
 // found in the LICENSE file.
 
+#if MEMORYPROFILER
+
 var emscriptenMemoryProfiler = {
   // If true, walks all allocated pointers at graphing time to print a detailed memory fragmentation map. If false, used
   // memory is only graphed in one block (at the bottom of DYNAMIC memory space). Set this to false to improve performance at the expense of
@@ -317,6 +319,7 @@ var emscriptenMemoryProfiler = {
     html += '. STACK_MAX: ' + toHex(STACK_MAX, width) + '.';
     html += '<br />STACK memory area used now (should be zero): ' + this.formatBytes(STACKTOP - STACK_BASE) + '.' + colorBar('#FFFF00') + ' STACK watermark highest seen usage (approximate lower-bound!): ' + this.formatBytes(this.stackTopWatermark - STACK_BASE);
 
+    var DYNAMIC_BASE = {{{ getQuoted('DYNAMIC_BASE') }}};
     var DYNAMICTOP = HEAP32[DYNAMICTOP_PTR>>2];
     html += "<br />DYNAMIC memory area size: " + this.formatBytes(DYNAMICTOP - DYNAMIC_BASE);
     html += ". DYNAMIC_BASE: " + toHex(DYNAMIC_BASE, width);
@@ -391,3 +394,5 @@ var emscriptenMemoryProfiler = {
 function memoryprofiler_add_hooks() { emscriptenMemoryProfiler.initialize(); }
 
 if (typeof Module !== 'undefined' && typeof document !== 'undefined' && typeof window !== 'undefined' && typeof process === 'undefined') emscriptenMemoryProfiler.initialize();
+
+#endif // ~MEMORYPROFILER
