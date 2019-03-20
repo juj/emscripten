@@ -106,7 +106,14 @@ WebAssembly.instantiate(Module['wasm'], imports).then(function(output) {
 
 // Initialize asm.js (synchronous)
 #if ASSERTIONS
-if (!Module['mem']) throw 'Must load memory initializer as an ArrayBuffer in to variable Module.mem before adding compiled output .js script to the DOM';
+#if USE_PTHREADS
+if (!ENVIRONMENT_IS_PTHREAD) {
+#endif
+  if (!Module['mem']) throw 'Must load memory initializer as an ArrayBuffer in to variable Module.mem before adding compiled output .js script to the DOM';
+#if USE_PTHREADS
+}
+#endif
+
 #endif
 initRuntime(asm);
 ready();

@@ -22,7 +22,6 @@ var STACK_MAX = 0;
 var buffer; // All pthreads share the same Emscripten HEAP as SharedArrayBuffer with the main execution thread.
 var DYNAMICTOP_PTR = 0;
 var TOTAL_MEMORY = 0;
-var DYNAMIC_BASE = 0;
 
 var ENVIRONMENT_IS_PTHREAD = true;
 var PthreadWorkerInit = {};
@@ -93,7 +92,6 @@ this.onmessage = function(e) {
 
       // Initialize the global "process"-wide fields:
       {{{ makeAsmExportAndGlobalAssignTargetInPthread('TOTAL_MEMORY') }}} = e.data.TOTAL_MEMORY;
-      {{{ makeAsmExportAndGlobalAssignTargetInPthread('DYNAMIC_BASE') }}} = e.data.DYNAMIC_BASE;
       {{{ makeAsmExportAndGlobalAssignTargetInPthread('DYNAMICTOP_PTR') }}} = e.data.DYNAMICTOP_PTR;
 
 #if WASM
@@ -109,7 +107,11 @@ this.onmessage = function(e) {
       {{{ makeAsmExportAccessInPthread('STACK_MAX') }}} = {{{ makeAsmExportAccessInPthread('STACKTOP') }}}  = 0x7FFFFFFF;
 
       // Module and memory were sent from main thread
+#if MINIMAL_RUNTIME
+      Module['wasm'] = e.data.wasmModule;
+#else
       {{{ makeAsmExportAndGlobalAssignTargetInPthread('wasmModule') }}} = e.data.wasmModule;
+#endif
       {{{ makeAsmExportAndGlobalAssignTargetInPthread('wasmMemory') }}} = e.data.wasmMemory;
       {{{ makeAsmExportAndGlobalAssignTargetInPthread('buffer') }}} = {{{ makeAsmGlobalAccessInPthread('wasmMemory') }}}.buffer;
 #else
@@ -168,7 +170,7 @@ this.onmessage = function(e) {
       assert(STACK_MAX > STACK_BASE);
 #endif
       // Call inside asm.js/wasm module to set up the stack frame for this pthread in asm.js/wasm module scope
-      Module['establishStackSpace'](e.data.stackBase, e.data.stackBase + e.data.stackSize);
+      {{{ makeAsmGlobalAccessInPthread('establishStackSpace') }}}(e.data.stackBase, e.data.stackBase + e.data.stackSize);
 #if MODULARIZE
       // Also call inside JS module to set up the stack frame for this pthread in JS module scope
       Module['establishStackSpaceInJsModule'](e.data.stackBase, e.data.stackBase + e.data.stackSize);
