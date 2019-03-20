@@ -70,15 +70,27 @@ var imports = {
 #endif
 };
 
-#if ASSERTIONS
-if (!Module['wasm']) throw 'Must load WebAssembly Module in to variable Module.wasm before adding compiled output .js script to the DOM';
-#endif
-
 #if DECLARE_ASM_MODULE_EXPORTS
 /*** ASM_MODULE_EXPORTS_DECLARES ***/
 #endif
 
+#if BINARYEN_ASYNC_COMPILATION
+#if USE_PTHREADS
+// In multithreaded BINARYEN_ASYNC_COMPILATION mode, we will use streaming WebAssembly compilation on the main thread, but pthreads
+// will synchronously instantiate the content that is posted to them via the Worker pipe.
+(ENVIRONMENT_IS_PTHREAD ? WebAssembly.instantiate(Module['wasm'], imports) : WebAssembly.instantiateStreaming(fetch('{{{ TARGET_BASENAME }}}.wasm'), imports)).then(function(output) {
+  Module['wasm'] = output.module; // Store the compiled Wasm Module so that main thread can pass it on to pthreads to load.
+#else
+// In singlethreaded BINARYEN_ASYNC_COMPILATION mode, we will use streaming WebAssembly compilation.
+WebAssembly.instantiateStreaming(fetch('{{{ TARGET_BASENAME }}}.wasm'), imports).then(function(output) {
+#endif
+#else
+#if ASSERTIONS
+// In synchronous Wasm compilation mode, Module['wasm'] should contain a typed array of the Wasm object data.
+if (!Module['wasm']) throw 'Must load WebAssembly Module in to variable Module.wasm before adding compiled output .js script to the DOM';
+#endif
 WebAssembly.instantiate(Module['wasm'], imports).then(function(output) {
+#endif
   var asm = output.instance.exports;
 #if DECLARE_ASM_MODULE_EXPORTS == 0
 

@@ -294,6 +294,7 @@ function JSify(data, functionsOnly) {
         contentText = 'var ' + finalName + snippet;
         if (snippet[snippet.length-1] != ';' && snippet[snippet.length-1] != '}') contentText += ';';
       } else {
+        if (typeof snippet === 'string' && snippet[0] == '=') snippet = snippet.substr(1);
         contentText = 'var ' + finalName + '=' + snippet + ';';
       }
       var sig = LibraryManager.library[ident + '__sig'];
