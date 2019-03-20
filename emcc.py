@@ -1902,7 +1902,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       js_libraries = None
       if options.js_libraries:
         js_libraries = [os.path.abspath(lib) for lib in options.js_libraries]
-      if options.memory_init_file:
+      if options.memory_init_file and (not shared.Settings.WASM or shared.Settings.USE_PTHREADS):
         shared.Settings.MEM_INIT_METHOD = 1
       else:
         assert shared.Settings.MEM_INIT_METHOD != 1
