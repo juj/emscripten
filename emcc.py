@@ -1089,8 +1089,13 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       # These runtime methods are called from worker.js
       shared.Settings.EXPORTED_RUNTIME_METHODS += ['dynCall_ii']
       if shared.Settings.MINIMAL_RUNTIME:
-        shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE += ['$establishStackSpace']
+        shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE += ['$establishStackSpace', '$exit']
         shared.Settings.EXPORTED_FUNCTIONS += ['establishStackSpace']
+
+        # TODO: For some reason, 'pthread_create' is not noticed as a dependency for purposes of JS->C dependencies trakcing,
+        # and even when src/deps_info.json contains a reference that 'pthread_create' depends on 'malloc' and 'free', those
+        # are not processed, since linker is not thinking that 'pthread_create' is even going to be linked in to the program.
+        shared.Settings.EXPORTED_FUNCTIONS += ['_malloc', '_free']
       else:
         shared.Settings.EXPORTED_RUNTIME_METHODS += ['establishStackSpace']
 
@@ -1472,10 +1477,6 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       if shared.Settings.EMTERPRETIFY:
         exit_with_error('-s EMTERPRETIFY=1 is not supported with -s MINIMAL_RUNTIME=1')
 
-      if shared.Settings.PTHREAD_POOL_SIZE > 0:
-        # Supporting PTHREAD_POOL_SIZE > 0 in MINIMAL_RUNTIME would be possible, although not yet done. Contributions welcome.
-        exit_with_error('Prewarming a pthread pool is not supported with MINIMAL_RUNTIME! (if you feel like you need a precreated pthread pool to avoid deadlocks, use PROXY_TO_PTHREAD=1 setting instead.')
-
       if shared.Settings.PRECISE_F32 == 2:
         exit_with_error('-s PRECISE_F32=2 is not supported with -s MINIMAL_RUNTIME=1')
 
@@ -1513,10 +1514,6 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE = []
       options.separate_asm = True
       shared.Settings.FINALIZE_ASM_JS = False
-
-    # MINIMAL_RUNTIME always use separate .asm.js file for best performance and memory usage
-    if shared.Settings.MINIMAL_RUNTIME and not shared.Settings.WASM:
-      options.separate_asm = True
 
     if shared.Settings.GLOBAL_BASE < 0:
       shared.Settings.GLOBAL_BASE = 8 # default if nothing else sets it

@@ -286,6 +286,12 @@ LibraryManager.library = {
   _Exit__sig: 'vi',
   _Exit: 'exit',
 
+#if MINIMAL_RUNTIME
+  $exit: function(status) {
+    throw 'exit(' + status + ')';
+  },
+#endif
+
   fork__deps: ['__setErrNo'],
   fork: function() {
     // pid_t fork(void);

@@ -36,34 +36,42 @@
 #endif
 #endif
 
+function revokeURL(url) {
+#if !USE_PTHREADS
+    // In multithreaded builds, the runtime .js script we are loading will need to be kept alive
+    // so that pthread workers can load that same script for each created Worker.
+    URL.revokeObjectURL(url)
+#endif
+}
+
 // Depending on the build flags that one uses, different files need to be downloaded
 // to load the compiled page. What follows is a matrix of all different combinations that
 // affect how code is downloaded. When developing your own shell file, you can copy the whole
 // matrix, or just focus on a single/specific set of download schemes to use.
 
-#if MODULARIZE && WASM && BINARYEN_ASYNC_COMPILATION && MEM_INIT_METHOD == 0
-  // Modularize + async wasm compilation, no separate .mem init file
+#if MODULARIZE && WASM && STREAMING_WASM_COMPILATION && MEM_INIT_METHOD == 0
+  // Modularize + streaming wasm compilation, no separate .mem init file
   s('{{{ TARGET_BASENAME }}}.js').then((r) => {
     r();
   });
 #endif
 
-#if MODULARIZE && WASM && BINARYEN_ASYNC_COMPILATION && MEM_INIT_METHOD == 1
-  // Modularize + async wasm compilation, separate .mem init file
+#if MODULARIZE && WASM && STREAMING_WASM_COMPILATION && MEM_INIT_METHOD == 1
+  // Modularize + streaming wasm compilation, separate .mem init file
   Promise.all([s('{{{ TARGET_BASENAME }}}.js'), b('{{{ TARGET_BASENAME }}}.mem')]).then((r) => {
     r[0]({ mem: r[1] });
   });
 #endif
 
-#if MODULARIZE && WASM && !BINARYEN_ASYNC_COMPILATION && MEM_INIT_METHOD == 0
-  // Modularize + sync wasm compilation, no separate .mem init file
+#if MODULARIZE && WASM && !STREAMING_WASM_COMPILATION && MEM_INIT_METHOD == 0
+  // Modularize + no streaming wasm compilation, no separate .mem init file
   Promise.all([s('{{{ TARGET_BASENAME }}}.js'), b('{{{ TARGET_BASENAME }}}.wasm')]).then((r) => {
     r[0]({ wasm: r[1] });
   });
 #endif
 
-#if MODULARIZE && WASM && !BINARYEN_ASYNC_COMPILATION && MEM_INIT_METHOD == 1
-  // Modularize + sync wasm compilation, separate .mem init file
+#if MODULARIZE && WASM && !STREAMING_WASM_COMPILATION && MEM_INIT_METHOD == 1
+  // Modularize + no streaming wasm compilation, separate .mem init file
   Promise.all([s('{{{ TARGET_BASENAME }}}.js'), b('{{{ TARGET_BASENAME }}}.wasm'), b('{{{ TARGET_BASENAME }}}.mem')]).then((r) => {
     r[0]({ wasm: r[1], mem: r[2] });
   });
@@ -97,36 +105,36 @@
   });
 #endif
 
-#if !MODULARIZE && WASM && BINARYEN_ASYNC_COMPILATION && MEM_INIT_METHOD == 0
-  // No modularize, async wasm compilation, no separate .mem init file
+#if !MODULARIZE && WASM && STREAMING_WASM_COMPILATION && MEM_INIT_METHOD == 0
+  // No modularize, streaming wasm compilation, no separate .mem init file
   s('{{{ TARGET_BASENAME }}}.js');
 #endif
 
-#if !MODULARIZE && WASM && BINARYEN_ASYNC_COMPILATION && MEM_INIT_METHOD == 1
-  // No modularize, async wasm compilation, separate .mem init file
+#if !MODULARIZE && WASM && STREAMING_WASM_COMPILATION && MEM_INIT_METHOD == 1
+  // No modularize, streaming wasm compilation, separate .mem init file
   Promise.all([b('{{{ TARGET_BASENAME }}}.js'), b('{{{ TARGET_BASENAME }}}.mem')]).then((r) => {
     Module.mem = r[1];
     var url = URL.createObjectURL(new Blob([r[0]], { type: 'application/javascript' }));
-    s(url).then(() => { URL.revokeObjectURL(url) });
+    s(url).then(() => { revokeURL(url) });
   });
 #endif
 
-#if !MODULARIZE && WASM && !BINARYEN_ASYNC_COMPILATION && MEM_INIT_METHOD == 0
-  // No modularize, sync wasm compilation, no separate .mem init file
+#if !MODULARIZE && WASM && !STREAMING_WASM_COMPILATION && MEM_INIT_METHOD == 0
+  // No modularize, no streaming wasm compilation, no separate .mem init file
   Promise.all([b('{{{ TARGET_BASENAME }}}.js'), b('{{{ TARGET_BASENAME }}}.wasm')]).then((r) => {
     Module.wasm = r[1];
     var url = URL.createObjectURL(new Blob([r[0]], { type: 'application/javascript' }));
-    s(url).then(() => { URL.revokeObjectURL(url) });
+    s(url).then(() => { revokeURL(url) });
   });
 #endif
 
-#if !MODULARIZE && WASM && !BINARYEN_ASYNC_COMPILATION && MEM_INIT_METHOD == 1
-  // No modularize, sync wasm compilation, separate .mem init file
+#if !MODULARIZE && WASM && !STREAMING_WASM_COMPILATION && MEM_INIT_METHOD == 1
+  // No modularize, no streaming wasm compilation, separate .mem init file
   Promise.all([b('{{{ TARGET_BASENAME }}}.js'), b('{{{ TARGET_BASENAME }}}.wasm'), b('{{{ TARGET_BASENAME }}}.mem')]).then((r) => {
     Module.wasm = r[1];
     Module.mem = r[2];
     var url = URL.createObjectURL(new Blob([r[0]], { type: 'application/javascript' }));
-    s(url).then(() => { URL.revokeObjectURL(url) });
+    s(url).then(() => { revokeURL(url) });
   });
 #endif
 
@@ -140,7 +148,7 @@
   Promise.all([b('{{{ TARGET_BASENAME }}}.js'), b('{{{ TARGET_BASENAME }}}.mem')]).then((r) => {
     Module.mem = r[1];
     var url = URL.createObjectURL(new Blob([r[0]], { type: 'application/javascript' }));
-    s(url).then(() => { URL.revokeObjectURL(url) });
+    s(url).then(() => { revokeURL(url) });
   });
 #endif
 
@@ -148,7 +156,7 @@
   // No modularize, asm.js in its own file, no separate .mem init file
   Promise.all([b('{{{ TARGET_BASENAME }}}.js'), s('{{{ TARGET_BASENAME }}}.asm.js')]).then((r) => {
     var url = URL.createObjectURL(new Blob([r[0]], { type: 'application/javascript' }));
-    s(url).then(() => { URL.revokeObjectURL(url) });
+    s(url).then(() => { revokeURL(url) });
   });
 #endif
 
@@ -157,7 +165,7 @@
   Promise.all([b('{{{ TARGET_BASENAME }}}.js'), s('{{{ TARGET_BASENAME }}}.asm.js'), b('{{{ TARGET_BASENAME }}}.mem')]).then((r) => {
     Module.mem = r[2];
     var url = URL.createObjectURL(new Blob([r[0]], { type: 'application/javascript' }));
-    s(url).then(() => { URL.revokeObjectURL(url) });
+    s(url).then(() => { revokeURL(url) });
   });
 #endif
 

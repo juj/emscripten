@@ -214,18 +214,20 @@ function JSify(data, functionsOnly) {
       var isFunction = false;
 
       if (typeof snippet === 'string') {
-        var target = LibraryManager.library[snippet];
-        if (target) {
-          // Redirection for aliases. We include the parent, and at runtime make ourselves equal to it.
-          // This avoid having duplicate functions with identical content.
-          redirectedIdent = snippet;
-          deps.push(snippet);
-          snippet = mangleFunctionName(snippet);
-        }
-        // In asm, we need to know about library functions. If there is a target, though, then no
-        // need to consider this a library function - we will call directly to it anyhow
-        if (!redirectedIdent && (typeof target == 'function' || /Math_\w+/.exec(snippet))) {
-          Functions.libraryFunctions[finalName] = 1;
+        if (snippet[0] != '=') {
+          var target = LibraryManager.library[snippet];
+          if (target) {
+            // Redirection for aliases. We include the parent, and at runtime make ourselves equal to it.
+            // This avoid having duplicate functions with identical content.
+            redirectedIdent = snippet;
+            deps.push(snippet);
+            snippet = mangleFunctionName(snippet);
+          }
+          // In asm, we need to know about library functions. If there is a target, though, then no
+          // need to consider this a library function - we will call directly to it anyhow
+          if (!redirectedIdent && (typeof target == 'function' || /Math_\w+/.exec(snippet))) {
+            Functions.libraryFunctions[finalName] = 1;
+          }
         }
       } else if (typeof snippet === 'object') {
         snippet = stringifyWithFunctions(snippet);
@@ -279,10 +281,10 @@ function JSify(data, functionsOnly) {
           var hasArgs = original.length > 0;
           if (hasArgs) {
             // If the function takes parameters, forward those to the proxied function call
-            var processedSnippet = snippet.replace(/function\s+(.*)?\s*\((.*?)\)\s*{/, 'function $1($2) {\nif (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(' + proxiedFunctionTable.length + ', ' + (+sync) + ', $2);');
+            var processedSnippet = snippet.replace(/function\s+(.*)?\s*\(((.|\s)*?)\)\s*{/, 'function $1($2) {\nif (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(' + proxiedFunctionTable.length + ', ' + (+sync) + ', $2);');
           } else {
             // No parameters to the function
-            var processedSnippet = snippet.replace(/function\s+(.*)?\s*\((.*?)\)\s*{/, 'function $1() {\nif (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(' + proxiedFunctionTable.length + ', ' + (+sync) + ');');
+            var processedSnippet = snippet.replace(/function\s+(.*)?\s*\(((.|\s)*?)\)\s*{/, 'function $1() {\nif (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(' + proxiedFunctionTable.length + ', ' + (+sync) + ');');
           }
           if (processedSnippet == snippet) throw 'Failed to regex parse function to add pthread proxying preamble to it! Function: ' + snippet;
           contentText = processedSnippet;
@@ -294,6 +296,7 @@ function JSify(data, functionsOnly) {
         contentText = 'var ' + finalName + snippet;
         if (snippet[snippet.length-1] != ';' && snippet[snippet.length-1] != '}') contentText += ';';
       } else {
+        if (snippet[0] == '=') snippet = snippet.substr(1);
         contentText = 'var ' + finalName + '=' + snippet + ';';
       }
       var sig = LibraryManager.library[ident + '__sig'];
