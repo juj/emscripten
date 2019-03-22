@@ -197,7 +197,7 @@ var LibraryManager = {
         var target = x;
         while (typeof lib[target] === 'string') {
           // ignore code, aliases are just simple names
-          if (lib[target].search(/[({; ]/) >= 0) continue libloop;
+          if (lib[target].search(/[=({; ]/) >= 0) continue libloop;
           // ignore trivial pass-throughs to Math.*
           if (lib[target].indexOf('Math_') == 0) continue libloop;
           target = lib[target];

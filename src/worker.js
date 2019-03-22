@@ -151,7 +151,7 @@ this.onmessage = function(e) {
       Module['wasmInstance'].then(() => {
 #endif
 #if !ASMFS
-      if (typeof FS !== 'undefined' && typeof FS.createStandardStreams === 'function') FS.createStandardStreams();
+        if (typeof FS !== 'undefined' && typeof FS.createStandardStreams === 'function') FS.createStandardStreams();
 #endif
         postMessage({ cmd: 'loaded' });
 #if MINIMAL_RUNTIME && WASM
@@ -196,7 +196,7 @@ this.onmessage = function(e) {
         // enable that to work. If you find the following line to crash, either change the signature
         // to "proper" void *ThreadMain(void *arg) form, or try linking with the Emscripten linker
         // flag -s EMULATE_FUNCTION_POINTER_CASTS=1 to add in emulation for this x86 ABI extension.
-        var result = Module['dynCall_ii'](e.data.start_routine, e.data.arg);
+        var result = {{{ makeDynCall('ii') }}}(e.data.start_routine, e.data.arg);
 
 #if STACK_OVERFLOW_CHECK
         {{{ makeAsmGlobalAccessInPthread('checkStackCookie') }}}();
@@ -206,13 +206,21 @@ this.onmessage = function(e) {
         if (e === 'Canceled!') {
           PThread.threadCancel();
           return;
-        } else if (e === 'SimulateInfiniteLoop' || e === 'pthread_exit') {
+        } else if (e == 'SimulateInfiniteLoop' || e == 'pthread_exit' || e == 'unwind') {
           return;
         } else {
+#if MINIMAL_RUNTIME
+          Atomics.store(HEAPU32, (threadInfoStruct + 4 /*C_STRUCTS.pthread.threadExitCode*/ ) >> 2, -2 /*A custom entry specific to Emscripten denoting that the thread crashed.*/);
+#else
           Atomics.store(HEAPU32, (threadInfoStruct + 4 /*C_STRUCTS.pthread.threadExitCode*/ ) >> 2, (e instanceof {{{ makeAsmGlobalAccessInPthread('ExitStatus') }}}) ? e.status : -2 /*A custom entry specific to Emscripten denoting that the thread crashed.*/);
+#endif
           Atomics.store(HEAPU32, (threadInfoStruct + 0 /*C_STRUCTS.pthread.threadStatus*/ ) >> 2, 1); // Mark the thread as no longer running.
           {{{ makeAsmGlobalAccessInPthread('_emscripten_futex_wake') }}}(threadInfoStruct + 0 /*C_STRUCTS.pthread.threadStatus*/, 0x7FFFFFFF/*INT_MAX*/); // Wake all threads waiting on this thread to finish.
+#if MINIMAL_RUNTIME
+          throw e;
+#else
           if (!(e instanceof {{{ makeAsmGlobalAccessInPthread('ExitStatus') }}})) throw e;
+#endif
         }
       }
       // The thread might have finished without calling pthread_exit(). If so, then perform the exit operation ourselves.

@@ -3782,8 +3782,9 @@ window.close = function() {
   @requires_sync_compilation
   def test_pthread_global_data_initialization_in_sync_compilation_mode(self):
     for mem_init_mode in [[], ['--memory-init-file', '0'], ['--memory-init-file', '1'], ['-s', 'MEM_INIT_METHOD=2', '-s', 'WASM=0']]:
-      args = ['-s', 'BINARYEN_ASYNC_COMPILATION=0']
-      self.btest(path_from_root('tests', 'pthread', 'test_pthread_global_data_initialization.c'), expected='20', args=args + mem_init_mode + ['-s', 'USE_PTHREADS=1', '-s', 'PROXY_TO_PTHREAD=1', '-s', 'PTHREAD_POOL_SIZE=1'])
+      args = ['-s', 'BINARYEN_ASYNC_COMPILATION=0'] + mem_init_mode + ['-s', 'USE_PTHREADS=1', '-s', 'PROXY_TO_PTHREAD=1', '-s', 'PTHREAD_POOL_SIZE=1']
+      print(str(args))
+      self.btest(path_from_root('tests', 'pthread', 'test_pthread_global_data_initialization.c'), expected='20', args=args)
 
   # Test that emscripten_get_now() reports coherent wallclock times across all pthreads, instead of each pthread independently reporting wallclock times since the launch of that pthread.
   @requires_threads

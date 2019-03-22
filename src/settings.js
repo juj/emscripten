@@ -1081,6 +1081,12 @@ var WASM_MEM_MAX = -1;
 // smallest modules to run in V8
 var BINARYEN_ASYNC_COMPILATION = 1;
 
+// If set to 1, MINIMAL_RUNTIME will utilize streaming WebAssembly compilation
+// (via WebAssembly.instantiateStreaming). This requires the MIME type of the
+// application to be set correctly. If set to 0, non-streaming compilation
+// (via WebAssembly.instantiate) will be used.
+var STREAMING_WASM_COMPILATION = 1;
+
 // WebAssembly defines a "producers section" which compilers and tools can
 // annotate themselves in. Emscripten does not emit this by default, as it
 // increases code size, and some users may not want information about their tools
