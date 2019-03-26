@@ -147,14 +147,14 @@ this.onmessage = function(e) {
       HEAPU32 = Module['HEAPU32'];
 #endif
 
-#if MINIMAL_RUNTIME
+#if MINIMAL_RUNTIME && WASM
       Module['wasmInstance'].then(() => {
 #endif
 #if !ASMFS
         if (typeof FS !== 'undefined' && typeof FS.createStandardStreams === 'function') FS.createStandardStreams();
 #endif
         postMessage({ cmd: 'loaded' });
-#if MINIMAL_RUNTIME
+#if MINIMAL_RUNTIME && WASM
       });
 #endif
     } else if (e.data.cmd === 'objectTransfer') {
