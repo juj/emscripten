@@ -74,7 +74,8 @@ var imports = {
 /*** ASM_MODULE_EXPORTS_DECLARES ***/
 #endif
 
-#if STREAMING_WASM_COMPILATION
+// Streaming Wasm compilation is not possible in Node.js, it does not support the fetch() API.
+#if STREAMING_WASM_COMPILATION && !ENVIRONMENT_MAY_BE_NODE
 #if USE_PTHREADS
 // In multithreaded STREAMING_WASM_COMPILATION mode, we will use streaming WebAssembly compilation on the main thread, but pthreads
 // will synchronously instantiate the content that is posted to them via the Worker pipe.

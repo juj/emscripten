@@ -135,6 +135,7 @@ if (!ENVIRONMENT_IS_PTHREAD) {
 #endif
 
 #include "runtime_stack_check.js"
+#include "runtime_assertions.js"
 
 #if ASSERTIONS
 var runtimeInitialized = false;

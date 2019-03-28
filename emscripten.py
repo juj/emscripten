@@ -1667,10 +1667,8 @@ def create_receiving(function_table_data, function_tables_defs, exported_impleme
     runtime_assertions = RUNTIME_ASSERTIONS
     # assert on the runtime being in a valid state when calling into compiled code. The only exceptions are
     # some support code
-    receiving = [f for f in exported_implemented_functions if f not in ('_memcpy', '_memset', '_emscripten_replace_memory', '__start_module')]
-    receiving = '\n'.join('var real_' + s + ' = asm["' + s + '"]; asm["' + s + '''"] = function() {''' + runtime_assertions + '''  return real_''' + s + '''.apply(null, arguments);
-};
-''' for s in receiving)
+    received_functions = [f for f in exported_implemented_functions if f not in ('_memcpy', '_memset', '_emscripten_replace_memory', '__start_module')]
+    receiving = ''.join(['wrapAssertRuntimeReady("' + s + '");\n' for s in received_functions]) + '\n'
 
   shared.Settings.MODULE_EXPORTS = module_exports = exported_implemented_functions + function_tables(function_table_data)
 

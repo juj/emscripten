@@ -480,11 +480,16 @@ function exportRuntime() {
       }
     }
   }
-  return runtimeElements.map(function(name) {
+  function removeEmptyElements(x) {
+    return x.filter(function(e) {
+      return e != null;
+    })
+  }
+  return removeEmptyElements(runtimeElements.map(function(name) {
     return maybeExport(name);
-  }).join('\n') + runtimeNumbers.map(function(name) {
+  })).join('\n') + removeEmptyElements(runtimeNumbers.map(function(name) {
     return maybeExportNumber(name);
-  }).join('\n');
+  })).join('\n');
 }
 
 var PassManager = {

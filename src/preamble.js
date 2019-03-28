@@ -442,6 +442,14 @@ HEAP32[DYNAMICTOP_PTR>>2] = DYNAMIC_BASE;
 #include "runtime_stack_check.js"
 #include "runtime_assertions.js"
 
+#if SWAPPABLE_ASM_MODULE
+function delayExportedFunctionDispatch(f) {
+  return Module[f] = function() {
+    Module["asm"][f].apply(null, arguments);
+  }
+}
+#endif
+
 function callRuntimeCallbacks(callbacks) {
   while(callbacks.length > 0) {
     var callback = callbacks.shift();
