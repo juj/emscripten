@@ -33,8 +33,12 @@ if (ENVIRONMENT_IS_NODE) {
 #if WASM
   Module['wasm'] = fs.readFileSync(__dirname + '/{{{ TARGET_BASENAME }}}.wasm');
 #else
+#if SEPARATE_ASM
   eval(fs.readFileSync(__dirname + '/{{{ TARGET_BASENAME }}}.asm.js')+'');
+#endif
+#if MEM_INIT_METHOD == 1
   Module['mem'] = fs.readFileSync(__dirname + '/{{{ TARGET_BASENAME }}}.mem');
+#endif
 #endif
 }
 #endif
