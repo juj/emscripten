@@ -143,7 +143,6 @@ Module['then'] = function(func) {
 
 /**
  * @constructor
- * @extends {Error}
  * @this {ExitStatus}
  */
 function ExitStatus(status) {
@@ -151,8 +150,6 @@ function ExitStatus(status) {
   this.message = "Program terminated with exit(" + status + ")";
   this.status = status;
 };
-ExitStatus.prototype = new Error();
-ExitStatus.prototype.constructor = ExitStatus;
 
 var calledMain = false;
 
