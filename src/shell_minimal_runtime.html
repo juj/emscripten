@@ -38,9 +38,9 @@
 
 function revokeURL(url) {
 #if !USE_PTHREADS
-    // In multithreaded builds, the runtime .js script we are loading will need to be kept alive
-    // so that pthread workers can load that same script for each created Worker.
-    URL.revokeObjectURL(url)
+  // In multithreaded builds, the runtime .js script we are loading will need to be kept alive
+  // so that pthread workers can load that same script for each created Worker.
+  URL.revokeObjectURL(url)
 #endif
 }
 
