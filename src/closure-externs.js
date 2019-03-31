@@ -942,3 +942,14 @@ var wakaEnv;
  * @suppress {undefinedVars}
  */
 var wakaBuffer;
+
+
+// Browser externs on global window object.
+var pageXOffset;
+var pageYOffset;
+var innerWidth;
+var innerHeight;
+var outerWidth;
+var outerHeight;
+var event;
+var devicePixelRatio;
