@@ -1544,6 +1544,7 @@ long __syscall140(int which, ...) // llseek
 	EM_ASM(err('llseek(fd=' + $0 + ', offset_high=' + $1 + ', offset_low=' + $2 + ', result=0x' + ($3).toString(16) + ', whence=' + $4 + ')'),
 		fd, offset_high, offset_low, result, whence);
 #endif
+	((void)offset_high); // unused
 
 	FileDescriptor *desc = (FileDescriptor*)fd;
 	if (!desc || desc->magic != EM_FILEDESCRIPTOR_MAGIC) RETURN_ERRNO(EBADF, "fd isn't a valid open file descriptor");
