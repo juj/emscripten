@@ -508,6 +508,8 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
       cflags += ['-DNDEBUG']
     if not shared.Settings.SUPPORT_ERRNO:
       cflags += ['-DMALLOC_FAILURE_ACTION=']
+    # XXX Hack for Dots C# specific use: require that malloc() will return 16 byte aligned pointers instead of default 8 byte aligned
+    cflags += ['-DMALLOC_ALIGNMENT=16']
     check_call([shared.PYTHON, shared.EMCC, shared.path_from_root('system', 'lib', malloc_source()), '-o', o] + cflags + get_cflags())
     return o
 
