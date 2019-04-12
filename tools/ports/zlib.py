@@ -39,7 +39,7 @@ def get(ports, settings, shared):
 
     final = os.path.join(ports.get_build_dir(), 'zlib', 'libz.a')
     shared.try_delete(final)
-    ports.run_commands([[shared.EMAR, 'rc', final] + o_s])
+    ports.run_commands([[shared.PYTHON, shared.EMAR, 'rc', final] + o_s])
     assert os.path.exists(final)
     return final
 
