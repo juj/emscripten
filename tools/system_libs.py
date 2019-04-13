@@ -464,8 +464,8 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
 
     # only dlmalloc supports most modes
     def require_dlmalloc(what):
-      if base != 'dlmalloc':
-        shared.exit_with_error('only dlmalloc is possible when using %s' % what)
+      if base != 'dlmalloc' and base != 'none':
+        shared.exit_with_error('only dlmalloc or none is possible when using %s' % what)
 
     extra = ''
     if shared.Settings.DEBUG_LEVEL >= 3:
