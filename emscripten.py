@@ -1482,7 +1482,7 @@ def create_asm_setup(debug_tables, function_table_data, invoke_function_names, m
     for sig in function_table_data:
       # if the table is empty, debug_tables will not contain it
       body = debug_tables.get(sig, [])
-      asm_setup += 'var debug_table_' + sig + ' = [' + ','.join(['0' if x == '0' else "'" + x + "'" for x in body]) + '];\n'
+      asm_setup += 'var debug_table_' + sig + ' = [' + ','.join(['0' if x == '0' else "'" + x.replace("'", '"') + "'" for x in body]) + '];\n'
       debug_tables_map += "  '" + sig + "': debug_table_" + sig + ',\n'
     asm_setup += debug_tables_map + '};\n'
 
