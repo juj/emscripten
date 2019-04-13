@@ -37,6 +37,9 @@ function initRuntime(asm) {
   writeStackCookie();
 #endif
 
+  // XXX Initialize custom malloc
+  _initialize_malloc_heap(HEAP32[DYNAMICTOP_PTR>>2], TOTAL_MEMORY);
+
   /*** RUN_GLOBAL_INITIALIZERS(); ***/
 
   {{{ getQuoted('ATINITS') }}}
