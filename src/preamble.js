@@ -288,11 +288,8 @@ var HEAP,
 /** @type {Float64Array} */
   HEAPF64;
 
-function updateGlobalBuffer(buf) {
+function updateGlobalBufferAndViews(buf) {
   Module['buffer'] = buffer = buf;
-}
-
-function updateGlobalBufferViews() {
   Module['HEAP8'] = HEAP8 = new Int8Array(buffer);
   Module['HEAP16'] = HEAP16 = new Int16Array(buffer);
   Module['HEAP32'] = HEAP32 = new Int32Array(buffer);
@@ -301,6 +298,7 @@ function updateGlobalBufferViews() {
   Module['HEAPU32'] = HEAPU32 = new Uint32Array(buffer);
   Module['HEAPF32'] = HEAPF32 = new Float32Array(buffer);
   Module['HEAPF64'] = HEAPF64 = new Float64Array(buffer);
+  TOTAL_MEMORY = HEAP8.length;
 }
 
 #if USE_PTHREADS
@@ -374,7 +372,7 @@ if (typeof SharedArrayBuffer !== 'undefined') {
 } else {
   if (!ENVIRONMENT_IS_PTHREAD) buffer = new ArrayBuffer(TOTAL_MEMORY);
 }
-updateGlobalBufferViews();
+updateGlobalBufferAndViews(buffer);
 
 #else
 if (!ENVIRONMENT_IS_PTHREAD) {
@@ -387,7 +385,7 @@ if (!ENVIRONMENT_IS_PTHREAD) {
   assert(buffer instanceof SharedArrayBuffer, 'requested a shared WebAssembly.Memory but the returned buffer is not a SharedArrayBuffer, indicating that while the browser has SharedArrayBuffer it does not have WebAssembly threads support - you may need to set a flag');
 }
 
-updateGlobalBufferViews();
+updateGlobalBufferAndViews(buffer);
 #endif // !WASM
 #else // USE_PTHREADS
 
@@ -427,7 +425,7 @@ if (Module['buffer']) {
 #endif // ASSERTIONS
   Module['buffer'] = buffer;
 }
-updateGlobalBufferViews();
+updateGlobalBufferAndViews(buffer);
 
 #endif // USE_PTHREADS
 

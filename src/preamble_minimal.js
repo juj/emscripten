@@ -109,6 +109,26 @@ assert(buffer.byteLength === TOTAL_MEMORY);
 #endif
 #endif // ASSERTIONS
 
+#if ALLOW_MEMORY_GROWTH
+// In ALLOW_MEMORY_GROWTH, we need to be able to re-initialize the
+// typed array buffer and heap views to the buffer whenever the heap
+// is resized.
+var HEAP8, HEAP16, HEAP32, HEAPU8, HEAPU16, HEAPU32, HEAPF32, HEAPF64;
+function updateGlobalBufferAndViews(b) {
+  buffer = b;
+  HEAP8 = new Int8Array(b);
+  HEAP16 = new Int16Array(b);
+  HEAP32 = new Int32Array(b);
+  HEAPU8 = new Uint8Array(b);
+  HEAPU16 = new Uint16Array(b);
+  HEAPU32 = new Uint32Array(b);
+  HEAPF32 = new Float32Array(b);
+  HEAPF64 = new Float64Array(b);
+}
+updateGlobalBufferAndViews(buffer);
+#else
+// In non-ALLOW_MEMORY_GROWTH scenario, we only need to initialize
+// the heap once, so optimize code size to do it statically here.
 var HEAP8 = new Int8Array(buffer);
 var HEAP16 = new Int16Array(buffer);
 var HEAP32 = new Int32Array(buffer);
@@ -117,6 +137,7 @@ var HEAPU16 = new Uint16Array(buffer);
 var HEAPU32 = new Uint32Array(buffer);
 var HEAPF32 = new Float32Array(buffer);
 var HEAPF64 = new Float64Array(buffer);
+#endif
 
 #if USE_PTHREADS
 if (!ENVIRONMENT_IS_PTHREAD) {
