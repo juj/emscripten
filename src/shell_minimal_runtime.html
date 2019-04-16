@@ -111,12 +111,12 @@ function revokeURL(url) {
   });
 #endif
 
-#if !MODULARIZE && WASM && STREAMING_WASM_COMPILATION && MEM_INIT_METHOD == 0
+#if !MODULARIZE && WASM && STREAMING_WASM_COMPILATION && !USE_PTHREADS
   // No modularize, streaming wasm compilation, no separate .mem init file
   s('{{{ TARGET_BASENAME }}}.js');
 #endif
 
-#if !MODULARIZE && WASM && STREAMING_WASM_COMPILATION && MEM_INIT_METHOD == 1
+#if !MODULARIZE && WASM && STREAMING_WASM_COMPILATION && USE_PTHREADS
   // No modularize, streaming wasm compilation, separate .mem init file
   Promise.all([b('{{{ TARGET_BASENAME }}}.js'), b('{{{ TARGET_BASENAME }}}.mem')]).then((r) => {
     Module.mem = r[1];
@@ -125,7 +125,7 @@ function revokeURL(url) {
   });
 #endif
 
-#if !MODULARIZE && WASM && !STREAMING_WASM_COMPILATION && MEM_INIT_METHOD == 0
+#if !MODULARIZE && WASM && !STREAMING_WASM_COMPILATION && !USE_PTHREADS
   // No modularize, no streaming wasm compilation, no separate .mem init file
   Promise.all([b('{{{ TARGET_BASENAME }}}.js'), b('{{{ TARGET_BASENAME }}}.wasm')]).then((r) => {
     Module.wasm = r[1];
@@ -134,7 +134,7 @@ function revokeURL(url) {
   });
 #endif
 
-#if !MODULARIZE && WASM && !STREAMING_WASM_COMPILATION && MEM_INIT_METHOD == 1
+#if !MODULARIZE && WASM && !STREAMING_WASM_COMPILATION && USE_PTHREADS
   // No modularize, no streaming wasm compilation, separate .mem init file
   Promise.all([b('{{{ TARGET_BASENAME }}}.js'), b('{{{ TARGET_BASENAME }}}.wasm'), b('{{{ TARGET_BASENAME }}}.mem')]).then((r) => {
     Module.wasm = r[1];
