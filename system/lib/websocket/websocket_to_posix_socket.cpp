@@ -9,6 +9,9 @@
 #include <errno.h>
 #include <assert.h>
 #include <netdb.h>
+#if defined(__APPLE__) || defined(__linux__)
+#include <arpa/inet.h>
+#endif
 
 // Uncomment to enable debug printing
 // #define POSIX_SOCKET_DEBUG
