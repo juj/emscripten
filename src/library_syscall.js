@@ -305,11 +305,15 @@ var SyscallsLibrary = {
     return stream.fd;
   },
   __syscall6: function(which, varargs) { // close
-    var stream = SYSCALLS.getStreamFromFD();
 #if SYSCALLS_REQUIRE_FILESYSTEM
+    var stream = SYSCALLS.getStreamFromFD();
     FS.close(stream);
 #else
-#if ASSERTIONS
+#if ASSERTIONS && !PROXY_POSIX_SOCKETS
+    // Abort if user attempts to call close() when we've detected that filesystem should not be in use.
+    // If user is utilizing proxied sockets, then we currently ignore any calls to close(socket_fd);
+    // (TODO: Implement support for proxying close() calls for socket file descriptors - for now
+    // only shutdown() is supported for disconnecting sockets)
     abort('it should not be possible to operate on streams when !SYSCALLS_REQUIRE_FILESYSTEM');
 #endif
 #endif
