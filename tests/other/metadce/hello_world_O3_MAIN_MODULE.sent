@@ -1392,7 +1392,6 @@ gnu_dev_makedev
 gnu_dev_minor
 i64Add
 i64Subtract
-inet_addr
 invoke_X
 kill
 killpg
