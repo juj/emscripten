@@ -672,6 +672,27 @@ class libc(AsanInstrumentedLibrary, MuslInternalLibrary, MTLibrary):
     return depends
 
 
+class libsockets(MuslInternalLibrary, MTLibrary):
+  name = 'libsockets'
+  symbols = read_symbols(shared.path_from_root('system', 'lib', 'libc-sockets.symbols'))
+
+  cflags = ['-Os', '-fno-builtin']
+
+  def get_files(self):
+    network_dir = shared.path_from_root('system', 'lib', 'libc', 'musl', 'src', 'network')
+    return [os.path.join(network_dir, x) for x in LIBC_SOCKETS]
+
+
+class libsockets_proxy(MuslInternalLibrary, MTLibrary):
+  name = 'libsockets_proxy'
+  symbols = read_symbols(shared.path_from_root('system', 'lib', 'libc-sockets.symbols'))
+
+  cflags = ['-Os']
+
+  def get_files(self):
+    return [shared.path_from_root('system', 'lib', 'websocket', 'websocket_to_posix_socket.cpp')]
+
+
 class libc_wasm(MuslInternalLibrary):
   name = 'libc-wasm'
   symbols = read_symbols(shared.path_from_root('system', 'lib', 'libc-wasm.symbols'))
@@ -1283,6 +1304,11 @@ def calculate(temp_files, in_temp, stdout_, stderr_, forced=[]):
   if shared.Settings.USE_ASAN:
     force_include.add('libasan_rt_wasm')
     add_library(system_libs_map['libasan_rt_wasm'])
+
+  if shared.Settings.PROXY_POSIX_SOCKETS:
+    add_library(system_libs_map['libsockets_proxy'])
+  else:
+    add_library(system_libs_map['libsockets'])
 
   libs_to_link.sort(key=lambda x: x[0].endswith('.a')) # make sure to put .a files at the end.
 
