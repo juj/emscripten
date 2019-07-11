@@ -326,7 +326,8 @@ var SOCKET_WEBRTC = 0;
 // where addr and port are derived from the socket connect/bind/accept calls.
 var WEBSOCKET_URL = 'ws://';
 
-// If 1, the POSIX sockets API uses a proxy bridge to proxy sockets calls
+// If 1, the POSIX sockets API uses a native bridge process server to proxy sockets calls
+// from browser to native world.
 var PROXY_POSIX_SOCKETS = 0;
 
 // A string containing a comma separated list of WebSocket subprotocols

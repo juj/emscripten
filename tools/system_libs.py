@@ -674,7 +674,7 @@ class libc(AsanInstrumentedLibrary, MuslInternalLibrary, MTLibrary):
 
 class libsockets(MuslInternalLibrary, MTLibrary):
   name = 'libsockets'
-  symbols = read_symbols(shared.path_from_root('system', 'lib', 'libc-sockets.symbols'))
+  symbols = set()
 
   cflags = ['-Os', '-fno-builtin']
 
@@ -685,7 +685,7 @@ class libsockets(MuslInternalLibrary, MTLibrary):
 
 class libsockets_proxy(MuslInternalLibrary, MTLibrary):
   name = 'libsockets_proxy'
-  symbols = read_symbols(shared.path_from_root('system', 'lib', 'libc-sockets.symbols'))
+  symbols = set()
 
   cflags = ['-Os']
 
