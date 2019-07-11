@@ -690,7 +690,8 @@ class libsockets_proxy(MuslInternalLibrary, MTLibrary):
   cflags = ['-Os']
 
   def get_files(self):
-    return [shared.path_from_root('system', 'lib', 'websocket', 'websocket_to_posix_socket.cpp')]
+    return [shared.path_from_root('system', 'lib', 'websocket', 'websocket_to_posix_socket.cpp'),
+            shared.path_from_root('system', 'lib', 'libc', 'musl', 'src', 'network', 'inet_addr.c')]
 
 
 class libc_wasm(MuslInternalLibrary):
