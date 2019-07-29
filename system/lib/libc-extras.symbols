@@ -5,7 +5,7 @@
 -------- T _get_environ
 -------- T _get_timezone
 -------- T _get_tzname
--------- D daylight
--------- D environ
--------- D timezone
--------- D tzname
+-------- C daylight
+-------- C environ
+-------- C timezone
+-------- C tzname

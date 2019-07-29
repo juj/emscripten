@@ -3,8 +3,6 @@
 -------- T __divsc3
 -------- T __muldc3
 -------- T __mulsc3
-         U fmax
-         U fmaxf
          U logb
          U logbf
          U scalbn
