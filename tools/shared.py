@@ -1414,6 +1414,10 @@ def static_library_name(name):
     return name + '.bc'
 
 
+def mangle_c_function_name(name):
+  return '_' + name if not name.startswith('$') else name[1:]
+
+
 def demangle_c_function_name(name):
   return name[1:] if name.startswith('_') else '$' + name
 
