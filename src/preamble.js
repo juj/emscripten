@@ -438,12 +438,15 @@ HEAP32[DYNAMICTOP_PTR>>2] = DYNAMIC_BASE;
 #endif
 
 #include "runtime_stack_check.js"
+#include "runtime_assertions.js"
 
-// Endianness check (note: assumes compiler arch was little-endian)
-#if ASSERTIONS
-HEAP16[1] = 0x6373;
-if (HEAPU8[2] !== 0x73 || HEAPU8[3] !== 0x63) throw 'Runtime error: expected the system to be little-endian!';
-#endif // ASSERTIONS
+#if SWAPPABLE_ASM_MODULE
+function delayExportedFunctionDispatch(f) {
+  return Module[f] = function() {
+    Module["asm"][f].apply(null, arguments);
+  }
+}
+#endif
 
 function callRuntimeCallbacks(callbacks) {
   while(callbacks.length > 0) {
