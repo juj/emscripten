@@ -46,6 +46,16 @@ var NEED_ALL_ASM2WASM_IMPORTS = BINARYEN_TRAP_MODE == 'js';
 // the current compilation unit.
 var HAS_MAIN = ('_main' in IMPLEMENTED_FUNCTIONS) || MAIN_MODULE || SIDE_MODULE;
 
+// Mangles the given C/JS side function name to assembly level function name (adds an underscore)
+function mangleFunctionName(f) {
+  return f[0] == '$' ? f.substr(1) : '_' + f;
+}
+
+// Reverses C/JS name mangling: _foo -> foo, and foo -> $foo.
+function demangleFunctionName(f) {
+  return f[0] == '_' ? f.substr(1) : '$' + f;
+}
+
 // JSifier
 function JSify(data, functionsOnly) {
   var mainPass = !functionsOnly;
@@ -108,7 +118,7 @@ function JSify(data, functionsOnly) {
     }
     libFuncsToInclude.forEach(function(ident) {
       data.functionStubs.push({
-        ident: '_' + ident
+        ident: mangleFunctionName(ident)
       });
     });
   }
@@ -145,11 +155,7 @@ function JSify(data, functionsOnly) {
       }
 
       // $ident's are special, we do not prefix them with a '_'.
-      if (ident[0] === '$') {
-        var finalName = ident.substr(1);
-      } else {
-        var finalName = '_' + ident;
-      }
+      var finalName = mangleFunctionName(ident);
 
       // if the function was implemented in compiled code, we just need to export it so we can reach it from JS
       if (finalName in IMPLEMENTED_FUNCTIONS) {
@@ -184,7 +190,7 @@ function JSify(data, functionsOnly) {
           // emit a stub that will fail at runtime
           LibraryManager.library[ident] = new Function("err('missing function: " + ident + "'); abort(-1);");
         } else {
-          var target = (MAIN_MODULE ? '' : 'parent') + "Module['_" + ident + "']";
+          var target = (MAIN_MODULE ? '' : 'parent') + "Module['" + mangleFunctionName(ident) + "']";
           var assertion = '';
           if (ASSERTIONS)
             assertion = 'if (!' + target + ') abort("external function \'' + ident + '\' is missing. perhaps a side module was not linked in? if this function was expected to arrive from a system library, try to build the MAIN_MODULE with EMCC_FORCE_STDLIBS=1 in the environment");';
@@ -208,18 +214,20 @@ function JSify(data, functionsOnly) {
       var isFunction = false;
 
       if (typeof snippet === 'string') {
-        var target = LibraryManager.library[snippet];
-        if (target) {
-          // Redirection for aliases. We include the parent, and at runtime make ourselves equal to it.
-          // This avoid having duplicate functions with identical content.
-          redirectedIdent = snippet;
-          deps.push(snippet);
-          snippet = '_' + snippet;
-        }
-        // In asm, we need to know about library functions. If there is a target, though, then no
-        // need to consider this a library function - we will call directly to it anyhow
-        if (!redirectedIdent && (typeof target == 'function' || /Math_\w+/.exec(snippet))) {
-          Functions.libraryFunctions[finalName] = 1;
+        if (snippet[0] != '=') {
+          var target = LibraryManager.library[snippet];
+          if (target) {
+            // Redirection for aliases. We include the parent, and at runtime make ourselves equal to it.
+            // This avoid having duplicate functions with identical content.
+            redirectedIdent = snippet;
+            deps.push(snippet);
+            snippet = mangleFunctionName(snippet);
+          }
+          // In asm, we need to know about library functions. If there is a target, though, then no
+          // need to consider this a library function - we will call directly to it anyhow
+          if (!redirectedIdent && (typeof target == 'function' || /Math_\w+/.exec(snippet))) {
+            Functions.libraryFunctions[finalName] = 1;
+          }
         }
       } else if (typeof snippet === 'object') {
         snippet = stringifyWithFunctions(snippet);
@@ -273,10 +281,10 @@ function JSify(data, functionsOnly) {
           var hasArgs = original.length > 0;
           if (hasArgs) {
             // If the function takes parameters, forward those to the proxied function call
-            var processedSnippet = snippet.replace(/function\s+(.*)?\s*\((.*?)\)\s*{/, 'function $1($2) {\nif (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(' + proxiedFunctionTable.length + ', ' + (+sync) + ', $2);');
+            var processedSnippet = snippet.replace(/function\s+(.*)?\s*\(((.|\s)*?)\)\s*{/, 'function $1($2) {\nif (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(' + proxiedFunctionTable.length + ', ' + (+sync) + ', $2);');
           } else {
             // No parameters to the function
-            var processedSnippet = snippet.replace(/function\s+(.*)?\s*\((.*?)\)\s*{/, 'function $1() {\nif (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(' + proxiedFunctionTable.length + ', ' + (+sync) + ');');
+            var processedSnippet = snippet.replace(/function\s+(.*)?\s*\(((.|\s)*?)\)\s*{/, 'function $1() {\nif (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(' + proxiedFunctionTable.length + ', ' + (+sync) + ');');
           }
           if (processedSnippet == snippet) throw 'Failed to regex parse function to add pthread proxying preamble to it! Function: ' + snippet;
           contentText = processedSnippet;
@@ -288,6 +296,7 @@ function JSify(data, functionsOnly) {
         contentText = 'var ' + finalName + snippet;
         if (snippet[snippet.length-1] != ';' && snippet[snippet.length-1] != '}') contentText += ';';
       } else {
+        if (typeof snippet === 'string' && snippet[0] == '=') snippet = snippet.substr(1);
         contentText = 'var ' + finalName + '=' + snippet + ';';
       }
       var sig = LibraryManager.library[ident + '__sig'];
@@ -310,7 +319,7 @@ function JSify(data, functionsOnly) {
         // We set EXPORTED_FUNCTIONS here to tell emscripten.py to do that.
         deps.forEach(function(dep) {
           if (LibraryManager.library[dep + '__asm']) {
-            EXPORTED_FUNCTIONS['_' + dep] = 0;
+            EXPORTED_FUNCTIONS[mangleFunctionName(dep)] = 0;
           }
         });
       }
@@ -318,7 +327,7 @@ function JSify(data, functionsOnly) {
     }
 
     itemsDict.functionStub.push(item);
-    var shortident = item.ident.substr(1);
+    var shortident = demangleFunctionName(item.ident);
     // If this is not linkable, anything not in the library is definitely missing
     if (item.ident in DEAD_FUNCTIONS) {
       if (LibraryManager.library[shortident + '__asm']) {
