@@ -500,47 +500,28 @@ LibraryManager.library = {
   },
 #else
 
+  // Grows the asm.js/wasm heap to the given byte size, updates both JS and asm.js side views to the buffer,
+  // and the TOTAL_MEMORY variable.
   $emscripten_realloc_buffer: function(size) {
-#if WASM
-    var PAGE_MULTIPLE = {{{ getPageSize() }}};
-    size = alignUp(size, PAGE_MULTIPLE); // round up to wasm page size
-    var old = Module['buffer'];
-    var oldSize = old.byteLength;
-    // native wasm support
     try {
-      var result = wasmMemory.grow((size - oldSize) / {{{ WASM_PAGE_SIZE }}}); // .grow() takes a delta compared to the previous size
-      if (result !== (-1 | 0)) {
-        // success in native wasm memory growth, get the buffer from the memory
-        return Module['buffer'] = wasmMemory.buffer;
-      } else {
-        return null;
-      }
+#if WASM
+      // round size grow request up to wasm page size (fixed 64KB per spec)
+      wasmMemory.grow((size - buffer.byteLength + 65535) >> 16); // .grow() takes a delta compared to the previous size
+      updateGlobalBufferAndViews(wasmMemory.buffer);
+      return wasmMemory.buffer;
+#else // asm.js:
+      var newBuffer = new ArrayBuffer(size);
+      if (newBuffer.byteLength != size) return null;
+      new Int8Array(newBuffer).set(HEAP8);
+      _emscripten_replace_memory(newBuffer);
+      updateGlobalBufferAndViews(newBuffer);
+      return newBuffer;
+#endif
     } catch(e) {
 #if ASSERTIONS
-      console.error('emscripten_realloc_buffer: Attempted to grow from ' + oldSize  + ' bytes to ' + size + ' bytes, but got error: ' + e);
+      console.error('emscripten_realloc_buffer: Attempted to grow heap from ' + buffer.byteLength  + ' bytes to ' + size + ' bytes, but got error: ' + e);
 #endif
-      return null;
     }
-#else // asm.js:
-    try {
-      var newBuffer = new ArrayBuffer(size);
-      if (newBuffer.byteLength != size) return false;
-      new Int8Array(newBuffer).set(HEAP8);
-    } catch(e) {
-      return false;
-    }
-    Module['_emscripten_replace_memory'](newBuffer);
-    HEAP8 = new Int8Array(newBuffer);
-    HEAP16 = new Int16Array(newBuffer);
-    HEAP32 = new Int32Array(newBuffer);
-    HEAPU8 = new Uint8Array(newBuffer);
-    HEAPU16 = new Uint16Array(newBuffer);
-    HEAPU32 = new Uint32Array(newBuffer);
-    HEAPF32 = new Float32Array(newBuffer);
-    HEAPF64 = new Float64Array(newBuffer);
-    buffer = newBuffer;
-    return newBuffer;
-#endif
   },
 #endif // ~TEST_MEMORY_GROWTH_FAILS
 
@@ -618,12 +599,8 @@ LibraryManager.library = {
     }
 #endif
 
-#if ASSERTIONS
-    var start = Date.now();
-#endif
-
     var replacement = emscripten_realloc_buffer(newSize);
-    if (!replacement || replacement.byteLength != newSize) {
+    if (!replacement) {
 #if ASSERTIONS
       err('Failed to grow the heap from ' + oldSize + ' bytes to ' + newSize + ' bytes, not enough memory!');
       if (replacement) {
@@ -633,11 +610,6 @@ LibraryManager.library = {
       return false;
     }
 
-    // everything worked
-    updateGlobalBuffer(replacement);
-    updateGlobalBufferViews();
-
-    TOTAL_MEMORY = newSize;
     HEAPU32[DYNAMICTOP_PTR>>2] = requestedSize;
 
 #if ASSERTIONS && !WASM
