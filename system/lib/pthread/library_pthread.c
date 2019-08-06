@@ -178,7 +178,6 @@ static em_queued_call *em_queued_call_malloc()
 		call->operationDone = 0;
 		call->functionPtr = 0;
 		call->satelliteData = 0;
-		call->js = 0;
 	}
 	return call;
 }
