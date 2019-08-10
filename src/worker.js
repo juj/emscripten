@@ -168,7 +168,7 @@ this.onmessage = function(e) {
       assert(STACK_MAX > STACK_BASE);
 #endif
       // Call inside asm.js/wasm module to set up the stack frame for this pthread in asm.js/wasm module scope
-      Module['establishStackSpace'](e.data.stackBase, e.data.stackBase + e.data.stackSize);
+      {{{ makeAsmGlobalAccessInPthread('establishStackSpace') }}}(e.data.stackBase, e.data.stackBase + e.data.stackSize);
 #if MODULARIZE
       // Also call inside JS module to set up the stack frame for this pthread in JS module scope
       Module['establishStackSpaceInJsModule'](e.data.stackBase, e.data.stackBase + e.data.stackSize);
@@ -188,7 +188,7 @@ this.onmessage = function(e) {
         // enable that to work. If you find the following line to crash, either change the signature
         // to "proper" void *ThreadMain(void *arg) form, or try linking with the Emscripten linker
         // flag -s EMULATE_FUNCTION_POINTER_CASTS=1 to add in emulation for this x86 ABI extension.
-        var result = Module['dynCall_ii'](e.data.start_routine, e.data.arg);
+        var result = {{{ makeDynCall('ii') }}}(e.data.start_routine, e.data.arg);
 
 #if STACK_OVERFLOW_CHECK
         {{{ makeAsmGlobalAccessInPthread('checkStackCookie') }}}();
