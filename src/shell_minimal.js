@@ -33,8 +33,12 @@ if (ENVIRONMENT_IS_NODE) {
 #if WASM
   Module['wasm'] = fs.readFileSync(__dirname + '/{{{ TARGET_BASENAME }}}.wasm');
 #else
+#if SEPARATE_ASM
   eval(fs.readFileSync(__dirname + '/{{{ TARGET_BASENAME }}}.asm.js')+'');
+#endif
+#if MEM_INIT_METHOD == 1
   Module['mem'] = fs.readFileSync(__dirname + '/{{{ TARGET_BASENAME }}}.mem');
+#endif
 #endif
 }
 #endif
@@ -67,7 +71,13 @@ function err(text) {
 // compilation is ready. In that callback, call the function run() to start
 // the program.
 function ready() {
-  run();
+#if USE_PTHREADS
+  if (!ENVIRONMENT_IS_PTHREAD) {
+#endif
+    run();
+#if USE_PTHREADS
+  }
+#endif
 }
 
 // --pre-jses are emitted after the Module integration code, so that they can
@@ -77,28 +87,34 @@ function ready() {
 
 #if USE_PTHREADS
 
-var ENVIRONMENT_IS_PTHREAD;
-if (!ENVIRONMENT_IS_PTHREAD) ENVIRONMENT_IS_PTHREAD = false; // ENVIRONMENT_IS_PTHREAD=true will have been preset in pthread-main.js. Make it false in the main runtime thread.
-var PthreadWorkerInit; // Collects together variables that are needed at initialization time for the web workers that host pthreads.
-if (!ENVIRONMENT_IS_PTHREAD) PthreadWorkerInit = {};
+#if !MODULARIZE
+// In MODULARIZE mode _scriptDir needs to be captured already at the very top of the page immediately when the page is parsed, so it is generated there
+// before the page load. In non-MODULARIZE modes generate it here.
+var _scriptDir = (typeof document !== 'undefined' && document.currentScript) ? document.currentScript.src : undefined;
+#endif
 
-if (typeof ENVIRONMENT_IS_PTHREAD === 'undefined') {
+var ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
+
+var ENVIRONMENT_IS_PTHREAD;
+if (!ENVIRONMENT_IS_PTHREAD) {
   // ENVIRONMENT_IS_PTHREAD=true will have been preset in pthread-main.js. Make it false in the main runtime thread. 
   // N.B. this line needs to appear without 'var' keyword to avoid 'var hoisting' from occurring. (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/var)
   ENVIRONMENT_IS_PTHREAD = false;
   var PthreadWorkerInit = {}; // Collects together variables that are needed at initialization time for the web workers that host pthreads.
-} else {
+}
+#if MODULARIZE
+else {
   var buffer = {{{EXPORT_NAME}}}.buffer;
   var tempDoublePtr = {{{EXPORT_NAME}}}.tempDoublePtr;
   var TOTAL_MEMORY = {{{EXPORT_NAME}}}.TOTAL_MEMORY;
   var STATICTOP = {{{EXPORT_NAME}}}.STATICTOP;
-  var DYNAMIC_BASE = {{{EXPORT_NAME}}}.DYNAMIC_BASE;
   var DYNAMICTOP_PTR = {{{EXPORT_NAME}}}.DYNAMICTOP_PTR;
   var PthreadWorkerInit = {{{EXPORT_NAME}}}.PthreadWorkerInit;
   var STACK_BASE = {{{EXPORT_NAME}}}.STACK_BASE;
   var STACKTOP = {{{EXPORT_NAME}}}.STACKTOP;
   var STACK_MAX = {{{EXPORT_NAME}}}.STACK_MAX;
 }
+#endif
 
 var currentScriptUrl = typeof _scriptDir !== 'undefined' ? _scriptDir : ((typeof document !== 'undefined' && document.currentScript) ? document.currentScript.src : undefined);
 #endif // USE_PTHREADS

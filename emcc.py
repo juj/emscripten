@@ -1081,9 +1081,26 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       ]
       shared.Settings.ALLOW_TABLE_GROWTH = 1
 
+    if shared.Settings.MINIMAL_RUNTIME:
+      # Remove the default exported functions 'memcpy', 'memset', 'malloc', 'free', etc. - those should only be linked in if used
+      shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE = []
+
     if shared.Settings.USE_PTHREADS:
       # These runtime methods are called from worker.js
-      shared.Settings.EXPORTED_RUNTIME_METHODS += ['establishStackSpace', 'dynCall_ii']
+      shared.Settings.EXPORTED_RUNTIME_METHODS += ['dynCall_ii']
+      if shared.Settings.MINIMAL_RUNTIME:
+        shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE += ['$establishStackSpace', '$exit']
+        shared.Settings.EXPORTED_FUNCTIONS += ['establishStackSpace']
+
+        # TODO: For some reason, 'pthread_create' is not noticed as a dependency for purposes of JS->C dependencies trakcing,
+        # and even when src/deps_info.json contains a reference that 'pthread_create' depends on 'malloc' and 'free', those
+        # are not processed, since linker is not thinking that 'pthread_create' is even going to be linked in to the program.
+        shared.Settings.EXPORTED_FUNCTIONS += ['_malloc', '_free']
+      else:
+        shared.Settings.EXPORTED_RUNTIME_METHODS += ['establishStackSpace']
+
+    if shared.Settings.MINIMAL_RUNTIME and shared.Settings.STACK_OVERFLOW_CHECK:
+      shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE += ['$abortStackOverflow']
 
     if shared.Settings.MODULARIZE_INSTANCE:
       shared.Settings.MODULARIZE = 1
@@ -1323,9 +1340,6 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       if options.shell_path == shared.path_from_root('src', 'shell.html'):
         options.shell_path = shared.path_from_root('src', 'shell_minimal_runtime.html')
 
-      # Remove the default exported functions 'memcpy', 'memset', 'malloc', 'free', etc. - those should only be linked in if used
-      shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE = []
-
       # Always build with STRICT mode enabled
       shared.Settings.STRICT = 1
 
@@ -1460,14 +1474,8 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       assert not shared.Settings.ALLOW_MEMORY_GROWTH, 'memory growth is not supported with shared asm.js modules'
 
     if shared.Settings.MINIMAL_RUNTIME:
-      if shared.Settings.ALLOW_MEMORY_GROWTH:
-        logging.warning('-s ALLOW_MEMORY_GROWTH=1 is not yet supported with -s MINIMAL_RUNTIME=1')
-
       if shared.Settings.EMTERPRETIFY:
         exit_with_error('-s EMTERPRETIFY=1 is not supported with -s MINIMAL_RUNTIME=1')
-
-      if shared.Settings.USE_PTHREADS:
-        exit_with_error('-s USE_PTHREADS=1 is not yet supported with -s MINIMAL_RUNTIME=1')
 
       if shared.Settings.PRECISE_F32 == 2:
         exit_with_error('-s PRECISE_F32=2 is not supported with -s MINIMAL_RUNTIME=1')
@@ -1506,10 +1514,6 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE = []
       options.separate_asm = True
       shared.Settings.FINALIZE_ASM_JS = False
-
-    # MINIMAL_RUNTIME always use separate .asm.js file for best performance and memory usage
-    if shared.Settings.MINIMAL_RUNTIME and not shared.Settings.WASM:
-      options.separate_asm = True
 
     if shared.Settings.GLOBAL_BASE < 0:
       shared.Settings.GLOBAL_BASE = 8 # default if nothing else sets it
@@ -2840,6 +2844,7 @@ def generate_minimal_runtime_html(target, options, js_target, target_basename,
 
   shell = shell.replace('{{{ TARGET_BASENAME }}}', target_basename)
   shell = shell.replace('{{{ EXPORT_NAME }}}', shared.Settings.EXPORT_NAME)
+  shell = shell.replace('{{{ PTHREAD_WORKER_FILE }}}', shared.Settings.PTHREAD_WORKER_FILE)
   shell = tools.line_endings.convert_line_endings(shell, '\n', options.output_eol)
   with open(target, 'wb') as f:
     f.write(asbytes(shell))

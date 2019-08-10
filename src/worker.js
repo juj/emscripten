@@ -22,7 +22,6 @@ var STACK_MAX = 0;
 var buffer; // All pthreads share the same Emscripten HEAP as SharedArrayBuffer with the main execution thread.
 var DYNAMICTOP_PTR = 0;
 var TOTAL_MEMORY = 0;
-var DYNAMIC_BASE = 0;
 
 var ENVIRONMENT_IS_PTHREAD = true;
 var PthreadWorkerInit = {};
@@ -93,7 +92,6 @@ this.onmessage = function(e) {
 
       // Initialize the global "process"-wide fields:
       {{{ makeAsmExportAndGlobalAssignTargetInPthread('TOTAL_MEMORY') }}} = e.data.TOTAL_MEMORY;
-      {{{ makeAsmExportAndGlobalAssignTargetInPthread('DYNAMIC_BASE') }}} = e.data.DYNAMIC_BASE;
       {{{ makeAsmExportAndGlobalAssignTargetInPthread('DYNAMICTOP_PTR') }}} = e.data.DYNAMICTOP_PTR;
 
 #if WASM
@@ -109,7 +107,11 @@ this.onmessage = function(e) {
       {{{ makeAsmExportAccessInPthread('STACK_MAX') }}} = {{{ makeAsmExportAccessInPthread('STACKTOP') }}}  = 0x7FFFFFFF;
 
       // Module and memory were sent from main thread
+#if MINIMAL_RUNTIME
+      Module['wasm'] = e.data.wasmModule;
+#else
       {{{ makeAsmExportAndGlobalAssignTargetInPthread('wasmModule') }}} = e.data.wasmModule;
+#endif
       {{{ makeAsmExportAndGlobalAssignTargetInPthread('wasmMemory') }}} = e.data.wasmMemory;
       {{{ makeAsmExportAndGlobalAssignTargetInPthread('buffer') }}} = {{{ makeAsmGlobalAccessInPthread('wasmMemory') }}}.buffer;
 #else
@@ -145,10 +147,16 @@ this.onmessage = function(e) {
       HEAPU32 = Module['HEAPU32'];
 #endif
 
-#if !ASMFS
-      if (typeof FS !== 'undefined' && typeof FS.createStandardStreams === 'function') FS.createStandardStreams();
+#if MINIMAL_RUNTIME && WASM
+      Module['wasmInstance'].then(() => {
 #endif
-      postMessage({ cmd: 'loaded' });
+#if !ASMFS
+        if (typeof FS !== 'undefined' && typeof FS.createStandardStreams === 'function') FS.createStandardStreams();
+#endif
+        postMessage({ cmd: 'loaded' });
+#if MINIMAL_RUNTIME && WASM
+      });
+#endif
     } else if (e.data.cmd === 'objectTransfer') {
       PThread.receiveObjectTransfer(e.data);
     } else if (e.data.cmd === 'run') { // This worker was idle, and now should start executing its pthread entry point.
@@ -198,13 +206,21 @@ this.onmessage = function(e) {
         if (e === 'Canceled!') {
           PThread.threadCancel();
           return;
-        } else if (e === 'SimulateInfiniteLoop' || e === 'pthread_exit') {
+        } else if (e == 'SimulateInfiniteLoop' || e == 'pthread_exit' || e == 'unwind') {
           return;
         } else {
+#if MINIMAL_RUNTIME
+          Atomics.store(HEAPU32, (threadInfoStruct + 4 /*C_STRUCTS.pthread.threadExitCode*/ ) >> 2, -2 /*A custom entry specific to Emscripten denoting that the thread crashed.*/);
+#else
           Atomics.store(HEAPU32, (threadInfoStruct + 4 /*C_STRUCTS.pthread.threadExitCode*/ ) >> 2, (e instanceof {{{ makeAsmGlobalAccessInPthread('ExitStatus') }}}) ? e.status : -2 /*A custom entry specific to Emscripten denoting that the thread crashed.*/);
+#endif
           Atomics.store(HEAPU32, (threadInfoStruct + 0 /*C_STRUCTS.pthread.threadStatus*/ ) >> 2, 1); // Mark the thread as no longer running.
           {{{ makeAsmGlobalAccessInPthread('_emscripten_futex_wake') }}}(threadInfoStruct + 0 /*C_STRUCTS.pthread.threadStatus*/, 0x7FFFFFFF/*INT_MAX*/); // Wake all threads waiting on this thread to finish.
+#if MINIMAL_RUNTIME
+          throw e;
+#else
           if (!(e instanceof {{{ makeAsmGlobalAccessInPthread('ExitStatus') }}})) throw e;
+#endif
         }
       }
       // The thread might have finished without calling pthread_exit(). If so, then perform the exit operation ourselves.

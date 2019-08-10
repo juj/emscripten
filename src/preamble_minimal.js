@@ -14,9 +14,7 @@ function assert(condition, text) {
 function abort(what) {
   throw what;
 }
-function abortStackOverflow(allocSize) {
-  abort('Stack overflow when attempting to allocate ' + allocSize + ' bytes on the stack!');
-}
+
 var tempRet0 = 0;
 var setTempRet0 = function(value) {
   tempRet0 = value;
@@ -36,19 +34,20 @@ function alignUp(x, multiple) {
 #include "runtime_sab_polyfill.js"
 
 #if USE_PTHREADS
+var STATIC_BASE = {{{ GLOBAL_BASE }}};
+
 if (!ENVIRONMENT_IS_PTHREAD) {
 #endif
 
 var GLOBAL_BASE = {{{ GLOBAL_BASE }}},
     TOTAL_STACK = {{{ TOTAL_STACK }}},
     TOTAL_MEMORY = {{{ TOTAL_MEMORY }}},
+#if !USE_PTHREADS
     STATIC_BASE = {{{ GLOBAL_BASE }}},
+#endif
     STACK_BASE = {{{ getQuoted('STACK_BASE') }}},
     STACKTOP = STACK_BASE,
     STACK_MAX = {{{ getQuoted('STACK_MAX') }}}
-#if MEMORYPROFILER
-    , DYNAMIC_BASE = {{{ getQuoted('DYNAMIC_BASE') }}}
-#endif
 #if USES_DYNAMIC_ALLOC
     , DYNAMICTOP_PTR = {{{ makeStaticAlloc(4) }}}
 #endif
@@ -86,24 +85,50 @@ var buffer = new SharedArrayBuffer(TOTAL_MEMORY);
 var buffer = new ArrayBuffer(TOTAL_MEMORY);
 #endif
 
+#endif
+
 #if USE_PTHREADS
 }
 #endif
 
-#endif
-
 #if ASSERTIONS
 var WASM_PAGE_SIZE = 65536;
-assert(STACK_BASE % 16 === 0, 'stack must start aligned');
-assert(({{{ getQuoted('DYNAMIC_BASE') }}}) % 16 === 0, 'heap must start aligned');
+#if USE_PTHREADS
+if (!ENVIRONMENT_IS_PTHREAD) {
+#endif
+assert(STACK_BASE % 16 === 0, 'stack must start aligned to 16 bytes, STACK_BASE==' + STACK_BASE);
 assert(TOTAL_MEMORY >= TOTAL_STACK, 'TOTAL_MEMORY should be larger than TOTAL_STACK, was ' + TOTAL_MEMORY + '! (TOTAL_STACK=' + TOTAL_STACK + ')');
+assert(({{{ getQuoted('DYNAMIC_BASE') }}}) % 16 === 0, 'heap must start aligned to 16 bytes, DYNAMIC_BASE==' + {{{ getQuoted('DYNAMIC_BASE') }}});
 assert(TOTAL_MEMORY % WASM_PAGE_SIZE === 0);
 #if WASM_MEM_MAX != -1
 assert({{{ WASM_MEM_MAX }}} % WASM_PAGE_SIZE == 0);
 #endif
 assert(buffer.byteLength === TOTAL_MEMORY);
+#if USE_PTHREADS
+}
+#endif
 #endif // ASSERTIONS
 
+#if ALLOW_MEMORY_GROWTH
+// In ALLOW_MEMORY_GROWTH, we need to be able to re-initialize the
+// typed array buffer and heap views to the buffer whenever the heap
+// is resized.
+var HEAP8, HEAP16, HEAP32, HEAPU8, HEAPU16, HEAPU32, HEAPF32, HEAPF64;
+function updateGlobalBufferAndViews(b) {
+  buffer = b;
+  HEAP8 = new Int8Array(b);
+  HEAP16 = new Int16Array(b);
+  HEAP32 = new Int32Array(b);
+  HEAPU8 = new Uint8Array(b);
+  HEAPU16 = new Uint16Array(b);
+  HEAPU32 = new Uint32Array(b);
+  HEAPF32 = new Float32Array(b);
+  HEAPF64 = new Float64Array(b);
+}
+updateGlobalBufferAndViews(buffer);
+#else
+// In non-ALLOW_MEMORY_GROWTH scenario, we only need to initialize
+// the heap once, so optimize code size to do it statically here.
 var HEAP8 = new Int8Array(buffer);
 var HEAP16 = new Int16Array(buffer);
 var HEAP32 = new Int32Array(buffer);
@@ -112,16 +137,26 @@ var HEAPU16 = new Uint16Array(buffer);
 var HEAPU32 = new Uint32Array(buffer);
 var HEAPF32 = new Float32Array(buffer);
 var HEAPF64 = new Float64Array(buffer);
+#endif
 
-#if !WASM
-HEAPU8.set(new Uint8Array(Module['mem']), GLOBAL_BASE);
+#if USE_PTHREADS
+if (!ENVIRONMENT_IS_PTHREAD) {
+#endif
+
+#if !WASM || USE_PTHREADS
+  HEAPU8.set(new Uint8Array(Module['mem']), GLOBAL_BASE);
 #endif
 
 #if USES_DYNAMIC_ALLOC
-HEAP32[DYNAMICTOP_PTR>>2] = {{{ getQuoted('DYNAMIC_BASE') }}};
+  HEAP32[DYNAMICTOP_PTR>>2] = {{{ getQuoted('DYNAMIC_BASE') }}};
+#endif
+
+#if USE_PTHREADS
+}
 #endif
 
 #include "runtime_stack_check.js"
+#include "runtime_assertions.js"
 
 #if ASSERTIONS
 var runtimeInitialized = false;

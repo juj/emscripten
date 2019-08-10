@@ -262,11 +262,15 @@ var LibraryPThread = {
       out('Preallocating ' + numWorkers + ' workers for a pthread spawn pool.');
 
       var numWorkersLoaded = 0;
+#if MINIMAL_RUNTIME
+      var pthreadMainJs = Module['worker'];
+#else
       var pthreadMainJs = "{{{ PTHREAD_WORKER_FILE }}}";
       // Allow HTML module to configure the location where the 'worker.js' file will be loaded from,
       // via Module.locateFile() function. If not specified, then the default URL 'worker.js' relative
       // to the main html file is loaded.
       pthreadMainJs = locateFile(pthreadMainJs);
+#endif
 
       for (var i = 0; i < numWorkers; ++i) {
         var worker = new Worker(pthreadMainJs);
@@ -346,7 +350,11 @@ var LibraryPThread = {
 
         // Allocate tempDoublePtr for the worker. This is done here on the worker's behalf, since we may need to do this statically
         // if the runtime has not been loaded yet, etc. - so we just use getMemory, which is main-thread only.
+#if MINIMAL_RUNTIME
+        var tempDoublePtr = _malloc(8); // TODO: leaks. Cleanup after worker terminates.
+#else
         var tempDoublePtr = getMemory(8); // TODO: leaks. Cleanup after worker terminates.
+#endif
 
         // Ask the new worker to load up the Emscripten-compiled page. This is a heavy operation.
         worker.postMessage({
@@ -359,14 +367,17 @@ var LibraryPThread = {
           urlOrBlob: Module['mainScriptUrlOrBlob'] || _scriptDir,
 #if WASM
           wasmMemory: wasmMemory,
+#if MINIMAL_RUNTIME
+          wasmModule: Module['wasm'],
+#else
           wasmModule: wasmModule,
+#endif
 #else
           buffer: HEAPU8.buffer,
           asmJsUrlOrBlob: Module["asmJsUrlOrBlob"],
 #endif
           tempDoublePtr: tempDoublePtr,
           TOTAL_MEMORY: TOTAL_MEMORY,
-          DYNAMIC_BASE: DYNAMIC_BASE,
           DYNAMICTOP_PTR: DYNAMICTOP_PTR,
           PthreadWorkerInit: PthreadWorkerInit
         });

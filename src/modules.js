@@ -82,6 +82,9 @@ var LibraryManager = {
 
     if (MINIMAL_RUNTIME) {
       libraries.push('library_stack_trace.js');
+      if (USE_PTHREADS) { // TODO: Currently WebGL proxying makes pthreads library depend on WebGL.
+        libraries.push('library_webgl.js');
+      }
     } else {
       libraries.push('library_browser.js');
     }
@@ -420,10 +423,6 @@ function exportRuntime() {
     'makeBigInt',
     'dynCall',
     'getCompilerSetting',
-    'stackSave',
-    'stackRestore',
-    'stackAlloc',
-    'establishStackSpace',
     'print',
     'printErr',
     'getTempRet0',
@@ -432,6 +431,10 @@ function exportRuntime() {
 
   if (!MINIMAL_RUNTIME) {
     runtimeElements.push('Pointer_stringify');
+    runtimeElements.push('stackSave');
+    runtimeElements.push('stackRestore');
+    runtimeElements.push('stackAlloc');
+    runtimeElements.push('establishStackSpace');
   }
 
   if (MODULARIZE) {
@@ -439,7 +442,9 @@ function exportRuntime() {
     if (STACK_OVERFLOW_CHECK) {
       runtimeElements.push('writeStackCookie');
       runtimeElements.push('checkStackCookie');
-      runtimeElements.push('abortStackOverflow');
+      if (!MINIMAL_RUNTIME) {
+        runtimeElements.push('abortStackOverflow');
+      }
     }
     if (USE_PTHREADS) {
       runtimeElements.push('PThread');
@@ -475,11 +480,16 @@ function exportRuntime() {
       }
     }
   }
-  return runtimeElements.map(function(name) {
+  function removeEmptyElements(x) {
+    return x.filter(function(e) {
+      return e != null;
+    })
+  }
+  return removeEmptyElements(runtimeElements.map(function(name) {
     return maybeExport(name);
-  }).join('\n') + runtimeNumbers.map(function(name) {
+  })).join('\n') + removeEmptyElements(runtimeNumbers.map(function(name) {
     return maybeExportNumber(name);
-  }).join('\n');
+  })).join('\n');
 }
 
 var PassManager = {

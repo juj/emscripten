@@ -70,16 +70,36 @@ var imports = {
 #endif
 };
 
-#if ASSERTIONS
-if (!Module['wasm']) throw 'Must load WebAssembly Module in to variable Module.wasm before adding compiled output .js script to the DOM';
-#endif
-
 #if DECLARE_ASM_MODULE_EXPORTS
 /*** ASM_MODULE_EXPORTS_DECLARES ***/
 #endif
 
-WebAssembly.instantiate(Module['wasm'], imports).then(function(output) {
+// Streaming Wasm compilation is not possible in Node.js, it does not support the fetch() API.
+#if STREAMING_WASM_COMPILATION && !ENVIRONMENT_MAY_BE_NODE
+#if USE_PTHREADS
+// In multithreaded STREAMING_WASM_COMPILATION mode, we will use streaming WebAssembly compilation on the main thread, but pthreads
+// will synchronously instantiate the content that is posted to them via the Worker pipe.
+Module['wasmInstance'] = (ENVIRONMENT_IS_PTHREAD ? WebAssembly.instantiate(Module['wasm'], imports) : WebAssembly.instantiateStreaming(fetch('{{{ TARGET_BASENAME }}}.wasm'), imports)).then(function(output) {
+  Module['wasm'] = output.module; // Store the compiled Wasm Module so that main thread can pass it on to pthreads to load.
+#else
+// In singlethreaded STREAMING_WASM_COMPILATION mode, we will unconditionally use streaming WebAssembly compilation.
+WebAssembly.instantiateStreaming(fetch('{{{ TARGET_BASENAME }}}.wasm'), imports).then(function(output) {
+#endif
+#else
+#if ASSERTIONS
+// In synchronous Wasm compilation mode, Module['wasm'] should contain a typed array of the Wasm object data.
+if (!Module['wasm']) throw 'Must load WebAssembly Module in to variable Module.wasm before adding compiled output .js script to the DOM';
+#endif
+Module['wasmInstance'] = WebAssembly.instantiate(Module['wasm'], imports).then(function(output) {
+#endif
+#if USE_PTHREADS
+  // In pthreads, Module['wasm'] is an already compiled WebAssembly.Module. In that case, 'output' is a WebAssembly.Instance.
+  // In main thread, Module['wasm'] is either a typed array or a fetch stream. In that case, 'output.instance' is the WebAssembly.Instance.
+  var asm = (output.instance||output).exports;
+#else
   var asm = output.instance.exports;
+#endif
+
 #if DECLARE_ASM_MODULE_EXPORTS == 0
 
 #if ENVIRONMENT_MAY_BE_NODE
@@ -93,7 +113,12 @@ WebAssembly.instantiate(Module['wasm'], imports).then(function(output) {
 #endif
 
     initRuntime(asm);
+#if PTHREAD_POOL_SIZE > 0
+    if (!ENVIRONMENT_IS_PTHREAD) PThread.allocateUnusedWorkers({{{PTHREAD_POOL_SIZE}}}, ready);
+    else ready();
+#else
     ready();
+#endif
 })
 #if ASSERTIONS
 .catch(function(error) {
@@ -106,10 +131,23 @@ WebAssembly.instantiate(Module['wasm'], imports).then(function(output) {
 
 // Initialize asm.js (synchronous)
 #if ASSERTIONS
-if (!Module['mem']) throw 'Must load memory initializer as an ArrayBuffer in to variable Module.mem before adding compiled output .js script to the DOM';
+#if USE_PTHREADS
+if (!ENVIRONMENT_IS_PTHREAD) {
+#endif
+  if (!Module['mem']) throw 'Must load memory initializer as an ArrayBuffer in to variable Module.mem before adding compiled output .js script to the DOM';
+#if USE_PTHREADS
+}
+#endif
+
 #endif
 initRuntime(asm);
+
+#if PTHREAD_POOL_SIZE > 0
+if (!ENVIRONMENT_IS_PTHREAD) PThread.allocateUnusedWorkers({{{PTHREAD_POOL_SIZE}}}, ready);
+else ready();
+#else
 ready();
+#endif
 
 #endif
 
