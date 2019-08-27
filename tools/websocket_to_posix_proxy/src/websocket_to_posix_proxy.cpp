@@ -1574,7 +1574,42 @@ void Getaddrinfo(int client_fd, uint8_t *data, uint64_t numBytes) // int getaddr
 
 void Getnameinfo(int client_fd, uint8_t *data, uint64_t numBytes) // int getnameinfo(const struct sockaddr *addr, socklen_t addrlen, char *host, socklen_t hostlen, char *serv, socklen_t servlen, int flags);
 {
-  fprintf(stderr, "TODO getnameinfo() unimplemented!\n");
+  struct MSG {
+    SocketCallHeader header;
+    socklen_t host_len;
+    socklen_t serv_len;
+    int flags;
+    socklen_t address_len;
+    uint8_t address[];
+  };
+
+  MSG *d = (MSG *)data;
+
+  struct {
+    int callId;
+    int ret;
+    int errno_;
+    char serv[NI_MAXSERV];
+    char host[NI_MAXHOST];
+  } res;
+
+  int ret = getnameinfo(
+    (sockaddr *)d->address,
+    d->address_len,
+    res.host,
+    d->host_len,
+    res.serv,
+    d->serv_len,
+    d->flags
+  );
+
+  int errorCode = (ret != 0) ? GET_SOCKET_ERROR() : 0;
+
+  res.callId = d->header.callId;
+  res.ret = ret;
+  res.errno_ = errorCode;
+
+  SendWebSocketMessage(client_fd, &res, sizeof(res));
 }
 
 static void *memdup(const void *ptr, size_t sz)
