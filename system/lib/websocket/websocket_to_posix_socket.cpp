@@ -953,11 +953,51 @@ void freeaddrinfo(struct addrinfo *res)
   free(res);
 }
 
-int getnameinfo(const struct sockaddr *addr, socklen_t addrlen, char *host, socklen_t hostlen, char *serv, socklen_t servlen, int flags)
+int getnameinfo(const struct sockaddr *address, socklen_t address_len, char *host, socklen_t host_len, char *serv, socklen_t serv_len, int flags)
 {
-  // TODO
-  // POSIX_SOCKET_MSG_GETNAMEINFO
-  return -1;
+  struct Data {
+    SocketCallHeader header;
+    socklen_t host_len;
+    socklen_t serv_len;
+    int flags;
+    socklen_t address_len;
+    uint8_t address[];
+  };
+
+  int numBytes = sizeof(Data) + address_len;
+  Data *d = (Data *)malloc(numBytes);
+
+  PosixSocketCallResult *b = allocate_call_result(sizeof(SocketCallResultHeader));
+  d->header.callId = b->callId;
+  d->header.function = POSIX_SOCKET_MSG_GETNAMEINFO;
+  if (address) memcpy(d->address, address, address_len);
+  else memset(d->address, 0, address_len);
+  d->address_len = address_len;
+  d->host_len = NI_MAXHOST;
+  d->serv_len = NI_MAXSERV;
+  d->flags = flags;
+
+  emscripten_websocket_send_binary(bridgeSocket, d, numBytes);
+
+  struct Result {
+    SocketCallResultHeader header;
+    char serv[NI_MAXSERV];
+    char host[NI_MAXHOST];
+  };
+
+  wait_for_call_result(b);
+  int ret = b->data->ret;
+  if (ret == 0) {
+    Result *r = (Result *)b->data;
+    if (host && host_len) strncpy(host, r->host, NI_MAXHOST);
+    if (serv && serv_len) strncpy(serv, r->serv, NI_MAXSERV);
+  } else {
+    errno = b->data->errno_;
+  }
+
+  free_call_result(b);
+  free(d);
+  return ret;
 }
 
 // TODO:
