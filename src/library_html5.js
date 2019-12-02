@@ -22,10 +22,12 @@ var LibraryJSEvents = {
     // so that we can report information about that element in the event message.
     previousFullscreenElement: null,
 
+#if OLDEST_SUPPORTED_CHROME_VERSION <= 76 || OLDEST_SUPPORTED_SAFARI_VERSION != -1 || OLDEST_SUPPORTED_IE_VERSION != -1
     // Remember the current mouse coordinates in case we need to emulate movementXY generation for browsers that don't support it.
     // Some browsers (e.g. Safari 6.0.5) only give movementXY when Pointerlock is active.
     previousScreenX: null,
     previousScreenY: null,
+#endif
 
     // When the C runtime exits via exit(), we unregister all event handlers added by this library to be nice and clean.
     // Track in this field whether we have yet registered that __ATEXIT__ handler.
@@ -398,8 +400,13 @@ var LibraryJSEvents = {
     {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.metaKey, 'e.metaKey', 'i32') }}};
     {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.button, 'e.button', 'i16') }}};
     {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.buttons, 'e.buttons', 'i16') }}};
+#if OLDEST_SUPPORTED_CHROME_VERSION <= 76 || OLDEST_SUPPORTED_SAFARI_VERSION != -1 || OLDEST_SUPPORTED_IE_VERSION != -1
     {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.movementX, 'e["movementX"] || e["mozMovementX"] || e["webkitMovementX"] || (e.screenX-JSEvents.previousScreenX)', 'i32') }}};
     {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.movementY, 'e["movementY"] || e["mozMovementY"] || e["webkitMovementY"] || (e.screenY-JSEvents.previousScreenY)', 'i32') }}};
+#else
+    {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.movementX, 'e["movementX"] || e["mozMovementX"] || e["webkitMovementX"]', 'i32') }}};
+    {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.movementY, 'e["movementY"] || e["mozMovementY"] || e["webkitMovementY"]', 'i32') }}};
+#endif
 
 #if !DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR
     if (Module['canvas']) {
@@ -419,6 +426,7 @@ var LibraryJSEvents = {
       {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.targetX, '0', 'i32') }}};
       {{{ makeSetValue('eventStruct', C_STRUCTS.EmscriptenMouseEvent.targetY, '0', 'i32') }}};
     }
+#if OLDEST_SUPPORTED_CHROME_VERSION <= 76 || OLDEST_SUPPORTED_SAFARI_VERSION != -1 || OLDEST_SUPPORTED_IE_VERSION != -1
     // wheel and mousewheel events contain wrong screenX/screenY on chrome/opera
       // https://github.com/emscripten-core/emscripten/pull/4997
     // https://bugs.chromium.org/p/chromium/issues/detail?id=699956
@@ -426,6 +434,7 @@ var LibraryJSEvents = {
       JSEvents.previousScreenX = e.screenX;
       JSEvents.previousScreenY = e.screenY;
     }
+#endif
   },
 
   _registerMouseEventCallback__deps: ['$JSEvents', '_fillMouseEventData', '_findEventTarget'],
