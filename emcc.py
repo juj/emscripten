@@ -1272,6 +1272,9 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     if shared.Settings.USE_WEBGL2:
       shared.Settings.MAX_WEBGL_VERSION = 2
 
+    if shared.Settings.MIN_WEBGL_VERSION < shared.Settings.MAX_WEBGL_VERSION:
+      exit_with_error('MIN_WEBGL_VERSION (=%d) must be smaller or equal than MAX_WEBGL_VERSION (=%d)!' % (shared.Settings.MIN_WEBGL_VERSION, shared.Settings.MAX_WEBGL_VERSION))
+
     # When only targeting WebGL 2, code for pooling temp buffers is not needed, so just silently drop it from the build.
     if shared.Settings.MIN_WEBGL_VERSION > 1:
       shared.Settings.GL_POOL_TEMP_BUFFERS = 0
