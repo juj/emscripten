@@ -1272,6 +1272,10 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
     if shared.Settings.USE_WEBGL2:
       shared.Settings.MAX_WEBGL_VERSION = 2
 
+    # When only targeting WebGL 2, code for pooling temp buffers is not needed, so just silently drop it from the build.
+    if shared.Settings.MIN_WEBGL_VERSION > 1:
+      shared.Settings.GL_POOL_TEMP_BUFFERS = 0
+
     forced_stdlibs = []
 
     if shared.Settings.ASMFS and final_suffix in JS_CONTAINING_ENDINGS:
