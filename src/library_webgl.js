@@ -1042,11 +1042,15 @@ var LibraryGL = {
 #endif
 
 #if MIN_WEBGL_VERSION == 1
+#if MAX_WEBGL_VERSION > 1
       if (context.version < 2) {
+#endif
         GL.acquireInstancedArraysExtension(GLctx);
         GL.acquireVertexArrayObjectExtension(GLctx);
         GL.acquireDrawBuffersExtension(GLctx);
+#if MAX_WEBGL_VERSION > 1
       }
+#endif
 #endif
 
       GLctx.disjointTimerQueryExt = GLctx.getExtension("EXT_disjoint_timer_query");
