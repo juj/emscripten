@@ -1640,3 +1640,15 @@ function buildStringArray(array) {
     return '[]';
   }
 }
+
+function currentWebGLContextVersionIsAtLeast(ver) {
+  if (MIN_WEBGL_VERSION >= ver) return '1';
+  if (MAX_WEBGL_VERSION < ver) return '0';
+  return 'GL.currentContext.version >= ' + ver;
+}
+
+function currentWebGLContextVersionIsEqualTo(ver) {
+  if (MIN_WEBGL_VERSION == ver && MAX_WEBGL_VERSION == ver) return '1';
+  if (MAX_WEBGL_VERSION < ver || MIN_WEBGL_VERSION > ver) return '0';
+  return 'GL.currentContext.version == ' + ver;
+}

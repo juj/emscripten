@@ -2622,6 +2622,7 @@ Module["preRun"].push(function () {
       ['-s', 'MIN_CHROME_VERSION=0'],
       ['-O2', '-g1', '--closure', '1', '-s', 'WORKAROUND_OLD_WEBGL_UNIFORM_UPLOAD_IGNORED_OFFSET_BUG=1'],
       ['-s', 'FULL_ES2=1'],
+      ['-s', 'MIN_WEBGL_VERSION=2']
     ]:
       print(opts)
       self.btest(path_from_root('tests', 'webgl2.cpp'), args=['-s', 'MAX_WEBGL_VERSION=2', '-lGL'] + opts, expected='0')

@@ -12,10 +12,12 @@ var LibraryWebGL2 = {
   glGetStringi__deps: ['$stringToNewUTF8'],
   glGetStringi__sig: 'iii',
   glGetStringi: function(name, index) {
-    if (GL.currentContext.version < 2) {
+#if GL_TRACK_ERRORS
+    if ({{{ currentWebGLContextVersionIsEqualTo(1) }}}) {
       GL.recordError(0x0502 /* GL_INVALID_OPERATION */); // Calling GLES3/WebGL2 function with a GLES2/WebGL1 context
       return 0;
     }
+#endif
     var stringiCache = GL.stringiCache[name];
     if (stringiCache) {
       if (index < 0 || index >= stringiCache.length) {
