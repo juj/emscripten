@@ -1393,6 +1393,9 @@ var PTHREADS_DEBUG = 0;
 // If true, building against Emscripten's asm.js/wasm heap memory profiler.
 var MEMORYPROFILER = 0;
 
+// If true, building with Emscripten's WebGL rendering usage profiler.
+var WEBGLPROFILER = 0;
+
 // Duplicate function elimination. This coalesces function bodies that are
 // identical, which can happen e.g. if two methods have different C/C++ or LLVM
 // types, but end up identical at the asm.js level (all pointers are the same as

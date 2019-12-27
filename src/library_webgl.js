@@ -65,6 +65,9 @@ var LibraryGL = {
   },
 
   $GL__postset: 'var GLctx; GL.init()',
+#if WEBGLPROFILER
+  $GL__deps: ['$WebGLProfiler'],
+#endif
   $GL: {
 #if GL_DEBUG
     debug: true,
@@ -601,6 +604,10 @@ var LibraryGL = {
 
 #if TRACE_WEBGL_CALLS
       GL.hookWebGL(ctx);
+#endif
+
+#if WEBGLPROFILER
+      WebGLProfiler.createProfilerOnContext(handle);
 #endif
 
 #if GL_DISABLE_HALF_FLOAT_EXTENSION_IF_BROKEN
@@ -3292,6 +3299,9 @@ var LibraryGL = {
     GL.preDrawHandleClientVertexAttribBindings(first + count);
 #endif
 
+#if WEBGLPROFILER
+    WebGLProfiler.drawArrays(mode, first, count);
+#endif
     GLctx.drawArrays(mode, first, count);
 
 #if FULL_ES2

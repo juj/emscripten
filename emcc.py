@@ -2698,6 +2698,9 @@ def parse_args(newargs):
       newargs.append('-D__EMSCRIPTEN_TRACING__=1')
       settings_changes.append("EMSCRIPTEN_TRACING=1")
       shared.Settings.SYSTEM_JS_LIBRARIES.append(shared.path_from_root('src', 'library_trace.js'))
+    elif newargs[i] == '--webglprofiler':
+      settings_changes.append('WEBGLPROFILER=1')
+      shared.Settings.SYSTEM_JS_LIBRARIES.append(shared.path_from_root('src', 'library_webgl_profiler.js'))
     elif newargs[i] == '--emit-symbol-map':
       options.emit_symbol_map = True
       shared.Settings.EMIT_SYMBOL_MAP = 1
