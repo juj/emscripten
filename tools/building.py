@@ -1076,7 +1076,7 @@ def check_closure_compiler(args, env):
     exit_with_error('unrecognized closure compiler --version output (%s):\n%s' % (str(CLOSURE_COMPILER), output))
 
 
-def closure_compiler(filename, pretty=True, advanced=True, extra_closure_args=None):
+def closure_compiler(filename, pretty=True, advanced=True, extra_closure_args=None, emit_symbol_map=False):
   with ToolchainProfiler.profile_block('closure_compiler'):
     env = shared.env_with_node_in_path()
     user_args = []
@@ -1153,6 +1153,10 @@ def closure_compiler(filename, pretty=True, advanced=True, extra_closure_args=No
       args += ['--externs', e]
     args += ['--js_output_file', outfile]
 
+    if emit_symbol_map:
+      source_map = replace_suffix(outfile, '.closure_source_map')
+      args += ['--create_source_map', source_map]
+
     if Settings.IGNORE_CLOSURE_COMPILER_ERRORS:
       args.append('--jscomp_off=*')
     if pretty:
@@ -1163,11 +1167,8 @@ def closure_compiler(filename, pretty=True, advanced=True, extra_closure_args=No
 
     proc = run_process(cmd, stderr=PIPE, check=False, env=env)
 
-    # XXX Closure bug: if Closure is invoked with --create_source_map, Closure should create a
-    # outfile.map source map file (https://github.com/google/closure-compiler/wiki/Source-Maps)
-    # But it looks like it creates such files on Linux(?) even without setting that command line
-    # flag (and currently we don't), so delete the produced source map file to not leak files in
-    # temp directory.
+    # XXX Closure bug: Closure generates a stray output file even when not requested, so delete
+    # the produced source map file to not leak files in temp directory.
     try_delete(outfile + '.map')
 
     # Print Closure diagnostics result up front.
@@ -1178,6 +1179,8 @@ def closure_compiler(filename, pretty=True, advanced=True, extra_closure_args=No
         logger.error('Closure compiler completed with warnings and -s CLOSURE_WARNINGS=error enabled, aborting!\n')
       elif Settings.CLOSURE_WARNINGS == 'warn':
         logger.warn('Closure compiler completed with warnings:\n')
+
+    logger.warning(open(filename, 'r').read())
 
     # Print input file (long wall of text!)
     if DEBUG == 2 and (proc.returncode != 0 or (len(proc.stderr.strip()) > 0 and Settings.CLOSURE_WARNINGS != 'quiet')):
@@ -1207,6 +1210,18 @@ def closure_compiler(filename, pretty=True, advanced=True, extra_closure_args=No
       if Settings.CLOSURE_WARNINGS == 'error':
         exit_with_error('closure compiler produced warnings and -s CLOSURE_WARNINGS=error enabled')
 
+    logger.fatal(open(outfile, 'r').read())
+
+    # Convert the source map to a symbol map if we are generating symbol maps.
+    if emit_symbol_map:
+      logger.warning(open(source_map, 'r').read())
+      symbol_map_data = subprocess.check_output(NODE_JS + [path_from_root('tools', 'size_report.js'), '--createSymbolMapFromSourceMap', source_map, outfile])
+      try_delete(source_map)
+      logger.fatal('-----')
+      logger.fatal(symbol_map_data.decode('utf-8'))
+      logger.fatal('-----')
+      symbol_map = replace_suffix(outfile, '.closure_symbol_map')
+      open(symbol_map, 'wb').write(symbol_map_data)
     return outfile
 
 
