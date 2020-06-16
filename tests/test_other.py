@@ -8488,7 +8488,7 @@ end
     run_process([EMCC, path_from_root('tests', 'hello_world.c')], env=environ)
 
   def test_noderawfs(self):
-    fopen_write = open(path_from_root('tests', 'asmfs', 'fopen_write.cpp')).read()
+    fopen_write = open(path_from_root('tests', 'fopen_write.cpp')).read()
     create_test_file('main.cpp', fopen_write)
     run_process([EMCC, 'main.cpp', '-s', 'NODERAWFS=1'])
     self.assertContained("read 11 bytes. Result: Hello data!", run_js_default('a.out.js'))

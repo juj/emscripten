@@ -1237,11 +1237,9 @@ class libasmfs(MTLibrary):
   never_force = True
 
   def get_files(self):
-    return [shared.path_from_root('system', 'lib', 'fetch', 'asmfs.cpp')]
+    return [shared.path_from_root('system', 'lib', 'asmfs', 'asmfs.cpp')]
 
   def can_build(self):
-    # ASMFS is looking for a maintainer
-    # https://github.com/emscripten-core/emscripten/issues/9534
     return True
 
 

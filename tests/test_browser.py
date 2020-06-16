@@ -4473,6 +4473,9 @@ window.close = function() {
   def test_asmfs_relative_paths(self):
     self.btest('asmfs/relative_paths.cpp', expected='0', args=['-s', 'ASMFS=1', '-s', 'WASM=0', '-s', 'USE_PTHREADS=1', '-s', 'FETCH_DEBUG=1'])
 
+  def test_asmfs2_fetch_file(self):
+    self.btest('asmfs2/fetch_file.c', expected='0', args=['-s', 'ASMFS2=1'])
+
   @requires_threads
   def test_pthread_locale(self):
     for args in [
