@@ -1,43 +1,23 @@
 mergeInto(LibraryManager.library, {
-  /* Filesystem tree ASMFS['pathname'] = file_entry, where
-    file_entry = {
-      ptr: pointer to wasm heap for wasm side file entry,
-      data: a typed array containing the data for this file
-    }
-  */
   $ASMFS: {},
-
-  // Given an URL http://foo.com/file.png?query=val/foo,
-  // returns the filename part, "file.png"
-  _extract_basename: function(url) {
-    var search = url.indexOf('?');
-    if (search >= 0) {
-      url = url.substr(0, search);
-    }
-    return url.substr(url.lastIndexOf('/') + 1);
-  },
-
-  // Appends the filename from an URL to the given maybePath name, if it represents a directory.
-  // _append_filename('/', 'http://foo.com/file.png?query=val/foo') -> '/file.png');
-  // _append_filename('/custom.png', 'http://foo.com/file.png?query=val/foo') -> '/custom.png');
-  _append_filename__deps: ['_extract_basename'],
-  _append_filename: function path(maybePath, url) {
-    return (maybePath[maybePath.length-1] == '/') ? maybePath + __extract_basename(url) : maybePath;
-
-  },
 
   emscripten_asmfs_copy_file_chunk_to_wasm_memory: function(fileHandle, srcOffset, dst, dstLength) {
 #if ASSERTIONS
     assert(dst || dstLength == 0);
 #endif
     var data = ASMFS[fileHandle];
-    var buf = data.buffer;
     var srcLength = data.length - srcOffset;
-    var copyLength = Math.min(copyLength, dstLength);
+    var copyLength = Math.min(srcLength, dstLength);
     HEAPU8.set((!srcOffset && srcLength <= dstLength)
-      ? buf // Avoid temp garbage generation when we don't need to create a new view to the source file.
-      : new Uint8Array(buf, srcOffset, copyLength), dst);
+      ? data // Avoid temp garbage generation when we don't need to create a new view to the source file.
+      : new Uint8Array(data.buffer, srcOffset, copyLength), dst);
     return copyLength;
+  },
+
+  emscripten_asmfs_copy_file_to_js_memory: function(fileHandle) {
+    var contentLength = HEAPU32[(fileHandle + 4/*todo:offset size*/) >> 2];
+    var ptr = HEAPU32[(fileHandle + 8/*todo:offset data*/) >> 2];
+    ASMFS[fileHandle] = HEAPU8.slice(ptr, ptr + contentLength);
   },
 
   emscripten_asmfs_get_file_size_js__deps: ['$ASMFS'],
@@ -45,35 +25,58 @@ mergeInto(LibraryManager.library, {
     return ASMFS[fileHandle].length;
   },
 
-  emscripten_asmfs_async_fetch_file_js__deps: ['_append_filename', '$ASMFS'],
-  emscripten_asmfs_async_fetch_file_js: function(url, fileHandle, onComplete, userData) {
-    fetch(UTF8ToString(url))
+  emscripten_asmfs_async_fetch_file_to_js__deps: ['$ASMFS'],
+  emscripten_asmfs_async_fetch_file_to_js: function(url, fileHandle, onComplete, userData) {
+    fetch(url)
     .then(response => {
       response.arrayBuffer().then(data => {
         if (response.ok) ASMFS[fileHandle] = new Uint8Array(data);
-        {{{ makeDynCall('vii') }}}(onComplete, response.status, userData);
+        {{{ makeDynCall('viii') }}}(onComplete, response.status, fileHandle, userData);
       });
     });
-/*
-#if 0
-    url = UTF8ToString(url);
-    var dst = __append_filename(UTF8ToString(destination), url);
-    fetch(url)
-    .then(response => response.body)
-    .then(body => {
-      body.getReader().read().then(data => {
-        ASMFS[dst] = data.value;
-        console.dir(ASMFS);
-        dynCall_vii(onComplete, 0, userData);
-      })
-    });
-#endif
-*/
   },
 
-  emscripten_asmfs_get_file_size_js: function(path) {
-    path = UTF8ToString(path);
-    var file = ASMFS[path];
-    return file && file.length;
-  }
+  // Directly stream a file download into the Wasm heap, without first downloading a full copy
+  // of the file bytes as ArrayBuffer in JS side. If the file is large, this avoids temp memory
+  // usage pressure. (E.g. downloading a 100MB file in to Wasm heap routing via JS would otherwise
+  // create a 100MB temp ArrayBuffer in JS first, before the data reaches wasm memory)
+  emscripten_asmfs_async_fetch_file_to_wasm__deps: ['$ASMFS'],
+  emscripten_asmfs_async_fetch_file_to_wasm: function(url, fileHandle, onComplete, userData) {
+    var dataPtr, httpStatus;
+    fetch(url)
+    .then(response => {
+      var contentLength = response.headers.get('Content-Length');
+      dataPtr = _malloc(contentLength);
+      HEAPU32[(fileHandle + 4/*todo:offset size*/) >> 2] = contentLength;
+      HEAPU32[(fileHandle + 8/*todo:offset data*/) >> 2] = dataPtr;
+      httpStatus = response.status;
+      return response.body;
+    }).then(body => {
+      var reader = body.getReader();
+      function onChunkDownloaded(data) {
+        if (data.value)
+        {
+          // Stream the chunk contents directly to wasm heap:
+          HEAPU8.set(data.value, dataPtr);
+          dataPtr += data.value.length;
+        }
+        if (data.done) {
+          {{{ makeDynCall('viii') }}}(onComplete, httpStatus, fileHandle, userData);
+        } else {
+          reader.read().then(onChunkDownloaded);
+        }
+      }
+      reader.read().then(onChunkDownloaded);
+    });
+  },
+
+  emscripten_asmfs_async_fetch_file_js__deps: ['$ASMFS', 'emscripten_asmfs_async_fetch_file_to_js', 'emscripten_asmfs_async_fetch_file_to_wasm'],
+  emscripten_asmfs_async_fetch_file_js: function(url, fileHandle, residencyFlags, onComplete, userData) {
+    url = UTF8ToString(url);
+    if (residencyFlags & 1/*EMSCRIPTEN_ASMFS_WASM_RESIDENT*/) {
+      _emscripten_asmfs_async_fetch_file_to_wasm(url, fileHandle, onComplete, userData);
+    } else if (residencyFlags & 2/*EMSCRIPTEN_ASMFS_JS_RESIDENT*/) {
+      _emscripten_asmfs_async_fetch_file_to_js(url, fileHandle, onComplete, userData);
+    }
+  },
 });

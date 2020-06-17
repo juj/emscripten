@@ -1568,6 +1568,14 @@ var USE_FETCH_WORKER = 1;
 // asm.js module, using emscripten_fetch. Implies -s FETCH=1.
 var ASMFS = 0;
 
+/*
+var ASMFS_FILE_PERSISTENCE_JS = 0/1;
+var ASMFS_FILE_PERSISTENCE_WASM = 0/1;
+var ASMFS_FILE_PERSISTENCE_INDEXEDDB = 0/1;
+var ASMFS_FILE_PERSISTENCE_LOCAL_STORAGE = 0/1;
+var ASMFS_FILE_PERSISTENCE_SESSION_STORAGE = 0/1;
+*/
+
 // If set to 1, embeds all subresources in the emitted file as base64 string
 // literals. Embedded subresources may include (but aren't limited to) wasm,
 // asm.js, and static memory initialization code.
