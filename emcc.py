@@ -415,13 +415,14 @@ def is_ar_file_with_missing_index(archive_file):
 
 
 def ensure_archive_index(archive_file):
-  # Fastcomp linking works without archive indexes.
-  if not shared.Settings.AUTO_ARCHIVE_INDEXES:
-    return
-  if is_ar_file_with_missing_index(archive_file):
-    diagnostics.warning('emcc', '%s: archive is missing an index; Use emar when creating libraries to ensure an index is created', archive_file)
-    diagnostics.warning('emcc', '%s: adding index', archive_file)
-    run_process([shared.LLVM_RANLIB, archive_file])
+  with ToolchainProfiler.profile_block('ensure_archive_index'):
+    # Fastcomp linking works without archive indexes.
+    if not shared.Settings.AUTO_ARCHIVE_INDEXES:
+      return
+    if is_ar_file_with_missing_index(archive_file):
+      diagnostics.warning('emcc', '%s: archive is missing an index; Use emar when creating libraries to ensure an index is created', archive_file)
+      diagnostics.warning('emcc', '%s: adding index', archive_file)
+      run_process([shared.LLVM_RANLIB, archive_file])
 
 
 def get_all_js_syms():
@@ -2068,8 +2069,9 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       CXX = [os.environ['EMMAKEN_COMPILER']]
       CC = [cxx_to_c_compiler(os.environ['EMMAKEN_COMPILER'])]
 
-    compile_args = [a for a in newargs if a and not is_link_flag(a)]
-    system_libs.ensure_sysroot()
+    with ToolchainProfiler.profile_block('ensure_sysroot'):
+      compile_args = [a for a in newargs if a and not is_link_flag(a)]
+      system_libs.ensure_sysroot()
 
     def use_cxx(src):
       if 'c++' in language_mode or run_via_emxx:
@@ -2101,78 +2103,83 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       return get_compiler(use_cxx(src_file)) + get_clang_flags() + compile_args + [src_file]
 
     # preprocessor-only (-E) support
-    if has_dash_E or '-M' in newargs or '-MM' in newargs or '-fsyntax-only' in newargs:
-      for input_file in [x[1] for x in input_files]:
-        cmd = get_clang_command(input_file)
-        if specified_target:
-          cmd += ['-o', specified_target]
-        # Do not compile, but just output the result from preprocessing stage or
-        # output the dependency rule. Warning: clang and gcc behave differently
-        # with -MF! (clang seems to not recognize it)
-        logger.debug(('just preprocessor ' if has_dash_E else 'just dependencies: ') + ' '.join(cmd))
-        shared.check_call(cmd)
-      return 0
-
-    # Precompiled headers support
-    if has_header_inputs:
-      headers = [header for _, header in input_files]
-      for header in headers:
-        if not header.endswith(HEADER_ENDINGS):
-          exit_with_error('cannot mix precompile headers with non-header inputs: ' + str(headers) + ' : ' + header)
-        cmd = get_clang_command(header)
-        if specified_target:
-          cmd += ['-o', specified_target]
-        logger.debug("running (for precompiled headers): " + cmd[0] + ' ' + ' '.join(cmd[1:]))
-        shared.check_call(cmd)
+    with ToolchainProfiler.profile_block('preprocessor_e'):
+      if has_dash_E or '-M' in newargs or '-MM' in newargs or '-fsyntax-only' in newargs:
+        for input_file in [x[1] for x in input_files]:
+          cmd = get_clang_command(input_file)
+          if specified_target:
+            cmd += ['-o', specified_target]
+          # Do not compile, but just output the result from preprocessing stage or
+          # output the dependency rule. Warning: clang and gcc behave differently
+          # with -MF! (clang seems to not recognize it)
+          logger.debug(('just preprocessor ' if has_dash_E else 'just dependencies: ') + ' '.join(cmd))
+          shared.check_call(cmd)
         return 0
 
+    # Precompiled headers support
+    with ToolchainProfiler.profile_block('precompiled_headers'):
+      if has_header_inputs:
+        headers = [header for _, header in input_files]
+        for header in headers:
+          if not header.endswith(HEADER_ENDINGS):
+            exit_with_error('cannot mix precompile headers with non-header inputs: ' + str(headers) + ' : ' + header)
+          cmd = get_clang_command(header)
+          if specified_target:
+            cmd += ['-o', specified_target]
+          logger.debug("running (for precompiled headers): " + cmd[0] + ' ' + ' '.join(cmd[1:]))
+          shared.check_call(cmd)
+          return 0
+
     def get_object_filename(input_file):
-      if compile_only:
-        # In compile-only mode we don't use any temp file.  The object files
-        # are written directly to their final output locations.
-        if specified_target:
-          assert len(input_files) == 1
-          return specified_target
+      with ToolchainProfiler.profile_block('get_object_filename'):
+        if compile_only:
+          # In compile-only mode we don't use any temp file.  The object files
+          # are written directly to their final output locations.
+          if specified_target:
+            assert len(input_files) == 1
+            return specified_target
+          else:
+            return unsuffixed_basename(input_file) + options.default_object_extension
         else:
-          return unsuffixed_basename(input_file) + options.default_object_extension
-      else:
-        return in_temp(unsuffixed(uniquename(input_file)) + options.default_object_extension)
+          return in_temp(unsuffixed(uniquename(input_file)) + options.default_object_extension)
 
     def compile_source_file(i, input_file):
-      logger.debug('compiling source file: ' + input_file)
-      output_file = get_object_filename(input_file)
-      temp_files.append((i, output_file))
-      if get_file_suffix(input_file) in ASSEMBLY_ENDINGS:
-        cmd = get_clang_command_asm(input_file)
-      else:
-        cmd = get_clang_command(input_file)
-      if not has_dash_c:
-        cmd += ['-c']
-      cmd += ['-o', output_file]
-      shared.check_call(cmd)
-      if output_file not in ('-', os.devnull):
-        assert os.path.exists(output_file)
+      with ToolchainProfiler.profile_block('compile_source_file'):
+        logger.debug('compiling source file: ' + input_file)
+        output_file = get_object_filename(input_file)
+        temp_files.append((i, output_file))
+        if get_file_suffix(input_file) in ASSEMBLY_ENDINGS:
+          cmd = get_clang_command_asm(input_file)
+        else:
+          cmd = get_clang_command(input_file)
+        if not has_dash_c:
+          cmd += ['-c']
+        cmd += ['-o', output_file]
+        shared.check_call(cmd)
+        if output_file not in ('-', os.devnull):
+          assert os.path.exists(output_file)
 
     # First, generate LLVM bitcode. For each input file, we get base.o with bitcode
-    for i, input_file in input_files:
-      file_suffix = get_file_suffix(input_file)
-      if file_suffix in SOURCE_ENDINGS + ASSEMBLY_ENDINGS or (has_dash_c and file_suffix == '.bc'):
-        compile_source_file(i, input_file)
-      elif file_suffix in DYNAMICLIB_ENDINGS:
-        logger.debug('using shared library: ' + input_file)
-        temp_files.append((i, input_file))
-      elif building.is_ar(input_file):
-        logger.debug('using static library: ' + input_file)
-        ensure_archive_index(input_file)
-        temp_files.append((i, input_file))
-      elif language_mode:
-        compile_source_file(i, input_file)
-      elif input_file == '-':
-        exit_with_error('-E or -x required when input is from standard input')
-      else:
-        # Default to assuming the inputs are object files and pass them to the linker
-        logger.debug('using object file: ' + input_file)
-        temp_files.append((i, input_file))
+    with ToolchainProfiler.profile_block('gen_llvm_bitcode'):
+      for i, input_file in input_files:
+        file_suffix = get_file_suffix(input_file)
+        if file_suffix in SOURCE_ENDINGS + ASSEMBLY_ENDINGS or (has_dash_c and file_suffix == '.bc'):
+          compile_source_file(i, input_file)
+        elif file_suffix in DYNAMICLIB_ENDINGS:
+          logger.debug('using shared library: ' + input_file)
+          temp_files.append((i, input_file))
+        elif building.is_ar(input_file):
+          logger.debug('using static library: ' + input_file)
+          ensure_archive_index(input_file)
+          temp_files.append((i, input_file))
+        elif language_mode:
+          compile_source_file(i, input_file)
+        elif input_file == '-':
+          exit_with_error('-E or -x required when input is from standard input')
+        else:
+          # Default to assuming the inputs are object files and pass them to the linker
+          logger.debug('using object file: ' + input_file)
+          temp_files.append((i, input_file))
 
   # exit block 'compile inputs'
   log_time('compile inputs')
