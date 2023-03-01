@@ -3757,6 +3757,13 @@ mergeInto(LibraryManager.library, {
   $STACK_ALIGN: {{{ STACK_ALIGN }}},
   $POINTER_SIZE: {{{ POINTER_SIZE }}},
   $ASSERTIONS: {{{ ASSERTIONS }}},
+
+  wasm_discard: function(startAddress, numBytes) { // TODO: This would be removed in favor of a Wasm built-in Memory.discard(), but need support in LLVM and Binaryen for that instruction.
+#if ASSERTIONS
+    console.log(`Discarding ${numBytes} bytes (${numBytes/65536} Wasm pages) of memory starting at address 0x${startAddress.toString(16)}.`);
+#endif
+    wasmMemory.discard(startAddress, numBytes);
+  }
 });
 
 function autoAddDeps(object, name) {

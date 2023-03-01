@@ -54,6 +54,8 @@
 #include <emscripten/trace.h>
 #endif
 
+void wasm_discard(uintptr_t startAddress, uintptr_t numBytes);
+
 // Behavior of right shifting a signed integer is compiler implementation defined.
 static_assert((((int32_t)0x80000000U) >> 31) == -1, "This malloc implementation requires that right-shifting a signed integer produces a sign-extending (arithmetic) shift!");
 
@@ -66,6 +68,8 @@ static_assert(alignof(max_align_t) == 8, "max_align_t must be correct");
 
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
+
+#define WASM_PAGE_SIZE 65536
 
 #define NUM_FREE_BUCKETS 64
 #define BUCKET_BITMASK_T uint64_t
@@ -122,7 +126,8 @@ static volatile uint8_t multithreadingLock = 0;
 #endif
 
 #define IS_POWER_OF_2(val) (((val) & ((val)-1)) == 0)
-#define ALIGN_UP(ptr, alignment) ((uint8_t*)((((uintptr_t)(ptr)) + ((alignment)-1)) & ~((alignment)-1)))
+#define ALIGN_UP(ptr, alignment)   ((uint8_t*)((((uintptr_t)(ptr)) + ((alignment)-1)) & ~((alignment)-1)))
+#define ALIGN_DOWN(ptr, alignment) ((uint8_t*)(( (uintptr_t)(ptr))                    & ~((alignment)-1)))
 #define HAS_ALIGNMENT(ptr, alignment) ((((uintptr_t)(ptr)) & ((alignment)-1)) == 0)
 
 static_assert(IS_POWER_OF_2(MALLOC_ALIGNMENT), "MALLOC_ALIGNMENT must be a power of two value!");
@@ -878,6 +883,11 @@ void emmalloc_free(void *ptr)
   MALLOC_ACQUIRE();
 
   size_t size = region->size;
+
+  // This range of memory represents the potential set of new free Wasm pages that can be discarded back to OS.
+  uintptr_t optimisticDiscardStartAddress = (uintptr_t)ALIGN_DOWN(regionStartPtr + (sizeof(Region) - sizeof(size_t)), WASM_PAGE_SIZE);
+  uintptr_t optimisticDiscardEndAddress = (uintptr_t)ALIGN_UP(regionStartPtr + size - sizeof(size_t), WASM_PAGE_SIZE);
+
 #ifdef EMMALLOC_VERBOSE
   if (size < sizeof(Region) || !region_is_in_use(region))
   {
@@ -920,6 +930,19 @@ void emmalloc_free(void *ptr)
 
   create_free_region(regionStartPtr, size);
   link_to_free_list((Region*)regionStartPtr);
+
+  // Calculate the memory area of resident memory pages that can be returned back to the OS.
+  uintptr_t discardStart = (uintptr_t)regionStartPtr + (sizeof(Region) - sizeof(size_t));
+  uintptr_t discardEnd = (uintptr_t)regionStartPtr + size - sizeof(size_t);
+  // Round byte addresses to multiples of Wasm page size, 64KB.
+  discardStart = (uintptr_t)ALIGN_UP(discardStart, WASM_PAGE_SIZE);
+  discardEnd = (uintptr_t)ALIGN_DOWN(discardEnd, WASM_PAGE_SIZE);
+  // And constrain the discard range to only pages that overlap with the newly freed allocation.
+  discardStart = MAX(optimisticDiscardStartAddress, discardStart);
+  discardEnd = MIN(optimisticDiscardEndAddress, discardEnd);
+
+  if (discardStart < discardEnd) // Do we have at least one full page to discard?
+    wasm_discard(discardStart, discardEnd - discardStart); // TODO: Migrate to a __builtin_wasm_grow() to stay inside Wasm land
 
   MALLOC_RELEASE();
 
