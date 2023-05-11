@@ -87,6 +87,15 @@ function initRuntime(asm) {
   <<< ATINITS >>>
 }
 
+#if EMIT_SYMBOL_GRAPH_JSON
+// Enable code coverage if symbol graph is emitted
+
+#include "coverage.js"
+
+// Install the code coverage execution handler.
+asmLibraryArg['log_execution'] = COV_log_execution;
+#endif
+
 // Initialize wasm (asynchronous)
 
 var imports = {

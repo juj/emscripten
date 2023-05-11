@@ -815,6 +815,11 @@ function resetPrototype(constructor, attrs) {
 }
 #endif
 
+#if EMIT_SYMBOL_GRAPH_JSON
+// Enable code coverage if symbol graph is emitted
+#include "coverage.js"
+#endif
+
 #if WASM_ASYNC_COMPILATION
 function instantiateArrayBuffer(binaryFile, imports, receiver) {
 #if USE_OFFSET_CONVERTER
@@ -937,6 +942,11 @@ function instantiateAsync(binary, binaryFile, imports, callback) {
 // Create the wasm instance.
 // Receives the wasm imports, returns the exports.
 function createWasm() {
+#if EMIT_SYMBOL_GRAPH_JSON
+  // Install the code coverage execution handler.
+  asmLibraryArg['log_execution'] = COV_log_execution;
+#endif
+
   // prepare imports
   var info = {
 #if MINIFY_WASM_IMPORTED_MODULES

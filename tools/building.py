@@ -258,6 +258,9 @@ def link_lld(args, target, external_symbols=None):
   if settings.STRICT:
     args.append('--fatal-warnings')
 
+  if settings.EMIT_SYMBOL_GRAPH_JSON:
+    args.append('--no-demangle')
+
   cmd = [WASM_LD, '-o', target] + args
   for a in llvm_backend_args():
     cmd += ['-mllvm', a]
@@ -1154,6 +1157,15 @@ def map_and_apply_to_settings(library_name):
     return True
 
   return False
+
+
+def merge_call_graph_jsons(output, inputs, wasm_output_file=None):
+  cmd = [sys.executable, '-E', path_from_root('merge-callgraph-json.py'),
+         '-o',  output]
+  if wasm_output_file:
+    cmd += ['--wasm', wasm_output_file]
+  rsp = response_file.create_response_file(inputs, shared.TEMP_DIR)
+  check_call(cmd + ['@' + rsp])
 
 
 def emit_wasm_source_map(wasm_file, map_file, final_wasm):

@@ -255,6 +255,7 @@ class EmccOptions:
     self.oformat = None
     self.requested_debug = ''
     self.emit_symbol_map = False
+    self.emit_symbol_graph_json = False
     self.use_closure_compiler = None
     self.closure_args = []
     self.js_transform = None
@@ -654,6 +655,11 @@ def get_binaryen_passes():
   # hardcoded value in the binaryen pass)
   if optimizing and settings.GLOBAL_BASE >= 1024:
     passes += ['--low-memory-unused']
+
+  if settings.EMIT_SYMBOL_GRAPH_JSON:
+    # Enable code coverage if symbol graph is emitted
+    passes += ['--log-execution']
+
   if settings.AUTODEBUG:
     # adding '--flatten' here may make these even more effective
     passes += ['--instrument-locals']
@@ -3042,6 +3048,11 @@ def phase_compile_inputs(options, state, newargs, input_files):
     if not state.has_dash_c:
       cmd += ['-c']
     cmd += ['-o', output_file]
+
+    if options.emit_symbol_graph_json:
+      print('Asking generation of callgraph to ' + output_file + '.callgraph.json')
+      cmd += ['-mllvm', '--emit-symbol-graph-json=' + output_file + '.callgraph.json']
+
     if state.mode == Mode.COMPILE_AND_LINK and '-gsplit-dwarf' in newargs:
       # When running in COMPILE_AND_LINK mode we compile to temporary location
       # but we want the `.dwo` file to be generated in the current working directory,
@@ -3100,6 +3111,42 @@ def phase_link(linker_arguments, wasm_target, js_syms):
   settings.EXPORT_IF_DEFINED = dedup_list(settings.EXPORT_IF_DEFINED)
 
   building.link_lld(linker_arguments, wasm_target, external_symbols=js_syms)
+
+  # Collect all partial call graph files, and generate a single merged output call graph file
+  if settings.EMIT_SYMBOL_GRAPH_JSON:
+    def get_link_directories(args):
+      link_dirs = []
+      for f in args:
+        if f.startswith('-L'):
+          link_dirs += [f[2:]]
+      return link_dirs
+
+    link_dirs = get_link_directories(linker_arguments)
+
+    def find_lib(lib):
+      for d in link_dirs:
+        c = os.path.join(d, 'lib' + lib + '.a')
+        if os.path.isfile(c):
+          return c
+
+    cg = []
+    for arg in linker_arguments:
+      f = None
+      if arg.startswith('-l'):
+        lib = find_lib(arg[2:])
+        if lib:
+          f = lib + '.callgraph.json'
+      elif arg.startswith('-'):
+        continue
+      if not f:
+        f = arg + '.callgraph.json'
+      if os.path.isfile(f):
+        cg += [f]
+        print('Found call graph file ' + f)
+      else:
+        print('Was unable to find call graph file ' + f)
+    if len(cg) > 0:
+      building.merge_call_graph_jsons(wasm_target + '.callgraph.json', cg, wasm_target)
 
 
 @ToolchainProfiler.profile_block('post_link')
@@ -3484,6 +3531,9 @@ def parse_args(newargs):
     elif check_flag('--emit-symbol-map'):
       options.emit_symbol_map = True
       settings.EMIT_SYMBOL_MAP = 1
+    elif check_flag('--emit-symbol-graph-json'):
+      options.emit_symbol_graph_json = True
+      settings.EMIT_SYMBOL_GRAPH_JSON = 1
     elif check_arg('--embed-file'):
       options.embed_files.append(consume_arg())
     elif check_arg('--preload-file'):
