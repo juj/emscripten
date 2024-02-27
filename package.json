@@ -16,6 +16,7 @@
     "@babel/preset-env": "^7.23.8",
     "acorn": "^8.11.3",
     "google-closure-compiler": "20230802.0.0",
+    "google-closure-compiler-windows": "^20230802.0.0",
     "html-minifier-terser": "7.2.0"
   },
   "scripts": {

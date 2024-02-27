@@ -2109,6 +2109,12 @@ var LEGACY_RUNTIME = false;
 // [link]
 var SIGNATURE_CONVERSIONS = [];
 
+// Build with spill pointers support to enable stack scanning of pointers?
+var SPILL_POINTERS = true;//false;
+
+// Inject cooperative GC marker spots in all loops?
+var COOPERATIVE_GC = false;
+
 //===========================================
 // Internal, used for testing only, from here
 //===========================================
