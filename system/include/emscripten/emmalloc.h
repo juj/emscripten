@@ -63,6 +63,10 @@ void *emmalloc_realloc_try(void *ptr, size_t size);
 // will be undefined after reallocation. (old memory is not preserved in any case)
 void *emmalloc_realloc_uninitialized(void *ptr, size_t size);
 
+// emmalloc_realloc_zeroed() is like realloc(), but the memory contents will be zeroed
+// after a reallocation. (old memory is not assumed to have been zeroed, even if shrinking)
+void *emmalloc_realloc_zeroed(void *ptr, size_t size);
+
 // Like realloc(), but allows specifying the alignment to allocate to. This function cannot
 // be used to change the alignment of an existing allocation, but the original pointer should
 // be aligned to the given alignment already.
@@ -72,6 +76,9 @@ void *emmalloc_aligned_realloc(void *ptr, size_t alignment, size_t size);
 // emmalloc_aligned_realloc_uninitialized() is like aligned_realloc(), but old memory contents
 // will be undefined after reallocation. (old memory is not preserved in any case)
 void *emmalloc_aligned_realloc_uninitialized(void *ptr, size_t alignment, size_t size);
+
+// emmalloc_aligned_realloc_zeroed() is like emmalloc_realloc_zeroed(), but with alignment.
+void *emmalloc_aligned_realloc_zeroed(void *ptr, size_t alignment, size_t size);
 
 // posix_memalign allocates memory with a given alignment, like memalign, but with a slightly
 // different usage signature.

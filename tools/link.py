@@ -313,6 +313,19 @@ def get_binaryen_passes():
   passes = []
   optimizing = should_run_binaryen_optimizer()
 
+  # Important: The --instrument-cooperative-gc pass must run before the --spill-pointers pass,
+  # because this instrumentation pass will add a new function call to most loops, and pointers
+  # will need to be properly spilled around this new function call.
+  if settings.COOPERATIVE_GC:
+    passes += ['--instrument-cooperative-gc']
+
+  # The --spill-pointers pass must run before Asyncify pass, or otherwise --spill-pointers
+  # stomps over Asyncify's stack resuming mechanism. It is also advantageous to run
+  # --spill-pointers early, because it generates inefficient code by itself: other optimization
+  # passes can then optimize on --spill-pointers results.
+  if settings.SPILL_POINTERS:
+    passes += ['--spill-pointers']
+
   # safe heap must run before post-emscripten, so post-emscripten can apply the sbrk ptr
   if settings.SAFE_HEAP:
     passes += ['--safe-heap']
@@ -349,6 +362,7 @@ def get_binaryen_passes():
       # legalize it again now, as the instrumentation may need it
       passes += ['--legalize-js-interface']
       passes += building.js_legalization_pass_flags()
+
   if settings.ASYNCIFY == 1:
     passes += ['--asyncify']
     if settings.MAIN_MODULE:

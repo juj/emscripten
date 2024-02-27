@@ -94,6 +94,7 @@ COMPILE_TIME_SETTINGS = {
 
   # Internal settings used during compilation
   'EXCEPTION_CATCHING_ALLOWED',
+    'SPILL_POINTERS',
   'WASM_EXCEPTIONS',
   'OPT_LEVEL',
   'DEBUG_LEVEL',

@@ -2233,6 +2233,15 @@ var WASM_BINDGEN = 0;
 // [link]
 // [experimental]
 var SOURCE_PHASE_IMPORTS = false;
+// Build with spill pointers support to enable stack scanning of pointers?
+var SPILL_POINTERS = true;//false;
+
+// Inject cooperative GC marker spots in all loops?
+var COOPERATIVE_GC = false;
+
+//===========================================
+// Internal, used for testing only, from here
+//===========================================
 
 // Experimental support for wasm ESM integration.
 // Requires :ref:`EXPORT_ES6` and ``MODULARIZE=instance``
