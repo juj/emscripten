@@ -1128,6 +1128,20 @@ void *emmalloc_realloc_uninitialized(void *ptr, size_t size) {
   return emmalloc_aligned_realloc_uninitialized(ptr, MALLOC_ALIGNMENT, size);
 }
 
+void *emmalloc_realloc_zeroed(void *ptr, size_t size)
+{
+  ptr = emmalloc_realloc_uninitialized(ptr, size);
+  if (ptr) memset(ptr, 0, size);
+  return ptr;
+}
+
+void *emmalloc_aligned_realloc_zeroed(void *ptr, size_t alignment, size_t size)
+{
+  ptr = emmalloc_aligned_realloc_uninitialized(ptr, alignment, size);
+  if (ptr) memset(ptr, 0, size);
+  return ptr;
+}
+
 int emmalloc_posix_memalign(void **memptr, size_t alignment, size_t size) {
   assert(memptr);
   if (alignment % sizeof(void *) != 0) {

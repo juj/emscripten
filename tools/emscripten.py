@@ -441,7 +441,7 @@ def finalize_wasm(infile, outfile, js_syms):
     # wasm2js requires full legalization (and will do extra wasm binary
     # later processing later anyhow)
     modify_wasm = True
-  if settings.DEBUG_LEVEL >= 2 or settings.ASYNCIFY_ADD or settings.ASYNCIFY_ADVISE or settings.ASYNCIFY_ONLY or settings.ASYNCIFY_REMOVE or settings.EMIT_SYMBOL_MAP or settings.EMIT_NAME_SECTION:
+  if settings.DEBUG_LEVEL >= 2 or settings.ASYNCIFY_ADD or settings.ASYNCIFY_ADVISE or settings.ASYNCIFY_ONLY or settings.ASYNCIFY_REMOVE or settings.EMIT_SYMBOL_MAP or settings.EMIT_NAME_SECTION or settings.SPILL_POINTERS or settings.COOPERATIVE_GC:
     need_name_section = True
     args.append('-g')
   if settings.WASM_BIGINT:
