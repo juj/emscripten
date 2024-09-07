@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <assert.h>
 
+// Return non-zero if the calling thread supports Atomic.wait (For example
+// if called from the main browser thread, this function will return zero
+// since blocking is not allowed there).
+extern "C" int _emscripten_thread_supports_atomics_wait(void);
+
 // Tests that
 // - _emscripten_thread_supports_atomics_wait() returns true in a Wasm Audio Worklet.
 // - emscripten_futex_wake() does not crash in a Wasm Audio Worklet.

@@ -12,6 +12,10 @@ moduleRtn = readyPromise;
 moduleRtn = {};
 #endif
 
+#if AUDIO_WORKLET
+moduleRtn = Module;
+#endif
+
 #else  // WASM_ASYNC_COMPILATION
 
 moduleRtn = Module;

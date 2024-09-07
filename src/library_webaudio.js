@@ -124,7 +124,8 @@ let LibraryWebAudio = {
 #if AUDIO_WORKLET
   emscripten_start_wasm_audio_worklet_thread_async__deps: [
     '$_wasmWorkersID',
-    '$_EmAudioDispatchProcessorCallback'],
+    '$_EmAudioDispatchProcessorCallback',
+    '$stackSave', '$stackAlloc', '$stackRestore'], // The stack functions are used by the Audio Worklet thread. Mark dependency here on the Worklet's behalf
   emscripten_start_wasm_audio_worklet_thread_async: (contextHandle, stackLowestAddress, stackSize, callback, userData) => {
 
 #if ASSERTIONS

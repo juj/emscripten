@@ -1370,13 +1370,13 @@ def phase_linker_setup(options, state, newargs):
     if settings.AUDIO_WORKLET == 1:
       settings.AUDIO_WORKLET_FILE = unsuffixed(os.path.basename(target)) + '.aw.js'
     settings.JS_LIBRARIES.append((0, shared.path_from_root('src', 'library_webaudio.js')))
-    if not settings.MINIMAL_RUNTIME:
+#    if not settings.MINIMAL_RUNTIME:
       # If we are in the audio worklet environment, we can only access the Module object
       # and not the global scope of the main JS script. Therefore we need to export
       # all symbols that the audio worklet scope needs onto the Module object.
       # MINIMAL_RUNTIME exports these manually, since this export mechanism is placed
       # in global scope that is not suitable for MINIMAL_RUNTIME loader.
-      settings.EXPORTED_RUNTIME_METHODS += ['stackSave', 'stackAlloc', 'stackRestore', 'wasmTable']
+    settings.EXPORTED_RUNTIME_METHODS += ['stackSave', 'stackAlloc', 'stackRestore', 'wasmTable', 'HEAPU32', 'HEAPF32']
 
   if settings.FORCE_FILESYSTEM and not settings.MINIMAL_RUNTIME:
     # when the filesystem is forced, we export by default methods that filesystem usage
