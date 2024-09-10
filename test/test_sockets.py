@@ -350,6 +350,11 @@ class sockets(BrowserCore):
         # Build and run the TCP echo client program with Emscripten
         self.btest_exit('websocket/tcp_echo_client.c', args=['-lwebsocket', '-sPROXY_POSIX_SOCKETS', '-pthread', '-sPROXY_TO_PTHREAD'])
 
+  # Test that multiple pthreads calling send() on the same socket produces correct ordering semantics.
+  def test_sockets_send_interleave(self):
+    with NodeJsWebSocketEchoServerProcess():
+      self.btest('sockets/send_interleave.cpp', args=['-DSOCKET_DEBUG', '-pthread', '-sPTHREAD_POOL_SIZE=1'], expected='0')
+
 
 class sockets64(sockets):
   def setUp(self):
