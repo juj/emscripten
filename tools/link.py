@@ -2572,17 +2572,11 @@ def generate_traditional_runtime_html(target, options, js_target, target_basenam
   # inline script for SINGLE_FILE output
   if settings.SINGLE_FILE:
     js_contents = script.inline or ''
-    if script.src:
-      js_contents += read_file(js_target)
     if settings.SHARED_MEMORY:
-      # In the case of SHARED_MEMORY we need to be able to create new workers based on the JS file,
-      # so we need to have a URL by which to refer to it.  To enable this we use a `src` attribute
-      # with a `data:` URL instead of having inline JS.
-      tmp_file = in_temp('all.js')
-      write_file(tmp_file, js_contents)
-      script.src = get_subresource_location(tmp_file);
-      script.inline = None
+      script.src = get_subresource_location(js_target)
     else:
+      if script.src:
+        js_contents += read_file(js_target)
       script.src = None
       script.inline = js_contents
     delete_file(js_target)
