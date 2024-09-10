@@ -2079,7 +2079,7 @@ def phase_final_emitting(options, state, target, wasm_target):
     return
 
   target_dir = os.path.dirname(os.path.abspath(target))
-  if settings.PTHREADS and not settings.STRICT:
+  if settings.PTHREADS and not settings.STRICT and not settings.SINGLE_FILE:
     worker_file = shared.replace_suffix(target, get_worker_js_suffix())
     write_file(worker_file, '''\
 // This file is no longer used by emscripten and has been created as a placeholder
@@ -2574,9 +2574,18 @@ def generate_traditional_runtime_html(target, options, js_target, target_basenam
     js_contents = script.inline or ''
     if script.src:
       js_contents += read_file(js_target)
+    if settings.SHARED_MEMORY:
+      # In the case of SHARED_MEMORY we need to be able to create new workers based on the JS file,
+      # so we need to have a URL by which to refer to it.  To enable this we use a `src` attribute
+      # with a `data:` URL instead of having inline JS.
+      tmp_file = in_temp('all.js')
+      write_file(tmp_file, js_contents)
+      script.src = get_subresource_location(tmp_file);
+      script.inline = None
+    else:
+      script.src = None
+      script.inline = js_contents
     delete_file(js_target)
-    script.src = None
-    script.inline = js_contents
 
   shell = do_replace(shell, '{{{ SCRIPT }}}', script.replacement())
   shell = shell.replace('{{{ SHELL_CSS }}}', utils.read_file(utils.path_from_root('src/shell.css')))
@@ -2820,16 +2829,21 @@ class ScriptSource:
     """Returns the script tag to replace the {{{ SCRIPT }}} tag in the target"""
     assert (self.src or self.inline) and not (self.src and self.inline)
     if self.src:
-      quoted_src = quote(self.src)
+      src = self.src
+      if src.startswith('data:'):
+        filename = src
+      else:
+        src = quote(self.src)
+        filename = f'./{src}'
       if settings.EXPORT_ES6:
         return f'''
         <script type="module">
-          import initModule from "./{quoted_src}";
+          import initModule from "{filename}";
           initModule(Module);
         </script>
         '''
       else:
-        return f'<script async type="text/javascript" src="{quoted_src}"></script>'
+        return f'<script async type="text/javascript" src="{src}"></script>'
     else:
       return '<script>\n%s\n</script>' % self.inline
 
