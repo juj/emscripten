@@ -661,7 +661,9 @@ function extractJavaScriptCodeSize(sourceFile, symbolMap) {
 }
 
 function sectionIdToString(id) {
-  return ['CUSTOM', 'TYPE', 'IMPORT', 'FUNCTION', 'TABLE', 'MEMORY', 'GLOBAL', 'EXPORT', 'START', 'ELEMENT', 'CODE', 'DATA'][id];
+  var sections = ['CUSTOM', 'TYPE', 'IMPORT', 'FUNCTION', 'TABLE', 'MEMORY', 'GLOBAL', 'EXPORT', 'START', 'ELEMENT', 'CODE', 'DATA', 'DATA_COUNT', 'TAG'];
+  if (id < 0 || id >= sections.length) throw `Invalid Section ID ${id}`;
+  return sections[id];
 }
 
 function readLEB128(file, cursor) {
@@ -820,6 +822,7 @@ function extractWasmCodeSize(sourceFile) {
     var id = wasm.readInt8(cursor++);
     if (id === undefined) throw 'Failed to parse section ID in wasm file!';
     var name = sectionIdToString(id);
+    console.error(`Section ${id}: ${name}`);
     [size, cursor] = readLEB128(wasm, cursor);
     var sectionEndCursor = cursor + size;
     var sectionSize = sectionEndCursor - sectionStartCursor;
@@ -918,11 +921,102 @@ function extractNumberCmdLineInput(args, param, defaultValue) {
   return defaultValue;
 }
 
+function readCSharpSymbolMap(filename) {
+  var symbolMap = {};
+
+  function splitInTwo(s, delim) {
+    var idx = s.indexOf(delim);
+    return [s.substr(0, idx), s.substr(idx+1)];
+  }
+  try {
+    var symbolFile = fs.readFileSync(filename).toString();
+    var symbols = symbolFile.split('\n');
+    for(var i in symbols) {
+      var [minified, unminified, assembly] = symbols[i].split('\t');
+      symbolMap[minified] = {
+        unmangled: unminified,
+        assembly: (assembly||'').trim()
+      };
+    }
+  } catch(e) {
+    // no-op
+  }
+  return symbolMap;
+}
+
+function looksLikeCSharpSymbolName(sym) {
+  var run = -1;
+  for(var i = 0; i < sym.length; ++i) {
+    if (sym[i] == 't') {
+      run = 0;
+    }
+    else if (run != -1 && '0123456789ABCDEF'.includes(sym[i])) {
+      if (++run >= 40) return true;
+    }
+    else run = -1;
+  }
+  return false;
+}
+
+function extractCSharpAssembliesFromSymbolMap(codeSizes, symbolMap) {
+  for(var sym of Object.values(codeSizes)) {
+    if (symbolMap[sym.name]) {
+      sym.assembly = symbolMap[sym.name].assembly;
+    } else if (sym.name.toString().includes('_inline(')) {
+      var name2 = sym.name.slice(0, sym.name.indexOf('_inline('));
+      if (symbolMap[name2]) {
+        sym.assembly = symbolMap[name2].assembly;
+      }
+    } else if (sym.name.toString().includes('_AdjustorThunk')) {
+      var name2 = sym.name.slice(0, sym.name.indexOf('_AdjustorThunk'));
+      if (symbolMap[name2]) {
+        sym.assembly = symbolMap[name2].assembly;
+      }
+    } else {
+      sym.assembly = looksLikeCSharpSymbolName(sym.name) ? '(csharp)' : '(native)';
+    }
+  }
+}
+
+function bucketSymbolsByCSharpAssembly(codeSizes) {
+  var sizeByAssembly = {};
+  for(var sym of codeSizes) {
+    if (sym.type !== 'function') continue;
+    var asm = sym.assembly;
+    if (asm) {
+      if (!sizeByAssembly[asm]) {
+        sizeByAssembly[asm] = {
+          count: 0,
+          size: 0
+        };
+      }
+      var c = sizeByAssembly[asm];
+      ++c.count;
+      c.size += sym.size;
+    }
+  }
+  return sizeByAssembly;
+}
+
+function filterDictByValue(dict, func) {
+  var dict2 = {};
+  for(var a of Object.keys(dict)) {
+    if (func(dict[a])) dict2[a] = dict[a];
+  }
+  return dict2;
+}
+function padToWidth(width, str) {
+  while(str.length < width) str += ' ';
+  return str;
+}
+
 function run(args, printOutput) {
   var outputJson = extractBoolCmdLineInput(args, '--json');
   var symbolMap = extractStringCmdLineInput(args, '--symbols');
   var sourceMap = extractStringCmdLineInput(args, '--createSymbolMapFromSourceMap');
   var dumpSymbol = extractStringCmdLineInput(args, '--dump');
+  var diffAgainst = extractStringCmdLineInput(args, '--diff');
+  var filterAssembly = extractStringCmdLineInput(args, '--assembly');
   expandSymbolsLargerThanPercents = extractNumberCmdLineInput(args, '--expandLargerThanPercents', expandSymbolsLargerThanPercents);
   if (expandSymbolsLargerThanPercents > 1) expandSymbolsLargerThanPercents /= 100.0;
   expandSymbolsLargerThanBytes = extractNumberCmdLineInput(args, '--expandLargerThanBytes', expandSymbolsLargerThanBytes);
@@ -958,13 +1052,37 @@ function run(args, printOutput) {
     if (src.toLowerCase().endsWith('.js')) {
       mergeKeyValues(codeSizes, extractJavaScriptCodeSize(src, symbolMap));
     } else if (src.endsWith('.wasm')) {
+      var wasmSourceFile = src;
       mergeKeyValues(codeSizes, extractWasmCodeSize(src));
+      mergeKeyValues(symbolMap, readCSharpSymbolMap(path.join(path.dirname(src), 'MethodMap.tsv')));
     }
   }
 
-  codeSizes = Object.values(codeSizes).sort((a, b) => {
-    return b.size - a.size;
-  })
+  extractCSharpAssembliesFromSymbolMap(codeSizes, symbolMap);
+  if (filterAssembly) codeSizes = filterDictByValue(codeSizes, (a) => a.assembly == filterAssembly);
+
+  if (diffAgainst && diffAgainst.toLowerCase().endsWith('.wasm')) {
+    var diffSymbolMap = readCSharpSymbolMap(path.join(path.dirname(diffAgainst), 'MethodMap.tsv'));
+    var diffWasm = extractWasmCodeSize(diffAgainst);
+    extractCSharpAssembliesFromSymbolMap(diffWasm, diffSymbolMap);
+    if (filterAssembly) diffWasm = filterDictByValue(diffWasm, (a) => a.assembly == filterAssembly);
+    var a = Object.values(codeSizes).sort((a, b) => { return b.name - a.name; })
+    var b = Object.values(diffWasm).sort((a, b) => { return b.name - a.name; })
+    for(var sym of a) {
+      sym.sizeInA = sym.size;
+      if (diffWasm[sym.name]) {
+        sym.sizeInB = diffWasm[sym.name].size;
+      } else {
+        sym.sizeInB = 0;
+      }
+    }
+    codeSizes = a.sort((aa, bb) => { return (bb.size - bb.sizeInB) - (aa.size - aa.sizeInB); });
+    diffCodeSizes = b.sort((aa, bb) => { return bb.size - aa.size; });
+  } else {
+    codeSizes = Object.values(codeSizes).sort((a, b) => {
+      return b.size - a.size;
+    });
+  }
 
   function printedNodeType(nodeType) {
     if (nodeType == 'var' || nodeType == 'function' || nodeType == 'section') return nodeType + ' ';
@@ -974,6 +1092,9 @@ function run(args, printOutput) {
   function demangleSymbol(node, symbolMap) {
     if (symbolMap) {
       var demangledName = symbolMap[node.name] || symbolMap[node.selfName];
+      if (typeof demangledName === 'object') {
+        return node.prefix + demangledName.unmangled;
+      }
       if (demangledName) return node.prefix + demangledName;
     }
     return node.name;
@@ -983,10 +1104,57 @@ function run(args, printOutput) {
     if (outputJson) {
       console.log(JSON.stringify(codeSizes));
     } else {
-      console.log('--- Code sizes:');
+      console.log(`--- Assembly sizes in ${wasmSourceFile}:`);
+      var sizeByAssembly = bucketSymbolsByCSharpAssembly(codeSizes);
+      var totalSize = 0, totalCount = 0;
+      for(var asm of Object.keys(sizeByAssembly).sort((a, b) => { return sizeByAssembly[b].size - sizeByAssembly[a].size })) {
+        console.log(`${asm}: ${sizeByAssembly[asm].size} bytes in ${sizeByAssembly[asm].count} functions`);
+        totalSize += sizeByAssembly[asm].size;
+        totalCount += sizeByAssembly[asm].count;
+      }
+      console.log(`TOTAL: ${totalSize} bytes in ${totalCount} functions.`);
+      if (diffAgainst) {
+        console.log(`\n--- Assembly sizes in ${diffAgainst}:`);
+        var diffSizeByAssembly = bucketSymbolsByCSharpAssembly(diffCodeSizes);
+        var totalSize = 0, totalCount = 0;
+        for(var asm of Object.keys(diffSizeByAssembly).sort((a, b) => { return diffSizeByAssembly[b].size - diffSizeByAssembly[a].size })) {
+          console.log(`${asm}: ${diffSizeByAssembly[asm].size} bytes in ${diffSizeByAssembly[asm].count} functions`);
+          totalSize += diffSizeByAssembly[asm].size;
+          totalCount += diffSizeByAssembly[asm].count;
+        }
+        console.log(`TOTAL: ${totalSize} bytes in ${totalCount} functions.`);
+        console.log('\n--- Assembly sizes diff:');
+        for(var asm of Object.keys(sizeByAssembly)) {
+          if (diffSizeByAssembly[asm]) {
+            sizeByAssembly[asm].size -= diffSizeByAssembly[asm].size;
+            sizeByAssembly[asm].count -= diffSizeByAssembly[asm].count;
+          }
+        }
+        var totalSize = 0, totalCount = 0;
+        for(var asm of Object.keys(sizeByAssembly).sort((a, b) => { return sizeByAssembly[b].size - sizeByAssembly[a].size })) {
+          totalSize += sizeByAssembly[asm].size;
+          totalCount += sizeByAssembly[asm].count;
+          console.log(`${asm}: ${sizeByAssembly[asm].size>0?'+':''}${sizeByAssembly[asm].size} bytes in ${sizeByAssembly[asm].count>0?'+':''}${sizeByAssembly[asm].count} ${sizeByAssembly[asm].count >= 0 ? 'more' : 'fewer'} functions`);
+        }
+        console.log(`TOTAL: ${totalSize>0?'+':''}${totalSize} bytes in ${totalCount} ${totalCount >= 0 ? 'more' : 'fewer'} functions.`);
+        console.log('');
+      }
+      if (filterAssembly) console.log(`--- Code size diff in assembly '${filterAssembly}':`);
+      else console.log('--- Code size diff:');
       for(var i in codeSizes) {
         var node = codeSizes[i];
-        console.log(node.file + '/' + node.type + ' ' + demangleSymbol(node, symbolMap) + (node.desc ? ('=' + node.desc) : '') + ': ' + node.size);
+        if (diffAgainst) {
+          var asm = node.assembly ? `${node.assembly}/` : '';
+          if (filterAssembly) asm = ''; // If filtering assembly, the assembly names are all the same.
+          var delta = node.sizeInA - node.sizeInB;
+          if (delta != 0) {
+            delta = `${delta>0?'+':''}${delta}`;
+            console.log(`${padToWidth(8, delta)}${asm}${demangleSymbol(node, symbolMap)}${node.desc ? ('=' + node.desc) : ''}`);
+//            console.log(`${node.type} : Diff: ${delta>0?'+':''}${delta}, A: ${node.sizeInA}, B: ${node.sizeInB}`);
+          }
+        } else {
+          console.log(node.file + '/' + node.type + ' ' + demangleSymbol(node, symbolMap) + (node.desc ? ('=' + node.desc) : '') + ': ' + node.size);
+        }
       }
     }
   }
