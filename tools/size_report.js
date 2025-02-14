@@ -822,15 +822,16 @@ function extractWasmCodeSize(sourceFile) {
     var id = wasm.readInt8(cursor++);
     if (id === undefined) throw 'Failed to parse section ID in wasm file!';
     var name = sectionIdToString(id);
-    console.error(`Section ${id}: ${name}`);
     [size, cursor] = readLEB128(wasm, cursor);
     var sectionEndCursor = cursor + size;
     var sectionSize = sectionEndCursor - sectionStartCursor;
 
     var functionSizes = null;
     if (id == 0 /*custom*/) {
-      name = 'CUSTOM/"' + extractWasmCustomSectionName(wasm, cursor) + '"';
-      wasmFunctionNames = extractWasmFunctionNames(wasm, cursor, sectionEndCursor) || wasmFunctionNames;
+      var sectionName = extractWasmCustomSectionName(wasm, cursor)
+      name = `CUSTOM/"${name}"`;
+      if (sectionName == 'name')
+        wasmFunctionNames = extractWasmFunctionNames(wasm, cursor, sectionEndCursor) || wasmFunctionNames;
     } else if (id == 2 /*import*/) {
       numImports = extractNumWasmFunctionImports(wasm, cursor);
     } else if (id == 10 /*code*/) {
@@ -983,7 +984,7 @@ function bucketSymbolsByCSharpAssembly(codeSizes) {
   for(var sym of codeSizes) {
     if (sym.type !== 'function') continue;
     var asm = sym.assembly;
-    if (asm) {
+    if (asm && !sym.name.includes('Fast')) {
       if (!sizeByAssembly[asm]) {
         sizeByAssembly[asm] = {
           count: 0,
@@ -1107,12 +1108,30 @@ function run(args, printOutput) {
       console.log(`--- Assembly sizes in ${wasmSourceFile}:`);
       var sizeByAssembly = bucketSymbolsByCSharpAssembly(codeSizes);
       var totalSize = 0, totalCount = 0;
+      var maxNameLength = 0;
+      function padToLength(str, len) {
+        while(str.length < len) str = str + ' ';
+        return str;
+      }
+      function padToLengthR(str, len) {
+        while(str.length < len) str = ' ' + str;
+        return str;
+      }
+      for(var asm of Object.keys(sizeByAssembly)) maxNameLength = Math.max(maxNameLength, asm.length);
+      console.log('');
+      var header = `${padToLength('Assembly Name', maxNameLength+1)}| ${padToLengthR('Bytes', 8)} | # funcs`;
+      console.log(header);
+      var s = ''; for(var i = 0; i < maxNameLength; ++i) s += '-';
+      s += `-+----------+---------`;
+      console.log(s);
       for(var asm of Object.keys(sizeByAssembly).sort((a, b) => { return sizeByAssembly[b].size - sizeByAssembly[a].size })) {
-        console.log(`${asm}: ${sizeByAssembly[asm].size} bytes in ${sizeByAssembly[asm].count} functions`);
+        console.log(`${padToLength(asm, maxNameLength+1)}| ${padToLengthR(sizeByAssembly[asm].size.toString(), 8)} | ${padToLengthR(sizeByAssembly[asm].count.toString(), 7)}`);
         totalSize += sizeByAssembly[asm].size;
         totalCount += sizeByAssembly[asm].count;
       }
-      console.log(`TOTAL: ${totalSize} bytes in ${totalCount} functions.`);
+      console.log(s);
+      console.log(`${padToLength('Total', maxNameLength+1)}| ${padToLengthR(totalSize.toString(), 8)} | ${padToLengthR(totalCount.toString(), 7)}`);
+      console.log('');
       if (diffAgainst) {
         console.log(`\n--- Assembly sizes in ${diffAgainst}:`);
         var diffSizeByAssembly = bucketSymbolsByCSharpAssembly(diffCodeSizes);
@@ -1132,9 +1151,11 @@ function run(args, printOutput) {
         }
         var totalSize = 0, totalCount = 0;
         for(var asm of Object.keys(sizeByAssembly).sort((a, b) => { return sizeByAssembly[b].size - sizeByAssembly[a].size })) {
-          totalSize += sizeByAssembly[asm].size;
-          totalCount += sizeByAssembly[asm].count;
-          console.log(`${asm}: ${sizeByAssembly[asm].size>0?'+':''}${sizeByAssembly[asm].size} bytes in ${sizeByAssembly[asm].count>0?'+':''}${sizeByAssembly[asm].count} ${sizeByAssembly[asm].count >= 0 ? 'more' : 'fewer'} functions`);
+          if (!asm.includes('Fast')) {
+            totalSize += sizeByAssembly[asm].size;
+            totalCount += sizeByAssembly[asm].count;
+            console.log(`${asm}: ${sizeByAssembly[asm].size>0?'+':''}${sizeByAssembly[asm].size} bytes in ${sizeByAssembly[asm].count>0?'+':''}${sizeByAssembly[asm].count} ${sizeByAssembly[asm].count >= 0 ? 'more' : 'fewer'} functions`);
+          }
         }
         console.log(`TOTAL: ${totalSize>0?'+':''}${totalSize} bytes in ${totalCount} ${totalCount >= 0 ? 'more' : 'fewer'} functions.`);
         console.log('');
@@ -1149,11 +1170,15 @@ function run(args, printOutput) {
           var delta = node.sizeInA - node.sizeInB;
           if (delta != 0) {
             delta = `${delta>0?'+':''}${delta}`;
-            console.log(`${padToWidth(8, delta)}${asm}${demangleSymbol(node, symbolMap)}${node.desc ? ('=' + node.desc) : ''}`);
+            var sym = demangleSymbol(node, symbolMap);
+            if (!sym.includes('Fast'))
+              console.log(`${padToWidth(8, delta)}${asm}${sym}${node.desc ? ('=' + node.desc) : ''}`);
 //            console.log(`${node.type} : Diff: ${delta>0?'+':''}${delta}, A: ${node.sizeInA}, B: ${node.sizeInB}`);
           }
         } else {
-          console.log(node.file + '/' + node.type + ' ' + demangleSymbol(node, symbolMap) + (node.desc ? ('=' + node.desc) : '') + ': ' + node.size);
+          var sym = demangleSymbol(node, symbolMap);
+          if (!sym.includes('Fast'))
+            console.log(node.file + '/' + node.type + ' ' + sym + (node.desc ? ('=' + node.desc) : '') + ': ' + node.size);
         }
       }
     }
