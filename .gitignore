@@ -77,3 +77,6 @@ emstrip.bat
 emsymbolizer.bat
 tools/file_packager.bat
 tools/webidl_binder.bat
+
+# Test runner previous run results for sorting the next run
+__previous_test_run_results.json

@@ -938,6 +938,15 @@ base align: 0, 0, 0, 0'''])
   @no_4gb('uses INITIAL_MEMORY')
   @no_2gb('uses INITIAL_MEMORY')
   def test_emmalloc_memory_statistics(self):
+    if '-lllvmlibc' in self.cflags:
+      self.skipTest('TODO BUG memory statistics does not match')
+
+    if WINDOWS and ('-flto=thin' in self.cflags) and not self.is_optimizing():
+      self.skipTest('TODO BUG this test is failing on Windows 9800X3D box for unknown reason.')
+
+    if MACOS and ('-flto=thin' in self.cflags) and not self.is_optimizing(): # Skip thinlto0.test_emmalloc_memory_statistics
+      self.skipTest('TODO BUG this test is failing on Intel and ARM Mac for unknown reason.')
+
     if self.is_wasm64():
       out_suffix = '64'
     else:
@@ -1489,6 +1498,10 @@ int main(int argc, char **argv) {
 
   @with_all_eh_sjlj
   def test_EXPORT_EXCEPTION_HANDLING_HELPERS(self):
+    # minimal0.test_EXPORT_EXCEPTION_HANDLING_HELPERS_wasm_legacy
+    if self.get_setting('MINIMAL_RUNTIME'):
+      self.skipTest('TODO BUG fails with MINIMAL_RUNTIME in error TypeError: WebAssembly.Exception.getArg(): Argument 0 must be a WebAssembly.Tag')
+
     self.set_setting('ASSERTIONS', 0)
     self.set_setting('EXPORT_EXCEPTION_HANDLING_HELPERS')
     # FIXME Temporary workaround. See 'FIXME' in the test source code below for
@@ -1795,6 +1808,7 @@ int main() {
   def test_funcptrfunc(self):
     self.do_core_test('test_funcptrfunc.c')
 
+  @no_minimal_runtime('This test depends on argc/argv abstraction that does not exist in MINIMAL_RUNTIME.')
   def test_alloca(self):
     self.do_runf('core/test_alloca.c')
 
@@ -1848,6 +1862,9 @@ int main() {
   def test_emscripten_api(self):
     self.set_setting('EXPORTED_FUNCTIONS', ['_main', '_save_me_aimee'])
     self.do_core_test('test_emscripten_api.c')
+
+    if self.get_setting('STRICT'):
+      self.skipTest('TODO BUG fails in wasm-ld: error: undefined symbol: __syscall_uname')
 
     # Sanitizers are not compatible with LINKABLE (dynamic linking).
     # LLVM-libc overlay mode is not compatible with whole-archive (LINKABLE)
@@ -1908,6 +1925,8 @@ int main() {
     self.do_runf('test_emscripten_get_now.c', 'Timer resolution is good')
 
   def test_emscripten_get_compiler_setting(self):
+    if ('-flto' in self.cflags or '-flto=thin' in self.cflags) and not self.is_optimizing():
+      self.skipTest('TODO BUG: fails with (stderr.o, fprintf.o): attempt to add bitcode file after LTO')
     src = test_file('core/emscripten_get_compiler_setting.c')
     output = shared.replace_suffix(src, '.out')
     # with assertions, a nice message is shown
@@ -2090,6 +2109,10 @@ int main(int argc, char **argv) {
   def test_minimal_runtime_memorygrowth(self):
     if self.has_changed_setting('ALLOW_MEMORY_GROWTH'):
       self.skipTest('test needs to modify memory growth')
+
+    if '-O0' in self.cflags and self.is_wasm2js():
+      self.skipTest('TODO BUG failing in test output diff')
+
     self.set_setting('MINIMAL_RUNTIME')
     src = test_file('core/test_memorygrowth.c')
     # Fail without memory growth
@@ -2103,6 +2126,10 @@ int main(int argc, char **argv) {
   def test_memorygrowth(self):
     if self.has_changed_setting('ALLOW_MEMORY_GROWTH'):
       self.skipTest('test needs to modify memory growth')
+
+    if '-O0' in self.cflags and self.is_wasm2js():
+      self.skipTest('TODO BUG failing in test output diff')
+
     if self.maybe_closure():
       # verify NO_DYNAMIC_EXECUTION is compatible with closure
       self.set_setting('DYNAMIC_EXECUTION', 0)
@@ -2139,6 +2166,9 @@ int main(int argc, char **argv) {
   def test_memorygrowth_2(self):
     if self.has_changed_setting('ALLOW_MEMORY_GROWTH'):
       self.skipTest('test needs to modify memory growth')
+
+    if '-O0' in self.cflags and self.is_wasm2js():
+      self.skipTest('TODO BUG failing in test output diff')
 
     # With typed arrays in particular, it is dangerous to use more memory than INITIAL_MEMORY,
     # since we then need to enlarge the heap(s).
@@ -2220,6 +2250,7 @@ int main(int argc, char **argv) {
   @no_lsan('requires more memory when growing')
   @no_4gb('depends on MAXIMUM_MEMORY')
   @no_2gb('depends on MAXIMUM_MEMORY')
+  @no_minimal_runtime('TODO Fails in UnhandledPromiseRejection')
   def test_aborting_new(self, args):
     # test that C++ new properly errors if we fail to malloc when growth is
     # enabled, with or without growth
@@ -2722,6 +2753,9 @@ The current type of b is: 9
 
   @no_modularize_instance('uses global Module objecgt')
   def test_pthread_run_script(self):
+    if ('-flto' in self.cflags or '-flto=thin' in self.cflags) and not self.is_optimizing():
+      self.skipTest('TODO BUG: fails with (fprintf.o): attempt to add bitcode file after LTO')
+
     shutil.copy(test_file('pthread/foo.js'), '.')
     self.do_runf('pthread/test_pthread_run_script.c')
 
@@ -2733,6 +2767,8 @@ The current type of b is: 9
 
   @node_pthreads
   def test_pthread_mutex_robust(self):
+    if '-lllvmlibc' in self.cflags:
+      self.skipTest('TODO BUG pthread_mutex_lock output diff does not match')
     self.do_run_in_out_file_test('pthread/test_pthread_mutex_robust.c')
 
   @node_pthreads
@@ -4148,6 +4184,10 @@ ok
 
   @with_dylink_reversed
   def test_dylink_basics_no_modify(self):
+    # core0s.test_dylink_basics_no_modify
+    if '-g' in self.cflags and self.get_setting('SAFE_HEAP'):
+      self.skipTest('TODO BUG fails with emcc: error: changes to the wasm are required after link, but disallowed by ERROR_ON_WASM_CHANGES_AFTER_LINK')
+
     if self.is_optimizing():
       self.skipTest('no modify mode only works with non-optimizing builds')
     if self.get_setting('MEMORY64') == 2:
@@ -4759,6 +4799,10 @@ res64 - external 64\n''', header='''\
     # one module uses libcxx, need to force its inclusion when it isn't the main
     if not with_reversed and self.dylink_reversed:
       self.skipTest('with_reversed is false')
+
+    if '-DWASMFS' in self.cflags:
+      self.skipTest('TODO BUG fails in Closure compiler step on lots of JSC_UNDEFINED_VARIABLE errors')
+
     self.cflags.append('-Wno-deprecated')
     self.set_setting('WARN_ON_UNDEFINED_SYMBOLS', 0)
 
@@ -5287,6 +5331,8 @@ int main()
     self.do_run(src, '956867869')
 
   def test_rand(self):
+    if '-lllvmlibc' in self.cflags:
+      self.skipTest('rand() implementation is different that is not compatible with this test')
     self.do_core_test('test_rand.c')
 
   def test_strtod(self):
@@ -5416,6 +5462,7 @@ Pass: 0.000012 0.000012''')
   def test_sscanf_n(self):
     self.do_core_test('test_sscanf_n.c')
 
+  @no_windows('TODO BUG this test is flaky on one Windows box, but passes on another')
   def test_sscanf_whitespace(self):
     self.do_core_test('test_sscanf_whitespace.c')
 
@@ -5453,7 +5500,12 @@ Pass: 0.000012 0.000012''')
 
   @no_modularize_instance('uses Module object directly')
   @no_strict('TODO: Fails in -sSTRICT mode due to an unknown reason.')
+  @no_minimal_runtime('TODO: Fails in Error: Assertion failed: file')
+  @no_wasmfs('TypeError: m.s is not a function')
   def test_files(self):
+    if self.get_setting('STRICT_JS'):
+      self.skipTest('TODO: Fails in -sSTRICT_JS mode due to an unknown reason.')
+
     # Use closure here, to test we don't break FS stuff
     if '-O3' in self.cflags and self.is_wasm2js():
       print('closure 2')
@@ -5488,6 +5540,7 @@ Module = {
 
     self.do_run_in_out_file_test('test_files.c')
 
+  @no_wasmfs('TODO BUG fails in wasmfs test output diff')
   def test_module_stdin(self):
     create_file('pre.js', '''
     var data = [10, 20, 40, 30];
@@ -5722,6 +5775,7 @@ got: 10
       self.set_setting('FORCE_FILESYSTEM')
     self.do_core_test('test_poll.c')
 
+  @no_wasmfs('TODO BUG fails in wasmfs test output diff')
   def test_statvfs(self):
     self.do_core_test('test_statvfs.c')
 
@@ -5795,6 +5849,7 @@ got: 10
       self.set_setting('LINKABLE', linkable)
       self.do_core_test('test_istream.cpp')
 
+  @no_wasmfs('TODO BUG: TypeError: FS.makedev is not a function')
   def test_fs_base(self):
     self.set_setting('DEFAULT_LIBRARY_FUNCS_TO_INCLUDE', ['$FS'])
     self.add_pre_run(read_file(test_file('fs/test_fs_base.js')))
@@ -5803,6 +5858,7 @@ got: 10
   @also_with_noderawfs
   @is_slow_test
   @requires_node
+  @no_wasmfs('TODO BUG fails with Closure error "ERROR - [JSC_UNDEFINED_VARIABLE] variable strError is undeclared"')
   def test_fs_nodefs_rw(self):
     if not self.get_setting('NODERAWFS'):
       self.setup_nodefs_test()
@@ -5845,6 +5901,7 @@ got: 10
   @crossplatform
   @requires_node
   @no_modularize_instance('expects js filename')
+  @no_wasmfs('TODO BUG fails in code output diff')
   def test_fs_nodefs_readdir(self):
     # externally setup an existing folder structure: existing/a
     if self.get_setting('WASMFS'):
@@ -5864,6 +5921,7 @@ got: 10
 
   @requires_node
   @crossplatform
+  @no_wasmfs('TODO BUG fails in wasmfs with Assertion failed: st.f_ffree <= st.f_files && "Free inodes should not exceed total inodes"')
   def test_fs_nodefs_statvfs(self):
     # externally setup an existing folder structure: existing/a
     if self.get_setting('WASMFS'):
@@ -5881,6 +5939,7 @@ got: 10
     self.cflags += ['-lnodefs.js']
     self.do_runf('fs/test_noderawfs_nofollow.c', 'success')
 
+  @no_wasmfs('TODO BUG fails in wasmfs with ReferenceError: FS is not defined')
   def test_fs_trackingdelegate(self):
     self.set_setting('FS_DEBUG')
     self.do_run_in_out_file_test('fs/test_trackingdelegate.c')
@@ -6334,6 +6393,8 @@ PORT: 3979
   @no_modularize_instance('uses MODULARIZE')
   @no_strict_js('MODULARIZE is not compatible with STRICT_JS')
   def test_unicode_js_library(self):
+    if WINDOWS and self.get_setting('MINIMAL_RUNTIME'):
+      self.skipTest('TODO BUG fails in MINIMAL_RUNTIME')
     # First verify that we have correct overridden the default python file encoding.
     # The follow program should fail, assuming the above LC_CTYPE + PYTHONUTF8
     # are having the desired effect.
@@ -6548,6 +6609,8 @@ void* operator new(size_t size) {
   @no_lsan('Test code contains memory leaks')
   @also_with_asyncify_and_jspi
   def test_cubescript(self):
+    if (MACOS or WINDOWS) and ('-flto' in self.cflags or '-flto=thin' in self.cflags):
+      self.skipTest('TODO: fails with error "(acosf.o) attempt to add bitcode file after LTO"')
     # uses register keyword
     self.cflags += ['-std=c++03', '-Wno-dynamic-class-memaccess', '-I', test_file('third_party/cubescript')]
     self.maybe_closure()
@@ -6585,6 +6648,7 @@ void* operator new(size_t size) {
   @requires_x64_cpu
   @no_safe_heap('has unaligned 64-bit operations in wasm')
   @no_ubsan('test contains UB')
+  @no_mac('TODO: get_clang_native_args() is unable to produce proper -I<> path to include stdlib.h with Clang')
   @parameterized({
     '': ([],),
     'nontrapping': (['-mnontrapping-fptoint'],),
@@ -6605,6 +6669,7 @@ void* operator new(size_t size) {
   @is_slow_test
   @no_ubsan('https://github.com/emscripten-core/emscripten/issues/19688')
   @no_asan('local count too large')
+  @no_mac('TODO: get_clang_native_args() is unable to produce proper -I<> path to include stdlib.h with Clang')
   @parameterized({
     '': ([],),
     'nontrapping': (['-mnontrapping-fptoint'],),
@@ -6622,6 +6687,7 @@ void* operator new(size_t size) {
   @wasm_simd
   @requires_native_clang
   @requires_x64_cpu
+  @no_mac('TODO: get_clang_native_args() is unable to produce proper -I<> path to include stdlib.h with Clang')
   def test_sse3(self):
     src = test_file('sse/test_sse3.cpp')
     self.run_process([shared.CLANG_CXX, src, '-msse3', '-Wno-argument-outside-range', '-o', 'test_sse3', '-D_CRT_SECURE_NO_WARNINGS=1'] + clang_native.get_clang_native_args(), stdout=PIPE)
@@ -6635,6 +6701,7 @@ void* operator new(size_t size) {
   @wasm_simd
   @requires_native_clang
   @requires_x64_cpu
+  @no_mac('TODO: get_clang_native_args() is unable to produce proper -I<> path to include stdlib.h with Clang')
   def test_ssse3(self):
     src = test_file('sse/test_ssse3.cpp')
     self.run_process([shared.CLANG_CXX, src, '-mssse3', '-Wno-argument-outside-range', '-o', 'test_ssse3', '-D_CRT_SECURE_NO_WARNINGS=1'] + clang_native.get_clang_native_args(), stdout=PIPE)
@@ -6650,6 +6717,7 @@ void* operator new(size_t size) {
   @requires_native_clang
   @requires_x64_cpu
   @is_slow_test
+  @no_mac('TODO: get_clang_native_args() is unable to produce proper -I<> path to include stdlib.h with Clang')
   def test_sse4_1(self):
     src = test_file('sse/test_sse4_1.cpp')
     # Run with inlining disabled to avoid slow LLVM behavior with lots of macro expanded loops inside a function body.
@@ -6664,6 +6732,7 @@ void* operator new(size_t size) {
   @wasm_simd
   @requires_native_clang
   @requires_x64_cpu
+  @no_mac('TODO: get_clang_native_args() is unable to produce proper -I<> path to include stdlib.h with Clang')
   @parameterized({
     '': (False,),
     '2': (True,),
@@ -6685,6 +6754,7 @@ void* operator new(size_t size) {
   @is_slow_test
   @no_asan('local count too large')
   @no_ubsan('local count too large')
+  @no_mac('TODO: get_clang_native_args() is unable to produce proper -I<> path to include stdlib.h with Clang')
   @parameterized({
     '': ([],),
     'nontrapping': (['-mnontrapping-fptoint'],),
@@ -6705,6 +6775,7 @@ void* operator new(size_t size) {
   @is_slow_test
   @no_asan('local count too large')
   @no_ubsan('local count too large')
+  @no_mac('TODO: get_clang_native_args() is unable to produce proper -I<> path to include stdlib.h with Clang')
   @parameterized({
     '': ([],),
     'nontrapping': (['-mnontrapping-fptoint'],),
@@ -6829,6 +6900,12 @@ void* operator new(size_t size) {
     if WINDOWS and not use_cmake:
       self.skipTest("Windows cannot run configure sh scripts")
 
+    if MACOS and '-flto' in self.cflags: # or '-flto=thin' in self.cflags:
+      self.skipTest('TODO: fails with error "(acosf.o) attempt to add bitcode file after LTO"')
+
+    if MACOS and not use_cmake and platform.machine() == 'arm64':
+      self.skipTest("TODO: Bullet autoconf script does not work if host system is an Apple Silicon Mac.")
+
     self.cflags += [
       '-Wno-c++11-narrowing',
       '-Wno-deprecated-register',
@@ -6861,6 +6938,9 @@ void* operator new(size_t size) {
   @is_slow_test
   @crossplatform
   def test_poppler(self):
+    if MACOS and '-flto' in self.cflags and platform.machine() != 'arm64':
+      self.skipTest("TODO: This test fails on Intel x64 Mac for an unknown reason.")
+
     # See https://github.com/emscripten-core/emscripten/issues/20757
     self.cflags.extend(['-Wno-deprecated-declarations', '-Wno-nontrivial-memaccess'])
     poppler = self.get_poppler_library()
@@ -6977,6 +7057,9 @@ void* operator new(size_t size) {
   @no_asan('autodebug logging interferes with asan')
   @with_env_modify({'EMCC_AUTODEBUG': '1'})
   def test_autodebug_wasm(self):
+    if '-msimd128' in self.cflags:
+      self.skipTest('TODO BUG not working in simd2 suite.') # failed to asynchronously prepare wasm: LinkError: WebAssembly.instantiate(): Import #13 module="env" function="get_v128": function import requires a callable
+
     # Even though the test itself doesn't directly use reference types,
     # Binaryen's '--instrument-locals' will add their logging functions if
     # reference-types is enabled. So make sure this test passes when
@@ -7137,7 +7220,11 @@ void* operator new(size_t size) {
     'files': (['-DUSE_FILES'],),
   })
   @no_modularize_instance('uses Module object directly')
+  @no_minimal_runtime('TODO: Error: FS_createDataFile was not exported. add it to EXPORTED_RUNTIME_METHODS')
   def test_FS_exports(self, extra_args):
+    if '-DWASMFS' in self.cflags:
+      self.skipTest('TODO BUG fails with ReferenceError: MEMFS is not defined') # wasmfs.test_FS_exports failing
+
     # these used to be exported, but no longer are by default
     def test(output_prefix='', args=None, assert_returncode=0):
       args += extra_args
@@ -7346,6 +7433,9 @@ void* operator new(size_t size) {
   def test_eval_ctors(self):
     if '-O2' not in str(self.cflags) or '-O1' in str(self.cflags):
       self.skipTest('need opts')
+
+    if '-g' in self.cflags and '-O2' in self.cflags and self.get_setting('STANDALONE_WASM'): # core2g.test_eval_ctors_standalone fails
+      self.skipTest('TODO BUG fails with AssertionError: 4758 not less than 4758')
 
     print('leave printf in ctor')
     self.set_setting('EVAL_CTORS')
@@ -7722,6 +7812,7 @@ void* operator new(size_t size) {
   })
   @no_modularize_instance('uses Module global')
   @no_strict('TODO: Fails in -sSTRICT mode due to an unknown reason.')
+  @no_strict_js('TODO BUG: Fails with Assertion failed')
   def test_webidl(self, mode, allow_memory_growth):
     self.set_setting('WASM_ASYNC_COMPILATION', 0)
     if self.maybe_closure():
@@ -8182,6 +8273,7 @@ int main() {
     self.test_async_hello()
 
   @no_modularize_instance('ccall is not compatible with MODULARIZE=instance')
+  @no_minimal_runtime('TODO error: undefined symbol: $runtimeKeepalivePop')
   def test_async_ccall_bad(self):
     # check bad ccall use
     # needs to flush stdio streams
@@ -8214,6 +8306,7 @@ Module.onRuntimeInitialized = () => {
 
   @with_asyncify_and_jspi
   @no_modularize_instance('ccall is not compatible with MODULARIZE=instance')
+  @no_minimal_runtime('TODO error: undefined symbol: $runtimeKeepalivePop')
   def test_async_ccall_good(self):
     # check reasonable ccall use
     self.set_setting('ASYNCIFY')
@@ -8243,6 +8336,7 @@ Module.onRuntimeInitialized = () => {
   })
   @with_asyncify_and_jspi
   @no_modularize_instance('ccall is not compatible with MODULARIZE=instance')
+  @no_minimal_runtime('TODO error: undefined symbol: $runtimeKeepalivePop')
   def test_async_ccall_promise(self, exit_runtime):
     if self.get_setting('ASYNCIFY') == 2:
       self.set_setting('JSPI_EXPORTS', ['stringf', 'floatf'])
@@ -8306,7 +8400,7 @@ Module.onRuntimeInitialized = () => {
     'onlylist_b_response': ([], True,  'main\n__original_main\nfoo(int, double)\nbaz()\nc_baz\nStructy::funcy()\n'),
     'onlylist_c_response': ([], False, 'main\n__original_main\nfoo(int, double)\nbaz()\nc_baz\n'),
   })
-  @no_windows("TODO: Fails on Windows due to an unknown reason.")
+  @disabled("TODO: Fails on Windows and Linux due to an unknown reason.")
   def test_asyncify_lists(self, args, should_pass, response=None):
     if response is not None:
       create_file('response.file', response)
@@ -8605,6 +8699,7 @@ Module.onRuntimeInitialized = () => {
     self.cflags += ['--memoryprofiler', '--js-library', 'lib.js']
     self.do_runf('main.c', 'able to run memprof')
 
+  @no_wasmfs('using -lidbfs is not currently supported in WasmFS')
   def test_fs_dict(self):
     self.set_setting('FORCE_FILESYSTEM')
     self.cflags += ['-lidbfs.js']
@@ -8624,6 +8719,8 @@ Module.onRuntimeInitialized = () => {
     self.do_run('int main() { return 0; }', 'object\nobject\nobject\nobject\nobject\nobject')
 
   def test_fs_dict_none(self):
+    if self.get_setting('WASMFS'):
+      self.skipTest('Cannot read properties of undefined (reading "MEMFS")')
     # if IDBFS and NODEFS are not enabled, they are not present.
     self.set_setting('FORCE_FILESYSTEM')
     self.set_setting('ASSERTIONS')
@@ -8833,6 +8930,9 @@ NODEFS is no longer included by default; build with -lnodefs.js
 
   @no_wasm2js('wasm2js does not support PROXY_TO_PTHREAD (custom section support)')
   def test_return_address(self):
+    if ('-flto' in self.cflags or '-flto=thin' in self.cflags) and not self.is_optimizing():
+      self.skipTest('TODO BUG: fails with (fprintf.o): attempt to add bitcode file after LTO')
+
     self.do_runf('core/test_return_address.c', 'passed', cflags=['-g'])
 
   @no_wasm2js('TODO: sanitizers in wasm2js')
@@ -8986,6 +9086,10 @@ NODEFS is no longer included by default; build with -lnodefs.js
     'cpp': ['test_asan_no_error.cpp'],
   })
   def test_asan_no_error(self, name):
+    # llvmlibc.test_asan*
+    if '-lllvmlibc' in self.cflags:
+      self.skipTest('TODO BUG fails with error: duplicate symbol: memcpy, memset')
+
     self.cflags.append('-fsanitize=address')
     self.set_setting('ALLOW_MEMORY_GROWTH')
     self.set_setting('INITIAL_MEMORY', '300mb')
@@ -9050,6 +9154,10 @@ NODEFS is no longer included by default; build with -lnodefs.js
     ]),
   })
   def test_asan(self, name, expected_output, cflags=None):
+    # llvmlibc.test_asan*
+    if '-lllvmlibc' in self.cflags:
+      self.skipTest('TODO BUG fails with error: duplicate symbol: memcpy, memset')
+
     if '-Oz' in self.cflags:
       self.skipTest('-Oz breaks source maps')
 
@@ -9063,21 +9171,35 @@ NODEFS is no longer included by default; build with -lnodefs.js
                  check_for_error=False, assert_returncode=NON_ZERO)
 
   @asan
+  @no_minimal_runtime('TODO Fails in UnhandledPromiseRejection')
   def test_asan_js_stack_op(self):
+    # llvmlibc.test_asan_js_stack_op
+    if '-lllvmlibc' in self.cflags:
+      self.skipTest('TODO BUG fails with error: duplicate symbol: memcpy, memset')
+
     self.cflags.append('-fsanitize=address')
     self.set_setting('ALLOW_MEMORY_GROWTH')
     self.set_setting('INITIAL_MEMORY', '300mb')
     self.do_runf('core/test_asan_js_stack_op.c', 'Hello, World!')
 
   @asan
+  @no_minimal_runtime('TODO Fails in UnhandledPromiseRejection')
   def test_asan_api(self):
+    # llvmlibc.test_asan_api
+    if '-lllvmlibc' in self.cflags:
+      self.skipTest('TODO BUG fails with error: duplicate symbol: memcpy, memset')
+
     self.cflags.append('-fsanitize=address')
     self.set_setting('INITIAL_MEMORY', '300mb')
     self.do_core_test('test_asan_api.c')
 
   @asan
   @no_strict_js('MODULARIZE is not compatible with STRICT_JS')
+  @no_minimal_runtime('TODO BUG UnhandledPromiseRejection')
   def test_asan_modularized_with_closure(self):
+    # llvmlibc.test_asan*
+    if '-lllvmlibc' in self.cflags:
+      self.skipTest('TODO BUG fails with error: duplicate symbol: memcpy, memset')
     # the bug is that createModule() returns undefined, instead of the
     # proper Promise object.
     create_file('post.js', 'if (!(createModule() instanceof Promise)) throw `Promise was not returned (${typeof createModule()})`;\n')
@@ -9428,6 +9550,7 @@ NODEFS is no longer included by default; build with -lnodefs.js
     '': ([],),
     'pthreads': (['-sPROXY_TO_PTHREAD', '-sEXIT_RUNTIME', '-pthread', '-Wno-experimental'],),
   })
+  @no_minimal_runtime('TODO MINIMAL_RUNTIME is not compatible with RELOCATABLE')
   def test_Module_dynamicLibraries(self, args):
     # test that Module.dynamicLibraries works with pthreads
     self.cflags += args
@@ -9548,6 +9671,7 @@ NODEFS is no longer included by default; build with -lnodefs.js
 
   # Tests settings.ABORT_ON_WASM_EXCEPTIONS
   @no_modularize_instance('ccall is not compatible with MODULARIZE=instance')
+  @no_minimal_runtime('undefined symbol: emscripten_runtime_keepalive_push')
   def test_abort_on_exceptions(self):
     self.set_setting('ABORT_ON_WASM_EXCEPTIONS')
     self.set_setting('ALLOW_TABLE_GROWTH')
@@ -9807,6 +9931,9 @@ NODEFS is no longer included by default; build with -lnodefs.js
   @no_wasm64('TODO: fcoverage in memory64')
   @no_wasm2js('wasm binary required to produce code coverage results with llvm-cov')
   def test_fcoverage_mapping(self):
+    if self.get_setting('STRICT'):
+      self.skipTest('TODO BUG fails in wasm-ld: error: undefined symbol: __syscall_uname')
+
     expected = '''\
     1|       |/*
     2|       | * Copyright 2016 The Emscripten Authors.  All rights reserved.

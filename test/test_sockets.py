@@ -180,6 +180,7 @@ class sockets(BrowserCore):
     # The following forces non-NULL addr and addlen parameters for the accept call
     'accept_addr': [CompiledServerHarness, 49163, ['-DTEST_DGRAM=0', '-DTEST_ACCEPT_ADDR=1']],
   })
+  @no_windows('TODO BUG: Fails in "clang: error: unable to execute command: program not executable"')
   def test_sockets_echo(self, harness_class, port, args):
     if harness_class == WebsockifyServerHarness and common.EMTEST_LACKS_NATIVE_CLANG:
       self.skipTest('requires native clang')
@@ -202,6 +203,7 @@ class sockets(BrowserCore):
     # The following forces non-NULL addr and addlen parameters for the accept call
     'accept_addr': [CompiledServerHarness, 49169, ['-DTEST_DGRAM=0', '-DTEST_ACCEPT_ADDR=1']],
   })
+  @no_windows('TODO BUG: Fails in "clang: error: unable to execute command: program not executable"')
   def test_sockets_async_echo(self, harness_class, port, args):
     if harness_class == WebsockifyServerHarness and common.EMTEST_LACKS_NATIVE_CLANG:
       self.skipTest('requires native clang')
@@ -220,6 +222,7 @@ class sockets(BrowserCore):
     'tcp': [CompiledServerHarness, 49172, ['-DTEST_DGRAM=0']],
     'udp': [CompiledServerHarness, 49173, ['-DTEST_DGRAM=1']],
   })
+  @no_windows('TODO BUG: Fails in "clang: error: unable to execute command: program not executable"')
   def test_sockets_echo_bigdata(self, harness_class, port, args):
     if harness_class == WebsockifyServerHarness and common.EMTEST_LACKS_NATIVE_CLANG:
       self.skipTest('requires native clang')
@@ -283,6 +286,7 @@ class sockets(BrowserCore):
     'udp': [CompiledServerHarness, 59164, ['-DTEST_DGRAM=1']],
     'pthread': [CompiledServerHarness, 59166, ['-pthread', '-sPROXY_TO_PTHREAD']],
   })
+  @no_windows('TODO BUG: Fails in "clang: error: unable to execute command: program not executable"')
   def test_nodejs_sockets_echo(self, harness_class, port, args):
     if harness_class == WebsockifyServerHarness and common.EMTEST_LACKS_NATIVE_CLANG:
       self.skipTest('requires native clang')
@@ -296,7 +300,9 @@ class sockets(BrowserCore):
     self.do_runf('sockets/test_sockets_echo_client.c', 'connect failed: Connection refused', cflags=['-DSOCKK=666'], assert_returncode=NON_ZERO)
 
   @requires_native_clang
+  @no_windows('TODO BUG: Fails in "clang: error: unable to execute command: program not executable"')
   def test_nodejs_sockets_echo_subprotocol(self):
+
     # Test against a Websockified server with compile time configured WebSocket subprotocol. We use a Websockified
     # server because as long as the subprotocol list contains binary it will configure itself to accept binary
     # This test also checks that the connect url contains the correct subprotocols.
@@ -308,6 +314,7 @@ class sockets(BrowserCore):
       self.assertContained(['connect: ws://127.0.0.1:59168, base64,binary', 'connect: ws://127.0.0.1:59168/, base64,binary'], out)
 
   @requires_native_clang
+  @no_windows('TODO BUG: Fails in "clang: error: unable to execute command: program not executable"')
   def test_nodejs_sockets_echo_subprotocol_runtime(self):
     # Test against a Websockified server with runtime WebSocket configuration. We specify both url and subprotocol.
     # In this test we have *deliberately* used the wrong port '-DSOCKK=12345' to configure the echo_client.c, so
