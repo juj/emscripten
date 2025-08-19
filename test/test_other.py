@@ -6898,11 +6898,21 @@ int main(int argc, char **argv) {
     # Test HTTP Accept-Language parsing by simulating navigator.languages #8751
     self.run_process([EMCC,
                       test_file('test_browser_language_detection.c')])
-    # We support both "C" and "en_US" here since older versions of node do
+
+    expected_lang = os.environ.get('LANG')
+    if expected_lang is None:
+      # If the LANG env. var doesn't exist (Windows), ask Node for the language.
+      try:
+        cmd = config.NODE_JS + ['-e', 'console.log(navigator.languages[0])']
+        expected_lang = subprocess.check_output(cmd, stderr=subprocess.NULL)
+        expected_lang = expected_lang.decode('utf-8').strip().replace('-', '_')
+        expected_lang = f'{expected_lang}.UTF-8'
+      except Exception:
+        expected_lang = 'en_US.UTF-8'
+
+    # We support both "C" and system LANG here since older versions of node do
     # not expose navigator.languages.
-    lang = os.environ.get('LANG', 'C.UTF-8')
-    # User may have their own language set, so match regex ".._.." to catch any language, e.g. en_US, en_FI, etc.
-    self.assertContained(f'LANG=({lang}|.._..\\.UTF-8|C.UTF-8)', self.run_js('a.out.js'), regex=True)
+    self.assertContained(f'LANG=({expected_lang}|en_US.UTF-8|C.UTF-8)', self.run_js('a.out.js'), regex=True)
 
     # Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3
     create_file('pre.js', 'var navigator = { language: "fr" };')
@@ -15865,7 +15875,7 @@ addToLibrary({
     self.assertNotContained('new Worker(', read_file('hello_world.js'))
 
   def test_sysroot_includes_first(self):
-    self.do_other_test('test_stdint_limits.c', cflags=['-std=c11', '-iwithsysroot/include'])
+    self.do_other_test('test_stdint_limits.c', cflags=['-iwithsysroot/include'])
 
   def test_force_filesystem_error(self):
     err = self.expect_fail([EMCC, test_file('hello_world.c'), '-sFILESYSTEM=0', '-sFORCE_FILESYSTEM'])

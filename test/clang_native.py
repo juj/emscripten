@@ -66,10 +66,10 @@ def get_clang_native_env():
       CACHED_CLANG_NATIVE_ENV = env
       return env
 
-    # The user is not running in Visual Studio Command Prompt, so attempt to
-    # autopopulate INCLUDE and LIB directives.
+    # VSINSTALLDIR is not in environment, so the user is not running in Visual Studio
+    # Command Prompt. Attempt to autopopulate INCLUDE and LIB directives.
 
-    # Guess where VS2022 is installed (VSINSTALLDIR env. var in VS2022 X64 Command Prompt)
+    # Guess where Visual Studio is installed (VSINSTALLDIR env. var in VS X64 Command Prompt)
     if 'VSINSTALLDIR' in env:
       visual_studio_path = env['VSINSTALLDIR']
     elif 'VS170COMNTOOLS' in env:
@@ -109,9 +109,9 @@ def get_clang_native_env():
         return None
       return max(candidates, key=lambda x: x[0])[1]
 
-    VC_ROOT = os.path.join(visual_studio_path, 'VC')
-    VC_CODE_ROOT = highest_version_subdir(os.path.join(VC_ROOT, 'Tools', 'MSVC'))
-    if not VC_CODE_ROOT:
+    vc_root = os.path.join(visual_studio_path, 'VC')
+    vc_code_root = highest_version_subdir(os.path.join(vc_root, 'Tools', 'MSVC'))
+    if not vc_code_root:
       raise Exception ('Unable to find Visual Studio INCLUDE root directory. Run in Visual Studio command prompt to avoid the need to autoguess this location.')
 
     windows_sdk_dir = highest_version_subdir(os.path.join(prog_files_x86, 'Windows Kits'))
@@ -134,15 +134,15 @@ def get_clang_native_env():
       else:
         env[key] = env[key] + ';' + path
 
-    append_path_item('INCLUDE', os.path.join(VC_CODE_ROOT, 'include'))
-    append_path_item('INCLUDE', os.path.join(VC_CODE_ROOT, 'ATLMFC', 'include'))
-    append_path_item('INCLUDE', os.path.join(VC_ROOT, 'Auxiliary', 'VS', 'include'))
+    append_path_item('INCLUDE', os.path.join(vc_code_root, 'include'))
+    append_path_item('INCLUDE', os.path.join(vc_code_root, 'ATLMFC', 'include'))
+    append_path_item('INCLUDE', os.path.join(vc_root, 'Auxiliary', 'VS', 'include'))
     for d in ['ucrt', 'um', 'shared', 'winrt', 'cppwinrt']:
       append_path_item('INCLUDE', os.path.join(windows_sdk_include_dir, d))
     logger.debug('Visual Studio native build INCLUDE: ' + env['INCLUDE'])
 
-    append_path_item('LIB', os.path.join(VC_CODE_ROOT, 'ATLMFC', 'lib', 'x64'))
-    append_path_item('LIB', os.path.join(VC_CODE_ROOT, 'lib', 'x64'))
+    append_path_item('LIB', os.path.join(vc_code_root, 'ATLMFC', 'lib', 'x64'))
+    append_path_item('LIB', os.path.join(vc_code_root, 'lib', 'x64'))
     append_path_item('LIB', os.path.join(windows_sdk_lib_dir, 'ucrt', 'x64'))
     append_path_item('LIB', os.path.join(windows_sdk_lib_dir, 'um', 'x64'))
     logger.debug('Visual Studio native build LIB: ' + env['LIB'])
