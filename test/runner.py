@@ -474,7 +474,10 @@ def parse_args():
   parser.add_argument('--crossplatform-only', action='store_true')
   parser.add_argument('--repeat', type=int, default=1,
                       help='Repeat each test N times (default: 1).')
-  return parser.parse_args()
+
+  # filter sys.argv away manually, these will be parsed later.
+  argv = [arg for arg in sys.argv[1:] if not arg.startswith("skip:")]
+  return parser.parse_args(argv)
 
 
 def configure():
