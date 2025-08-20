@@ -475,9 +475,7 @@ def parse_args():
   parser.add_argument('--repeat', type=int, default=1,
                       help='Repeat each test N times (default: 1).')
 
-  # filter sys.argv away manually, these will be parsed later.
-  argv = [arg for arg in sys.argv[1:] if not arg.startswith("skip:")]
-  return parser.parse_args(argv)
+  return parser.parse_args()
 
 
 def configure():
