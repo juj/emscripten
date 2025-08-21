@@ -353,10 +353,15 @@ def run_tests(options, suites):
   run_start_time = time.perf_counter()
   for mod_name, suite in suites:
     print('Running %s: (%s tests)' % (mod_name, suite.countTestCases()))
+    import os, sys, fcntl
+    fd = sys.stdout.fileno()
+    flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+    fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_NONBLOCK)
     try:
       res = testRunner.run(suite)
     except BlockingIOError as e:
       print(f'Warning: Python Test Runner error: {e}')
+    fcntl.fcntl(fd, fcntl.F_SETFL, flags)
     msg = ('%s: %s run, %s errors, %s failures, %s skipped' %
            (mod_name, res.testsRun, len(res.errors), len(res.failures), len(res.skipped)))
     num_failures += len(res.errors) + len(res.failures) + len(res.unexpectedSuccesses)
