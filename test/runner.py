@@ -537,12 +537,66 @@ def main():
 
 configure()
 
+
+import os
+import sys
+
+class BlsockingStdStreams:
+    """
+    Temporarily force stdout/stderr into blocking mode (POSIX).
+    Restores the exact previous flags on exit.
+    Safe no-op on Windows.
+    """
+    def __enter__(self):
+        self._saved = {}
+        self._fds = []
+
+        # Determine the two FDs (dedupe if they are the same)
+        fds = []
+        for stream in (sys.stdout, sys.stderr):
+            try:
+                fd = stream.fileno()
+            except (AttributeError, OSError):
+                continue
+            if fd not in fds:
+                fds.append(fd)
+
+        if os.name == "posix":
+            # Save exact flags and force blocking
+            import fcntl
+            for fd in fds:
+                flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+                self._saved[fd] = flags
+                # Prefer os.set_blocking when available
+                try:
+                    os.set_blocking(fd, True)  # Python 3.7+
+                except (AttributeError, OSError):
+                    fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_NONBLOCK)
+            self._fds = fds
+        else:
+            # Windows / other: nothing to do
+            self._fds = []
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if os.name == "posix" and self._fds:
+            import fcntl
+            for fd in self._fds:
+                flags = self._saved.get(fd)
+                if flags is not None:
+                    # Restore exact original flags (don’t just toggle)
+                    fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+        return False  # don't suppress exceptions
+
+
 if __name__ == '__main__':
-  try:
-    sys.exit(main())
-  except KeyboardInterrupt:
-    logger.warning('KeyboardInterrupt')
-    sys.exit(1)
+  with BlsockingStdStreams():
+    try:
+      sys.exit(main())
+    except KeyboardInterrupt:
+      logger.warning('KeyboardInterrupt')
+      sys.exit(1)
 else:
   # We are not the main process, and most likely a child process of
   # the multiprocess pool.  In this mode the modifications made to the
