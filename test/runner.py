@@ -30,6 +30,7 @@ import random
 import sys
 import unittest
 import time
+import fcntl
 
 # Setup
 
@@ -353,7 +354,6 @@ def run_tests(options, suites):
   run_start_time = time.perf_counter()
   for mod_name, suite in suites:
     print('Running %s: (%s tests)' % (mod_name, suite.countTestCases()))
-    import os, sys, fcntl
     fd = sys.stdout.fileno()
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
     fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_NONBLOCK)
