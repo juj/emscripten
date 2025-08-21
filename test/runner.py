@@ -600,7 +600,7 @@ if __name__ == '__main__':
     except BlockingIOError:
       fd = sys.stderr.fileno()
       flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-      if flags & ~os.O_NONBLOCK:
+      if flags & os.O_NONBLOCK:
         print('STDER WASS NONBLOCK')
 else:
   # We are not the main process, and most likely a child process of
