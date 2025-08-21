@@ -329,6 +329,36 @@ def suite_for_module(module, tests):
   return unittest.TestSuite()
 
 
+class BlockingStdStreams:
+  def __enter__(self):
+    self.saved_flags = {}
+    if os.name == "posix":
+      import fcntl
+      for stream in (sys.stdout, sys.stderr):
+        fd = stream.fileno()
+        flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+        self.saved_flags[fd] = flags
+        # clear O_NONBLOCK
+        fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_NONBLOCK)
+    elif os.name == "nt":
+      # On Windows, Python stdout/stderr are normally always blocking.
+      # We don't attempt to modify flags (no direct equivalent of O_NONBLOCK).
+      # Save placeholders so __exit__ can restore cleanly.
+      for stream in (sys.stdout, sys.stderr):
+        fd = stream.fileno()
+        self.saved_flags[fd] = None
+    return self
+
+  def __exit__(self, exc_type, exc_val, exc_tb):
+    if os.name == "posix":
+      import fcntl
+      for fd, flags in self.saved_flags.items():
+        fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+    elif os.name == "nt":
+      # nothing to restore; streams remain blocking
+      pass
+    return False
+
 def run_tests(options, suites):
   resultMessages = []
   num_failures = 0
@@ -354,14 +384,9 @@ def run_tests(options, suites):
   run_start_time = time.perf_counter()
   for mod_name, suite in suites:
     print('Running %s: (%s tests)' % (mod_name, suite.countTestCases()))
-    fd = sys.stdout.fileno()
-    flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-    fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_NONBLOCK)
-    try:
+    res = None
+    with BlockingStdStreams():
       res = testRunner.run(suite)
-    except BlockingIOError as e:
-      print(f'Warning: Python Test Runner error: {e}')
-    fcntl.fcntl(fd, fcntl.F_SETFL, flags)
     msg = ('%s: %s run, %s errors, %s failures, %s skipped' %
            (mod_name, res.testsRun, len(res.errors), len(res.failures), len(res.skipped)))
     num_failures += len(res.errors) + len(res.failures) + len(res.unexpectedSuccesses)
