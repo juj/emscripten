@@ -355,7 +355,7 @@ def run_tests(options, suites):
     print('Running %s: (%s tests)' % (mod_name, suite.countTestCases()))
     try:
       res = testRunner.run(suite)
-    except BlockingIOError e:
+    except BlockingIOError as e:
       print(f'Warning: Python Test Runner error: {e}')
     msg = ('%s: %s run, %s errors, %s failures, %s skipped' %
            (mod_name, res.testsRun, len(res.errors), len(res.failures), len(res.skipped)))
