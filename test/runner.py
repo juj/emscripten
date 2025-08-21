@@ -353,9 +353,9 @@ class BlockingStdStreams:
   def __exit__(self, exc_type, exc_val, exc_tb):
     if os.name == "posix":
       import fcntl
-      for fd, flags in self.saved_flags.items():
-        print('RESTORE O_NONBLOCK')
-        fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+#      for fd, flags in self.saved_flags.items():
+#        print('RESTORE O_NONBLOCK')
+#        fcntl.fcntl(fd, fcntl.F_SETFL, flags)
     elif os.name == "nt":
       # nothing to restore; streams remain blocking
       pass
