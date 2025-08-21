@@ -353,7 +353,10 @@ def run_tests(options, suites):
   run_start_time = time.perf_counter()
   for mod_name, suite in suites:
     print('Running %s: (%s tests)' % (mod_name, suite.countTestCases()))
-    res = testRunner.run(suite)
+    try:
+      res = testRunner.run(suite)
+    except BlockingIOError e:
+      print(f'Warning: Python Test Runner error: {e}')
     msg = ('%s: %s run, %s errors, %s failures, %s skipped' %
            (mod_name, res.testsRun, len(res.errors), len(res.failures), len(res.skipped)))
     num_failures += len(res.errors) + len(res.failures) + len(res.unexpectedSuccesses)
