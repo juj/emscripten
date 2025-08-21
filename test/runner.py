@@ -339,6 +339,7 @@ class BlockingStdStreams:
         flags = fcntl.fcntl(fd, fcntl.F_GETFL)
         self.saved_flags[fd] = flags
         # clear O_NONBLOCK
+        print('CLEAR O_NONBLOCK')
         fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_NONBLOCK)
     elif os.name == "nt":
       # On Windows, Python stdout/stderr are normally always blocking.
@@ -353,6 +354,7 @@ class BlockingStdStreams:
     if os.name == "posix":
       import fcntl
       for fd, flags in self.saved_flags.items():
+        print('RESTORE O_NONBLOCK')
         fcntl.fcntl(fd, fcntl.F_SETFL, flags)
     elif os.name == "nt":
       # nothing to restore; streams remain blocking
