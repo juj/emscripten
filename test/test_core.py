@@ -2002,6 +2002,20 @@ int main(int argc, char **argv) {
     self.do_run_in_out_file_test('test.cpp', cflags=args)
     self.do_run_in_out_file_test('test.cpp', cflags=args, force_c=True)
 
+
+  @flaky('testing')
+  def test_flaky(self):
+    import random
+    print('asdfsafsa')
+    print('asdfsafsa')
+    print('asdfsafsa')
+    print('asdfsafsa')
+    if random.randint(0, 1):
+      self.assertTrue(0)
+
+
+
+
   @needs_dylink
   @parameterized({
     '': ([], False),
