@@ -97,7 +97,6 @@ int main() {
   // Cull the zombies! (by forcing a new task queue to be allocated)
   em_proxying_queue* culler = em_proxying_queue_create();
   emscripten_proxy_async(culler, pthread_self(), nop, NULL);
-  while(!free_worker_done) sched_yield();
 
 #ifndef SANITIZER
   while(!free_worker_done) sched_yield();
