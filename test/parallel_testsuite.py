@@ -21,13 +21,15 @@ seen_class = set()
 
 
 def run_test(test, failfast_event):
+  result = BufferedParallelTestResult()
+
   # If failfast mode is in effect and any of the tests have failed,
   # and then we should abort executing further tests immediately.
   if failfast_event is not None and failfast_event.is_set():
-    return None
+    result.addSkip(test, 'Skipping since --failfast in effect')
+    return result
 
   olddir = os.getcwd()
-  result = BufferedParallelTestResult()
   temp_dir = tempfile.mkdtemp(prefix='emtest_')
   test.set_temp_dir(temp_dir)
   try:
