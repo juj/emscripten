@@ -2628,7 +2628,6 @@ The current type of b is: 9
 
   @node_pthreads
   def test_pthread_proxying_refcount(self):
-    self.skipTest('TODO')
     self.set_setting('EXIT_RUNTIME')
     self.set_setting('PTHREAD_POOL_SIZE=1')
     self.set_setting('ASSERTIONS=0')

@@ -77,3 +77,8 @@ task em_task_queue_dequeue(em_task_queue* queue);
 // its owning thread returns to its event loop. Returns 1 on success and 0
 // otherwise. Internally locks the queue.
 int em_task_queue_send(em_task_queue* queue, task t);
+
+// Returns the number of task queue zombies in existence. This is used for
+// debugging purposes to check how much transient unfreed memory remains. Can
+// be used for diagnostics.
+int em_task_queue_zombie_count(void);

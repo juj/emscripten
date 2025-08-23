@@ -8,28 +8,10 @@
 #include <stdbool.h>
 #include <unistd.h>
 
-#if __has_feature(leak_sanitizer) || __has_feature(address_sanitizer)
-#define SANITIZER
-#endif
+int em_task_queue_zombie_count(void);
 
 // Proxying queues accessed from the worker thread.
 em_proxying_queue* queues[2];
-
-#ifndef SANITIZER
-
-// If we are not using sanitizers (which need to use their own allocators),
-// override free so we can track when queues are actually freed.
-
-_Atomic int frees = 0;
-_Atomic int free_worker_done = 0;
-
-void __attribute__((noinline)) free(void* ptr) {
-  frees++;
-  emscripten_builtin_free(ptr);
-  free_worker_done = 1;
-}
-
-#endif // SANITIZER
 
 _Atomic int should_execute = 0;
 _Atomic int executed[2] = {};
@@ -88,33 +70,13 @@ int main() {
     sched_yield();
   }
 
-#ifndef SANITIZER
-  // Our zombies should not have been freed yet.
-  int frees_before_cull = frees;
-  free_worker_done = 0;
-#endif // SANITIZER
-
   // Cull the zombies! (by forcing a new task queue to be allocated)
   em_proxying_queue* culler = em_proxying_queue_create();
   emscripten_proxy_async(culler, pthread_self(), nop, NULL);
 
-#ifndef SANITIZER
-  while(!free_worker_done) sched_yield();
-  // Now they should be free.
-  int frees_after_cull = frees;
-  assert(frees_after_cull > frees_before_cull);
-#endif // SANITIZER
-
-  // If we try again, there should be nothing left to cull.
-  em_proxying_queue* non_culler = em_proxying_queue_create();
-  emscripten_proxy_async(non_culler, pthread_self(), nop, NULL);
-
-#ifndef SANITIZER
-  assert(frees == frees_after_cull);
-#endif
+  assert(em_task_queue_zombie_count() == 0);
 
   em_proxying_queue_destroy(culler);
-  em_proxying_queue_destroy(non_culler);
 
   emscripten_console_log("done");
 }
