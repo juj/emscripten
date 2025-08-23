@@ -35,7 +35,7 @@ def run_test(test, failfast_event):
   # If failfast mode is in effect and any of the tests have failed,
   # and then we should abort executing further tests immediately.
   if failfast_event_is_set(failfast_event):
-    result.addSkip(test, 'Skipping since --failfast in effect')
+    result.addSkip(test, '--failfast')
     return result
 
   olddir = os.getcwd()
@@ -209,7 +209,10 @@ class BufferedParallelTestResult:
     self.test_result = 'unexpected success'
 
   def addSkip(self, test, reason):
-    print(test, "... skipped '%s'" % reason, file=sys.stderr)
+    # Do not print skip reason when rolling through rest of the tests when
+    # failing fast, since that produces a lot of uninteresting spam.
+    if reason != '--failfast':
+      print(test, "... skipped '%s'" % reason, file=sys.stderr)
     self.buffered_result = BufferedTestSkip(test, reason)
     self.test_result = 'skipped'
 
