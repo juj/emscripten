@@ -20,12 +20,21 @@ NUM_CORES = None
 seen_class = set()
 
 
+def failfast_event_is_set(failfast_event):
+  try:
+    if failfast_event is not None and failfast_event.is_set():
+      return True
+  except Exception as e:
+    print(f'(3) PYTHON MULTITHREADING BUG? {e}')
+    return True
+  return False
+
 def run_test(test, failfast_event):
   result = BufferedParallelTestResult()
 
   # If failfast mode is in effect and any of the tests have failed,
   # and then we should abort executing further tests immediately.
-  if failfast_event is not None and failfast_event.is_set():
+  if failfast_event_is_set(failfast_event):
     result.addSkip(test, 'Skipping since --failfast in effect')
     return result
 
@@ -39,14 +48,20 @@ def run_test(test, failfast_event):
     test(result)
 
     # Alert all other multiprocess pool runners that they need to stop executing further tests.
-    if failfast_event is not None and result.test_result not in ['success', 'skipped']:
-      failfast_event.set()
+    try:
+      if failfast_event is not None and result.test_result not in ['success', 'skipped']:
+        failfast_event.set()
+    except Exception as e:
+      print(f'PYTHON MULTITHREADING BUG? {e}')
   except unittest.SkipTest as e:
     result.addSkip(test, e)
   except Exception as e:
     result.addError(test, e)
-    if failfast_event is not None:
-      failfast_event.set()
+    try:
+      if failfast_event is not None:
+        failfast_event.set()
+    except Exception as e:
+      print(f'(2) PYTHON MULTITHREADING BUG? {e}')
   # Before attempting to delete the tmp dir make sure the current
   # working directory is not within it.
   os.chdir(olddir)
