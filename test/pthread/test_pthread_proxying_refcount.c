@@ -21,10 +21,12 @@ em_proxying_queue* queues[2];
 // override free so we can track when queues are actually freed.
 
 _Atomic int frees = 0;
+_Atomic int free_worker_done = 0;
 
 void __attribute__((noinline)) free(void* ptr) {
   frees++;
   emscripten_builtin_free(ptr);
+  free_worker_done = 1;
 }
 
 #endif // SANITIZER
@@ -94,6 +96,7 @@ int main() {
   // Cull the zombies! (by forcing a new task queue to be allocated)
   em_proxying_queue* culler = em_proxying_queue_create();
   emscripten_proxy_async(culler, pthread_self(), nop, NULL);
+  while(!free_worker_done) sched_yield();
 
 #ifndef SANITIZER
   // Now they should be free.
