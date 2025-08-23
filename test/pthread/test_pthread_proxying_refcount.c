@@ -91,6 +91,7 @@ int main() {
 #ifndef SANITIZER
   // Our zombies should not have been freed yet.
   int frees_before_cull = frees;
+  free_worker_done = 0;
 #endif // SANITIZER
 
   // Cull the zombies! (by forcing a new task queue to be allocated)
@@ -99,6 +100,7 @@ int main() {
   while(!free_worker_done) sched_yield();
 
 #ifndef SANITIZER
+  while(!free_worker_done) sched_yield();
   // Now they should be free.
   int frees_after_cull = frees;
   assert(frees_after_cull > frees_before_cull);
