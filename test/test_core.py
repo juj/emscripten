@@ -2575,16 +2575,6 @@ The current type of b is: 9
   def test_pthread_cancel(self):
     self.do_run_in_out_file_test('pthread/test_pthread_cancel.c')
 
-  @flaky('testing')
-  def test_flaky(self):
-    import random
-    print('asdfsafsa')
-    print('asdfsafsa')
-    print('asdfsafsa')
-    print('asdfsafsa')
-    if random.randint(0, 1):
-      self.assertTrue(0)
-
   @node_pthreads
   def test_pthread_cancel_async(self):
     self.do_run_in_out_file_test('pthread/test_pthread_cancel_async.c')
