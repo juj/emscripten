@@ -79,13 +79,17 @@ void test() {
   times[1].tv_sec = s.st_mtim.tv_sec;
   times[1].tv_nsec = s.st_mtim.tv_nsec;
 
-  // set the timestampe to the current value
+  // set the timestamps to the current value
   err = futimens(fd, times);
   assert(!err);
   check_times(fd, times, 0);
 
   // UTIME_OMIT means that the timeval is ignored, so
-  // this call should do nothing.
+  // the next call should do nothing. But sleep for a second
+  // first to ensure that some time has passed since
+  // the last call to futimens() so times are different.
+  sleep(3);
+
   printf("check double UTIME_OMIT...\n");
   struct timespec newtimes[2];
   newtimes[0].tv_sec = 42;
