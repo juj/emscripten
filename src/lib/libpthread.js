@@ -1205,7 +1205,9 @@ var LibraryPThread = {
 #if EXIT_RUNTIME
     if (runtimeExited) return;
 #endif
+#if !MINIMAL_RUNTIME
     if (ABORT) return;
+#endif
 
     // Only check the mailbox if we have a live pthread runtime. We implement
     // pthread_self to return 0 if there is no live runtime.
