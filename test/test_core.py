@@ -24,7 +24,7 @@ from tools.utils import WINDOWS, MACOS, LINUX, write_file, delete_file
 from tools import shared, building, config, utils, webassembly
 import common
 from common import RunnerCore, path_from_root, requires_native_clang, test_file, create_file
-from common import skip_if, no_windows, no_mac, is_slow_test, parameterized, parameterize
+from common import skip_if, no_windows, is_slow_test, parameterized, parameterize
 from common import env_modify, with_env_modify, disabled, flaky, node_pthreads, also_without_bigint
 from common import read_file, read_binary, requires_v8, requires_node, requires_dev_dependency, requires_wasm2js, requires_node_canary
 from common import compiler_for, crossplatform, no_4gb, no_2gb, also_with_minimal_runtime, also_with_modularize

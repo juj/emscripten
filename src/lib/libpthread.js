@@ -291,7 +291,7 @@ var LibraryPThread = {
           // Message handler for Node.js specific out-of-order behavior:
           // https://github.com/nodejs/node/issues/59617
           // A pthread sent an uncaught exception event. Re-raise it on the main thread.
-          throw d.error;
+          worker.onerror(d.error);
 #endif
         } else if (cmd === 'callHandler') {
           Module[d.handler](...d.args);
