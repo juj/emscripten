@@ -40,6 +40,17 @@ if (ENVIRONMENT_IS_NODE && {{{ ENVIRONMENT_IS_WORKER_THREAD() }}}) {
     self: global,
     postMessage: (msg) => parentPort['postMessage'](msg),
   });
+  // Node.js Workers do not output postMessage()s and uncaught exception events necessarily in
+  // the same order where they were generated in sequential program order. See
+  // https://github.com/nodejs/node/issues/59617
+  // To remedy this, capture all uncaughtExceptions in the Worker, and sequentialize those over
+  // to the same postMessage pipe that other messages use.
+  process.on("uncaughtException", (err) => {
+#if PTHREADS_DEBUG
+    dbg(`uncaughtException on worker thread: ${err.message}`);
+#endif
+    parentPort['postMessage']({ cmd: 'uncaughtException', error: err });
+  });
 }
 #endif // (PTHREADS || WASM_WORKERS) && (ENVIRONMENT_MAY_BE_NODE && !WASM_ESM_INTEGRATION)
 
