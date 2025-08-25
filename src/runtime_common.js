@@ -50,6 +50,9 @@ if (ENVIRONMENT_IS_NODE && {{{ ENVIRONMENT_IS_WORKER_THREAD() }}}) {
     dbg(`uncaughtException on worker thread: ${err.message}`);
 #endif
     parentPort['postMessage']({ cmd: 'uncaughtException', error: err });
+    // Also shut down the Worker so that the Node.js app will exit. (but without raising
+    // an uncaughtException event on the main thread)
+    process.exit(1);
   });
 }
 #endif // (PTHREADS || WASM_WORKERS) && (ENVIRONMENT_MAY_BE_NODE && !WASM_ESM_INTEGRATION)
