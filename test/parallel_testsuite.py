@@ -210,7 +210,7 @@ class BufferedParallelTestResult:
       colors = {
         'success': '#80ff80',
         'warnings': '#ffb040',
-        'skipped': '#404040',
+        'skipped': '#a0a0a0',
         'expected failure': '#ff8080',
         'unexpected success': '#ff8080',
         'failed': '#ff8080',
