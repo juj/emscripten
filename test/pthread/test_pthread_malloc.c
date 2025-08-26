@@ -16,7 +16,7 @@ static void *thread_start(void *arg) {
   long n = (long)arg;
   long *mem[N] = {};
   for (long i = 0; i < N; ++i) {
-    mem[i] = (long*)malloc(4);
+    mem[i] = (long*)malloc(sizeof(long));
     *mem[i] = n+i;
   }
   for (long i = 0; i < N; ++i) {
