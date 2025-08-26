@@ -202,7 +202,7 @@ class BufferedParallelTestResult:
     result.stopTest(self.test)
     result.core_time += self.test_duration
 
-    if os.getenv('EMTEST_VISUALIZE') and self.test_result != 'skipped' or self.test_duration > 0.1:
+    if os.getenv('EMTEST_VISUALIZE') and (self.test_result != 'skipped' or self.test_duration > 0.2):
       profiler_logs_path = os.path.join(tempfile.gettempdir(), 'emscripten_toolchain_profiler_logs')
       prof = open(os.path.join(profiler_logs_path, 'toolchain_profiler.pid_0.json'), 'a')
       global test_task_counter
