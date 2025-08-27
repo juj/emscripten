@@ -921,7 +921,6 @@ f.close()
   # toolchain match with the actual language features that Clang supports.
   # If we update LLVM version and this test fails, copy over the new advertised features from Clang
   # and place them to cmake/Modules/Platform/Emscripten.cmake.
-  @no_windows('Skipped on Windows because CMake does not configure native Clang builds well on Windows.')
   @parameterized({
     '': ([],),
     'noforce': (['-DEMSCRIPTEN_FORCE_COMPILERS=OFF'],),
@@ -3987,21 +3986,32 @@ More info: https://emscripten.org
     self.assertContained('hello data', self.run_js('run.js'))
 
   @crossplatform
-  def test_file_packager_depfile(self):
+  @parameterized({
+    '': (False,),
+    'embed': (True,),
+  })
+  def test_file_packager_depfile(self, embed):
     create_file('data1.txt', 'data1')
     ensure_dir('subdir')
     create_file('subdir/data2.txt', 'data2')
 
-    self.run_process([FILE_PACKAGER, 'test.data', '--js-output=test.js', '--depfile=test.data.d', '--from-emcc', '--preload', '.'])
-    output = read_file('test.data.d')
+    if embed:
+      self.run_process([FILE_PACKAGER, 'test.data', '--obj-output=out.o', '--depfile=out.o.d', '--from-emcc', '--embed', '.'])
+      output = read_file('out.o.d')
+    else:
+      self.run_process([FILE_PACKAGER, 'test.data', '--js-output=test.js', '--depfile=test.data.d', '--from-emcc', '--preload', '.'])
+      output = read_file('test.data.d')
     file_packager = utils.normalize_path(shared.replace_suffix(FILE_PACKAGER, '.py'))
     file_packager = file_packager.replace(' ', '\\ ')
     lines = output.splitlines()
     split = lines.index(': \\')
     before, after = set(lines[:split]), set(lines[split + 1:])
     # Set comparison used because depfile is not order-sensitive.
-    self.assertTrue('test.data \\' in before)
-    self.assertTrue('test.js \\' in before)
+    if embed:
+      self.assertTrue('out.o \\' in before)
+    else:
+      self.assertTrue('test.data \\' in before)
+      self.assertTrue('test.js \\' in before)
     self.assertTrue(file_packager + ' \\' in after)
     self.assertTrue('. \\' in after)
     self.assertTrue('./data1.txt \\' in after)
@@ -5679,54 +5689,53 @@ Waste<3> *getMore() {
     'wasm2js_2': [2],
   })
   def test_symbol_map(self, opts, wasm):
-    def get_symbols_lines(symbols_file):
-      self.assertTrue(os.path.isfile(symbols_file), "Symbols file %s isn't created" % symbols_file)
-      # check that the map is correct
+    def read_symbol_map(symbols_file):
       symbols = read_file(symbols_file)
-      lines = [line.split(':') for line in symbols.strip().split('\n')]
+      lines = [line.split(':', 1) for line in symbols.splitlines()]
       return lines
 
     def get_minified_middle(symbols_file):
-      minified_middle = None
-      for minified, full in get_symbols_lines(symbols_file):
-        # handle both fastcomp and wasm backend notation
+      for minified, full in read_symbol_map(symbols_file):
         if full == 'middle':
-          minified_middle = minified
-          break
-      return minified_middle
+          return minified
+      return None
 
-    def guess_symbols_file_type(symbols_file):
-      for _minified, full in get_symbols_lines(symbols_file):
+    def is_js_symbol_map(symbols_file):
+      for _minified, full in read_symbol_map(symbols_file):
         # define symbolication file by JS specific entries
         if full in ['FUNCTION_TABLE', 'HEAP32']:
-          return 'js'
-      return 'wasm'
+          return True
+      return False
 
-    UNMINIFIED_HEAP8 = 'var HEAP8 = new '
-    UNMINIFIED_MIDDLE = 'function middle'
-
-    self.clear()
-    create_file('src.c', r'''
+    create_file('src.cpp', r'''
 #include <emscripten.h>
 
+namespace foo {
+
+EMSCRIPTEN_KEEPALIVE void* cpp_func(int foo) {
+  return 0;
+}
+
+}
+
 EM_JS(int, run_js, (), {
-out(new Error().stack);
-return 0;
+  out(new Error().stack);
+  return 0;
 });
 
 EMSCRIPTEN_KEEPALIVE
-void middle() {
-if (run_js()) {
-  // fake recursion that is never reached, to avoid inlining in binaryen and LLVM
-  middle();
-}
+extern "C" void middle() {
+  if (run_js()) {
+    // fake recursion that is never reached, to avoid inlining in binaryen and LLVM
+    middle();
+  }
 }
 
 int main() {
-EM_ASM({ _middle() });
+  EM_ASM({ _middle() });
 }
 ''')
-    cmd = [EMCC, 'src.c', '--emit-symbol-map'] + opts
+    cmd = [EMXX, 'src.cpp', '--emit-symbol-map'] + opts
     if wasm != 1:
       cmd.append(f'-sWASM={wasm}')
     self.run_process(cmd)
@@ -5746,20 +5755,25 @@ EM_ASM({ _middle() });
 
     # Ensure symbols file type according to `-sWASM=` mode
     if wasm == 0:
-      self.assertEqual(guess_symbols_file_type('a.out.js.symbols'), 'js', 'Primary symbols file should store JS mappings')
+      self.assertTrue(is_js_symbol_map('a.out.js.symbols'), 'Primary symbols file should store JS mappings')
     elif wasm == 1:
-      self.assertEqual(guess_symbols_file_type('a.out.js.symbols'), 'wasm', 'Primary symbols file should store Wasm mappings')
+      self.assertFalse(is_js_symbol_map('a.out.js.symbols'), 'Primary symbols file should store Wasm mappings')
+      if '-O2' in opts:
+        self.assertFileContents(test_file('other/test_symbol_map.O2.symbols'), read_file('a.out.js.symbols'))
+      else:
+        self.assertFileContents(test_file('other/test_symbol_map.O3.symbols'), read_file('a.out.js.symbols'))
     elif wasm == 2:
       # special case when both JS and Wasm targets are created
       minified_middle_2 = get_minified_middle('a.out.wasm.js.symbols')
       self.assertNotEqual(minified_middle_2, None, "Missing minified 'middle' function")
-      self.assertEqual(guess_symbols_file_type('a.out.js.symbols'), 'wasm', 'Primary symbols file should store Wasm mappings')
-      self.assertEqual(guess_symbols_file_type('a.out.wasm.js.symbols'), 'js', 'Secondary symbols file should store JS mappings')
-    return
+      self.assertFalse(is_js_symbol_map('a.out.js.symbols'), 'Primary symbols file should store Wasm mappings')
+      self.assertTrue(is_js_symbol_map('a.out.wasm.js.symbols'), 'Secondary symbols file should store JS mappings')
 
     # check we don't keep unnecessary debug info with wasm2js when emitting
     # a symbol map
-    if wasm == 0 and '-O' in str(opts):
+    if wasm == 0:
+      UNMINIFIED_HEAP8 = 'var HEAP8 = new '
+      UNMINIFIED_MIDDLE = 'function middle'
       js = read_file('a.out.js')
       self.assertNotContained(UNMINIFIED_HEAP8, js)
       self.assertNotContained(UNMINIFIED_MIDDLE, js)
@@ -10103,7 +10117,7 @@ int main() {
         # Process files depending on first char of the file in different test cases for parallelization, though
         # special case SDL_ prefix to parallelize better.
         first_char = (header[4] if header.startswith('SDL_') else header[0]).lower()
-        if first_char not in prefix or (prefix == '*' and ord(first_char) >= ord('a') and ord(first_char) <= ord('z')):
+        if first_char not in prefix or (prefix == '*' and first_char.isalpha()):
           continue
 
         print('header: ' + header)
