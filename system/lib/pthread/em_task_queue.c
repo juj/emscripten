@@ -68,6 +68,18 @@ static void em_task_queue_free(em_task_queue* queue) {
   free(queue);
 }
 
+int em_task_queue_zombie_count() {
+  int count = 0;
+  pthread_mutex_lock(&zombie_list_head.mutex);
+  em_task_queue* curr = zombie_list_head.zombie_next;
+  while (curr != &zombie_list_head) {
+    ++count;
+    curr = curr->zombie_next;
+  }
+  pthread_mutex_unlock(&zombie_list_head.mutex);
+  return count;
+}
+
 static void cull_zombies() {
   if (pthread_mutex_trylock(&zombie_list_head.mutex) != 0) {
     // Some other thread is already culling. In principle there may be new
