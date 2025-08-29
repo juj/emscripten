@@ -189,6 +189,7 @@ class BufferedParallelTestResult:
     except TypeError as e:
       if "'NoneType' object cannot be interpreted as an integer" in str(e):
         print('WARNING: Python multiprocessing lock no longer exists?', file=sys.stderr)
+      return ''
     return val
 
   def addSuccess(self, test):
