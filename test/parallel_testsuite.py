@@ -187,8 +187,7 @@ class BufferedParallelTestResult:
         val = f'[{int(self.progress_counter.value * 100 / self.num_tests)}%]'
         self.progress_counter.value += 1
     except TypeError as e:
-      if "'NoneType' object cannot be interpreted as an integer" in str(e):
-        print('WARNING: Python multiprocessing lock no longer exists?', file=sys.stderr)
+      print(f'WARNING: Python multiprocessing lock no longer exists?\n{e}', file=sys.stderr)
       return ''
     return val
 
