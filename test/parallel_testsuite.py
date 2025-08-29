@@ -188,32 +188,32 @@ class BufferedParallelTestResult:
     return val
 
   def addSuccess(self, test):
-    print(self.compute_progress(), test, '... ok (%.2fs)' % (self.calculateElapsed()), file=sys.stderr)
+    print(self.compute_progress(), test, '... \033[96mok (%.2fs)\033[0m' % (self.calculateElapsed()), file=sys.stderr)
     self.buffered_result = BufferedTestSuccess(test)
     self.test_result = 'success'
 
   def addExpectedFailure(self, test, err):
-    print(self.compute_progress(), test, '... expected failure (%.2fs)' % (self.calculateElapsed()), file=sys.stderr)
+    print(self.compute_progress(), test, '... \033[91mexpected failure\033[0m (%.2fs)' % (self.calculateElapsed()), file=sys.stderr)
     self.buffered_result = BufferedTestExpectedFailure(test, err)
     self.test_result = 'expected failure'
 
   def addUnexpectedSuccess(self, test):
-    print(self.compute_progress(), test, '... unexpected success (%.2fs)' % (self.calculateElapsed()), file=sys.stderr)
+    print(self.compute_progress(), test, '... \033[91munexpected success\033[0m (%.2fs)' % (self.calculateElapsed()), file=sys.stderr)
     self.buffered_result = BufferedTestUnexpectedSuccess(test)
     self.test_result = 'unexpected success'
 
   def addSkip(self, test, reason):
-    print(self.compute_progress(), test, "... skipped '%s'" % reason, file=sys.stderr)
+    print(self.compute_progress(), test, "... \033[96mskipped '%s'\033[0m" % reason, file=sys.stderr)
     self.buffered_result = BufferedTestSkip(test, reason)
     self.test_result = 'skipped'
 
   def addFailure(self, test, err):
-    print(self.compute_progress(), test, '... FAIL', file=sys.stderr)
+    print(self.compute_progress(), f'\033[91m{test}', '... FAIL\033[0m', file=sys.stderr)
     self.buffered_result = BufferedTestFailure(test, err)
     self.test_result = 'failed'
 
   def addError(self, test, err):
-    print(self.compute_progress(), test, '... ERROR', file=sys.stderr)
+    print(self.compute_progress(), f'\033[91m{test}', '... \033[91mERROR\033[0m', file=sys.stderr)
     self.buffered_result = BufferedTestError(test, err)
     self.test_result = 'errored'
 
