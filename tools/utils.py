@@ -3,6 +3,7 @@
 # University of Illinois/NCSA Open Source License.  Both these licenses can be
 # found in the LICENSE file.
 
+import logging
 import os
 import shutil
 import sys
@@ -94,7 +95,11 @@ def delete_dir(dirname):
   """Delete a directory (if it exists)."""
   if not os.path.exists(dirname):
     return
-  shutil.rmtree(dirname)
+  try:
+    shutil.rmtree(dirname)
+  except Exception as e:
+    logging.debug(f'Error removing directory {dirname}.\n{e}')
+    raise e
 
 
 def delete_contents(dirname, exclude=None):
