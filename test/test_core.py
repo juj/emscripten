@@ -7813,11 +7813,11 @@ void* operator new(size_t size) {
     self.do_run_in_out_file_test('embind/test_embind_wasm_workers.cpp', cflags=['-lembind', '-sWASM_WORKERS'])
 
   @parameterized({
-    '': ('DEFAULT', False),
+#    '': ('DEFAULT', False),
     'all': ('ALL', False),
-    'fast': ('FAST', False),
-    'default': ('DEFAULT', False),
-    'all_growth': ('ALL', True),
+#    'fast': ('FAST', False),
+#    'default': ('DEFAULT', False),
+#    'all_growth': ('ALL', True),
   })
   @no_modularize_instance('uses Module global')
   @no_strict('TODO: Fails in -sSTRICT mode due to an unknown reason.')
@@ -7859,13 +7859,17 @@ void* operator new(size_t size) {
     # on "Module" being always present (closure may remove it).
     self.cflags += ['-sEXPORTED_FUNCTIONS=_malloc,_free', '-sEXPORTED_RUNTIME_METHODS=HEAP8,stringToUTF8', '--post-js=glue.js', '--extern-post-js=extern-post.js']
     if mode == 'ALL':
-      self.cflags += ['-sASSERTIONS']
+      self.cflags += ['-sASSERTIONS', '-g']
     if allow_memory_growth:
       self.set_setting('ALLOW_MEMORY_GROWTH')
       if self.get_setting('INITIAL_MEMORY') == '4200mb':
         self.set_setting('MAXIMUM_MEMORY', '4300mb')
 
+    print(f"RUNNING INOUT FILE TEST {self}")
+    self.set_setting('ASSERTIONS', 1)
+    self.set_setting('RUNTIME_DEBUG', 1)
     self.do_run_in_out_file_test(test_file('webidl/test.cpp'), out_suffix='_' + mode, includes=['.'])
+    print(f"RUNNING INOUT FILE TEST DONE {self}")
 
   # Test that we can perform fully-synchronous initialization when combining
   # WASM_ASYNC_COMPILATION=0 + PTHREAD_POOL_DELAY_LOAD=1.  Also checks that

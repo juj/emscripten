@@ -1617,7 +1617,7 @@ class RunnerCore(unittest.TestCase, metaclass=RunnerMeta):
   def run_js(self, filename, engine=None, args=None,
              assert_returncode=0,
              interleaved_output=True,
-             input=None):
+             input=None, interesting=False):
     # use files, as PIPE can get too full and hang us
     stdout_file = self.in_dir('stdout')
     stderr_file = None
@@ -1644,7 +1644,7 @@ class RunnerCore(unittest.TestCase, metaclass=RunnerMeta):
                    stdout=stdout,
                    stderr=stderr,
                    assert_returncode=assert_returncode,
-                   input=input)
+                   input=input, interesting=interesting)
     except subprocess.TimeoutExpired as e:
       timeout_error = e
     except subprocess.CalledProcessError as e:
@@ -2057,6 +2057,9 @@ class RunnerCore(unittest.TestCase, metaclass=RunnerMeta):
       expected = None
     else:
       expected = read_file(outfile)
+    kwargs['interesting'] = (out_suffix == '_ALL')
+    if out_suffix == '_ALL':
+      print('INTERESTING BUILD')
     output = self._build_and_run(srcfile, expected, **kwargs)
     if EMTEST_REBASELINE:
       utils.write_file(outfile, output)
@@ -2071,6 +2074,8 @@ class RunnerCore(unittest.TestCase, metaclass=RunnerMeta):
                      regex=False,
                      **kwargs):
     logger.debug(f'_build_and_run: {filename}')
+
+    interesting = kwargs.pop('interesting', '')
 
     if no_build:
       js_file = filename
@@ -2094,9 +2099,31 @@ class RunnerCore(unittest.TestCase, metaclass=RunnerMeta):
     if len(engines) == 0:
       self.fail('No JS engine present to run this test with. Check %s and the paths therein.' % config.EM_CONFIG)
     for engine in engines:
+      if interesting:
+        def copy_siblings(src_file, dst_dir):
+          # Ensure destination exists
+          os.makedirs(dst_dir, exist_ok=True)
+
+          # Get directory containing src_file
+          src_dir = os.path.dirname(os.path.abspath(src_file))
+
+          # Copy every file in that directory
+          for name in os.listdir(src_dir):
+              src_path = os.path.join(src_dir, name)
+              dst_path = os.path.join(dst_dir, name)
+              if os.path.isfile(src_path):   # skip subdirectories
+                  shutil.copy2(src_path, dst_path)
+                  print(f"Copied {src_path} -> {dst_path}")
+        print(f'COPYING {js_file}')
+        copy_siblings(js_file, '/home/clb/test_file/')
+        print(f'RUNNING {engine} {args} {js_file}')
+        print(f'interleaved_output: {interleaved_output}')
+        sys.stdout.flush()
+        sys.stderr.flush()
+
       js_output = self.run_js(js_file, engine, args,
                               assert_returncode=assert_returncode,
-                              interleaved_output=interleaved_output)
+                              interleaved_output=interleaved_output, interesting=interesting)
       js_output = js_output.replace('\r\n', '\n')
       if expected_output:
         if type(expected_output) not in [list, tuple]:
