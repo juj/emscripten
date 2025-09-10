@@ -2674,6 +2674,8 @@ class BrowserCore(RunnerCore):
           # Wrap window positions on a Full HD desktop area modulo primes.
           move_browser_window(proc.pid, (300 + count * 47) % 1901, (10 + count * 37) % 997)
       else:
+        # Only Firefox on Windows needs detailed browser process tracking. Other
+        # setups can use 'browser_proc' directly to terminate the browser.
         cls.browser_procs = [browser_proc]
 
   @classmethod
