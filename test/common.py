@@ -2547,13 +2547,15 @@ class FileLock:
     while True:
       try:
         self.fd = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        break
       except FileExistsError:
         time.sleep(0.1)
     # Return the locking count number
     try:
       self.counter = int(open(f'{self.path}_counter').read())
-    finally:
-      return self.counter
+    except Exception:
+      pass
+    return self.counter
 
   def __exit__(self, *a):
     # Increment locking count number before releasing the lock
