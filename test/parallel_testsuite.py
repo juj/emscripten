@@ -71,7 +71,10 @@ def run_test(test, failfast_event, lock, progress_counter, num_tests):
   # Before attempting to delete the tmp dir make sure the current
   # working directory is not within it.
   os.chdir(olddir)
-  common.force_delete_dir(temp_dir)
+  try:
+    common.force_delete_dir(temp_dir)
+  except PermissionError as e:
+    print(f'WARNING: Failed to delete directory {temp_dir}:\n{e}')
   return result
 
 
@@ -113,6 +116,8 @@ class ParallelTestSuite(unittest.BaseTestSuite):
 
     # Remove any old stale list of flaky tests before starting the run
     utils.delete_file(common.flaky_tests_log_filename)
+    utils.delete_file(utils.path_from_root('out/browser_spawn_lock'))
+    utils.delete_file(utils.path_from_root('out/browser_spawn_lock_counter'))
 
     # If we are running with --failing-and-slow-first, then the test list has been
     # pre-sorted based on previous test run results. Otherwise run the tests in
