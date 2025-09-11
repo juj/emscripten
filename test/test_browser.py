@@ -26,7 +26,7 @@ from common import also_with_minimal_runtime, also_with_wasm2js, also_with_asan,
 from common import HttpServerThread, requires_dev_dependency, no_windows
 from tools import shared
 from tools import ports
-from tools.shared import EMCC, WINDOWS, FILE_PACKAGER, PIPE, DEBUG
+from tools.shared import EMCC, MACOS, WINDOWS, FILE_PACKAGER, PIPE, DEBUG
 from tools.utils import delete_dir
 
 
@@ -1996,6 +1996,8 @@ simulateKeyUp(100, undefined, 'Numpad4');
   @requires_graphics_hardware
   @no_swiftshader
   def test_cubegeom_pre_regal(self):
+    if MACOS:
+      self.skipTest('Returns report_result?34 instead of report_result?0') # only on Firefox on macOS ARM & x64
     self.reftest('third_party/cubegeom/cubegeom_pre.c', 'third_party/cubegeom/cubegeom_pre.png', cflags=['-sUSE_REGAL', '-DUSE_REGAL', '-lGL', '-lSDL', '-lc++', '-lc++abi'])
 
   @requires_graphics_hardware
@@ -2121,6 +2123,8 @@ void *getBindBuffer() {
   @requires_graphics_hardware
   @no_swiftshader
   def test_cubegeom_pre_vao_regal(self):
+    if MACOS:
+      self.skipTest('Returns report_result?34 instead of report_result?0') # only on Firefox on macOS ARM & x64
     self.reftest('third_party/cubegeom/cubegeom_pre_vao.c', 'third_party/cubegeom/cubegeom_pre_vao.png', cflags=['-sUSE_REGAL', '-DUSE_REGAL', '-lGL', '-lSDL', '-lc++', '-lc++abi'])
 
   @requires_graphics_hardware
@@ -2135,11 +2139,15 @@ void *getBindBuffer() {
   @requires_graphics_hardware
   @no_swiftshader
   def test_cubegeom_pre_vao_es(self):
+    if MACOS:
+      self.skipTest('Returns report_result?34 instead of report_result?0') # only on Firefox on macOS ARM & x64
     self.reftest('third_party/cubegeom/cubegeom_pre_vao_es.c', 'third_party/cubegeom/cubegeom_pre_vao.png', cflags=['-sFULL_ES2', '-lGL', '-lSDL'])
 
   @requires_graphics_hardware
   @no_swiftshader
   def test_cubegeom_row_length(self):
+    if MACOS:
+      self.skipTest('Returns report_result?34 instead of report_result?0') # only on Firefox on macOS ARM & x64
     self.reftest('third_party/cubegeom/cubegeom_pre_vao_es.c', 'third_party/cubegeom/cubegeom_pre_vao.png', cflags=['-sFULL_ES2', '-lGL', '-lSDL', '-DUSE_UNPACK_ROW_LENGTH', '-sMIN_WEBGL_VERSION=2'])
 
   @requires_graphics_hardware
@@ -3088,7 +3096,7 @@ Module["preRun"] = () => {
 
   @requires_graphics_hardware
   @proxied
-  @no_firefox('fails with assert') # Firefox on Linux
+  @no_firefox('fails with assert') # Firefox on Linux and Windows and macOS
   def test_sdl2_canvas_proxy(self):
     create_file('data.txt', 'datum')
     self.reftest('test_sdl2_canvas_proxy.c', 'test_sdl2_canvas.png', cflags=['-sUSE_SDL=2', '--proxy-to-worker', '--preload-file', 'data.txt'])
