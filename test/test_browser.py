@@ -880,6 +880,7 @@ window.close = () => {
     self.btest_exit('test_sdl_canvas.c', cflags=['-sLEGACY_GL_EMULATION', '-lSDL', '-lGL'] + args)
 
   @proxied
+  @no_firefox('exception:failed assert')
   def test_sdl_canvas_proxy(self):
     create_file('data.txt', 'datum')
     self.reftest('test_sdl_canvas_proxy.c', 'test_sdl_canvas_proxy.png', cflags=['--proxy-to-worker', '--preload-file', 'data.txt', '-lSDL', '-lGL'])
@@ -3159,6 +3160,7 @@ Module["preRun"] = () => {
 
   @requires_graphics_hardware
   @proxied
+  @no_firefox('exception:failed assert')
   def test_sdl2_gl_frames_swap(self):
     self.reftest('test_sdl2_gl_frames_swap.c', 'test_sdl2_gl_frames_swap.png', cflags=['--proxy-to-worker', '-sUSE_SDL=2'])
 
@@ -4225,6 +4227,7 @@ Module["preRun"] = () => {
   })
   @requires_offscreen_canvas
   @requires_graphics_hardware
+  @no_firefox('NotSupportedError: Cannot transfer OffscreenCanvas bound to element using captureStream.')
   def test_webgl_offscreen_canvas_in_pthread(self, args):
     self.btest('gl_in_pthread.c', expected='1', cflags=args + ['-pthread', '-sPTHREAD_POOL_SIZE=2', '-sOFFSCREENCANVAS_SUPPORT', '-lGL'])
 
@@ -4402,6 +4405,8 @@ Module["preRun"] = () => {
   @requires_graphics_hardware
   @requires_offscreen_canvas
   def test_webgl_resize_offscreencanvas_from_main_thread(self, args1, args2, args3):
+    if '-sPROXY_TO_PTHREAD' in args1 and is_firefox():
+      self.skipTest('NotSupportedError: Cannot transfer OffscreenCanvas bound to element using captureStream.')
     cmd = args1 + args2 + args3 + ['-pthread', '-lGL', '-sGL_DEBUG']
     print(str(cmd))
     self.btest_exit('test_webgl_resize_offscreencanvas_from_main_thread.c', cflags=cmd)
@@ -4663,6 +4668,8 @@ Module["preRun"] = () => {
   @no_2gb('uses INITIAL_MEMORY')
   @no_4gb('uses INITIAL_MEMORY')
   def test_pthread_growth_mainthread(self, cflags, pthread_pool_size):
+    if '-sGROWABLE_ARRAYBUFFERS' in cflags and is_firefox():
+      self.skipTest('Requires growable array buffer support')
     self.set_setting('PTHREAD_POOL_SIZE', pthread_pool_size)
     if '-sGROWABLE_ARRAYBUFFERS' not in cflags:
       self.cflags.append('-Wno-pthreads-mem-growth')
@@ -4679,6 +4686,8 @@ Module["preRun"] = () => {
   @no_2gb('uses INITIAL_MEMORY')
   @no_4gb('uses INITIAL_MEMORY')
   def test_pthread_growth(self, cflags, pthread_pool_size = 1):
+    if '-sGROWABLE_ARRAYBUFFERS' in cflags and is_firefox():
+      self.skipTest('Requires growable array buffer support')
     self.set_setting('PTHREAD_POOL_SIZE', pthread_pool_size)
     if '-sGROWABLE_ARRAYBUFFERS' not in cflags:
       self.cflags.append('-Wno-pthreads-mem-growth')
