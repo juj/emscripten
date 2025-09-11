@@ -89,4 +89,4 @@ user_pref("media.autoplay.default", 0);
 // Helps e.g. Windows on ARM devices on Firefox: https://bugzilla.mozilla.org/show_bug.cgi?id=1988266
 user_pref("webgl.force-enabled", true);
 user_pref("webgl.disabled", false);
-user_pref("webgl.enable-webgl2", true);
+user_pref("webgl.enable-webgl2", false);
