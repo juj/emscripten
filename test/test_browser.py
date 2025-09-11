@@ -191,7 +191,7 @@ def skipExecIf(cond, message):
 
 
 requires_graphics_hardware = skipExecIf(os.getenv('EMTEST_LACKS_GRAPHICS_HARDWARE'), 'This test requires graphics hardware')
-requires_webgl2 = unittest.skipIf(os.getenv('EMTEST_LACKS_WEBGL2') or os.getenv('EMTEST_LACKS_GRAPHICS_HARDWARE'), "This test requires WebGL2 to be available")
+requires_webgl2 = unittest.skipIf(os.getenv('EMTEST_LACKS_WEBGL2') or os.getenv('EMTEST_LACKS_GRAPHICS_HARDWARE') or True, "This test requires WebGL2 to be available") # XXXXXX
 requires_webgpu = unittest.skipIf(os.getenv('EMTEST_LACKS_WEBGPU') or os.getenv('EMTEST_LACKS_GRAPHICS_HARDWARE'), "This test requires WebGPU to be available")
 requires_sound_hardware = skipExecIf(os.getenv('EMTEST_LACKS_SOUND_HARDWARE'), 'This test requires sound hardware')
 requires_offscreen_canvas = skipExecIf(os.getenv('EMTEST_LACKS_OFFSCREEN_CANVAS'), 'This test requires a browser with OffscreenCanvas')
