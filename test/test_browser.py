@@ -1482,6 +1482,7 @@ simulateKeyUp(100, undefined, 'Numpad4');
                  cflags=['-O2', '--minify=0', '--preload-file', 'screenshot.png', '-sUSE_REGAL', '-DUSE_REGAL', '--use-preload-plugins', '-lSDL', '-lGL', '-lc++', '-lc++abi'])
 
   @requires_graphics_hardware
+  @no_firefox('fails with assert') # Firefox on Linux, report_result 3 instead of 0
   def test_sdl_ogl_defaultmatrixmode(self):
     shutil.copy(test_file('screenshot.png'), '.')
     self.reftest('test_sdl_ogl_defaultMatrixMode.c', 'screenshot-gray-purple.png', reference_slack=1,
@@ -1495,6 +1496,7 @@ simulateKeyUp(100, undefined, 'Numpad4');
                  cflags=['--preload-file', 'screenshot.png', '-sLEGACY_GL_EMULATION', '--use-preload-plugins', '-lSDL', '-lGL'])
 
   @requires_graphics_hardware
+  @no_firefox('fails with assert') # Firefox on Linux, report_result 3 instead of 0
   def test_sdl_ogl_proc_alias(self):
     shutil.copy(test_file('screenshot.png'), '.')
     self.reftest('test_sdl_ogl_proc_alias.c', 'screenshot-gray-purple.png', reference_slack=1,
@@ -2287,6 +2289,8 @@ void *getBindBuffer() {
     self.btest_exit('openal/test_openal_buffers.c', cflags=['--preload-file', test_file('sounds/the_entertainer.wav') + '@/'])
 
   def test_runtimelink(self):
+    if self.get_setting('GLOBAL_BASE'):
+      self.skipTest('GLOBAL_BASE is not compatible with SIDE_MODULE')
     create_file('header.h', r'''
       struct point {
         int x, y;
@@ -3084,6 +3088,7 @@ Module["preRun"] = () => {
 
   @requires_graphics_hardware
   @proxied
+  @no_firefox('fails with assert') # Firefox on Linux
   def test_sdl2_canvas_proxy(self):
     create_file('data.txt', 'datum')
     self.reftest('test_sdl2_canvas_proxy.c', 'test_sdl2_canvas.png', cflags=['-sUSE_SDL=2', '--proxy-to-worker', '--preload-file', 'data.txt'])
@@ -3536,6 +3541,8 @@ Module["preRun"] = () => {
     'inworker': ([1],),
   })
   def test_dylink_dso_needed(self, inworker):
+    if self.get_setting('GLOBAL_BASE'):
+      self.skipTest('GLOBAL_BASE is not compatible with SIDE_MODULE')
     self.cflags += ['-O2']
 
     def do_run(src, expected_output, cflags):
@@ -5210,6 +5217,8 @@ Module["preRun"] = () => {
   # Tests emscripten_lock_async_acquire() function.
   @also_with_minimal_runtime
   def test_wasm_worker_lock_async_acquire(self):
+    if self.get_setting('MINIMAL_RUNTIME') and is_firefox(): # Firefox on Linux
+      self.skipTest('fails with exception:V[a] is undefined')
     self.btest_exit('wasm_worker/lock_async_acquire.c', cflags=['--closure=1', '-sWASM_WORKERS'])
 
   # Tests emscripten_lock_busyspin_wait_acquire() in Worker and main thread.
