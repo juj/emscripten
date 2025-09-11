@@ -190,9 +190,17 @@ def skipExecIf(cond, message):
   return decorator
 
 
+def webgl2_disabled():
+  return os.getenv('EMTEST_LACKS_WEBGL2') or os.getenv('EMTEST_LACKS_GRAPHICS_HARDWARE') or True
+
+
+def webgpu_disabled():
+  return os.getenv('EMTEST_LACKS_WEBGPU') or os.getenv('EMTEST_LACKS_GRAPHICS_HARDWARE')
+
+
 requires_graphics_hardware = skipExecIf(os.getenv('EMTEST_LACKS_GRAPHICS_HARDWARE'), 'This test requires graphics hardware')
-requires_webgl2 = unittest.skipIf(os.getenv('EMTEST_LACKS_WEBGL2') or os.getenv('EMTEST_LACKS_GRAPHICS_HARDWARE') or True, "This test requires WebGL2 to be available") # XXXXXX
-requires_webgpu = unittest.skipIf(os.getenv('EMTEST_LACKS_WEBGPU') or os.getenv('EMTEST_LACKS_GRAPHICS_HARDWARE'), "This test requires WebGPU to be available")
+requires_webgl2 = unittest.skipIf(webgl2_disabled(), "This test requires WebGL2 to be available") # XXXXXX
+requires_webgpu = unittest.skipIf(webgpu_disabled(), "This test requires WebGPU to be available")
 requires_sound_hardware = skipExecIf(os.getenv('EMTEST_LACKS_SOUND_HARDWARE'), 'This test requires sound hardware')
 requires_offscreen_canvas = skipExecIf(os.getenv('EMTEST_LACKS_OFFSCREEN_CANVAS'), 'This test requires a browser with OffscreenCanvas')
 
@@ -2264,7 +2272,7 @@ void *getBindBuffer() {
     'es2_tracing': (['-sMIN_WEBGL_VERSION=2', '-sFULL_ES2', '-sWEBGL2_BACKWARDS_COMPATIBILITY_EMULATION', '-sTRACE_WEBGL_CALLS'],),
   })
   def test_subdata(self, args):
-    if '-sMIN_WEBGL_VERSION=2' in args and os.getenv('EMTEST_LACKS_WEBGL2'):
+    if '-sMIN_WEBGL_VERSION=2' in args and webgl2_disabled():
       self.skipTest('This test requires WebGL2 to be available')
     if self.is_4gb() and '-sMIN_WEBGL_VERSION=2' in args:
       self.skipTest('texSubImage2D fails: https://crbug.com/325090165')
@@ -2730,7 +2738,7 @@ Module["preRun"] = () => {
   })
   @requires_graphics_hardware
   def test_webgl_preprocessor_variables(self, opts):
-    if '-DWEBGL_VERSION=2' in opts and os.getenv('EMTEST_LACKS_WEBGL2'):
+    if '-DWEBGL_VERSION=2' in opts and webgl2_disabled():
       self.skipTest('This test requires WebGL2 to be available')
     self.btest_exit('webgl_preprocessor_variables.c', cflags=['-lGL'] + opts)
 
@@ -2744,7 +2752,7 @@ Module["preRun"] = () => {
     'webgl2': (['-sMAX_WEBGL_VERSION=2', '-DTEST_WEBGL2=1'],),
   })
   def test_webgl2_garbage_free_entrypoints(self, args):
-    if '-DTEST_WEBGL2=1' in args and os.getenv('EMTEST_LACKS_WEBGL2'):
+    if '-DTEST_WEBGL2=1' in args and webgl2_disabled():
       self.skipTest('This test requires WebGL2 to be available')
     if args and self.is_4gb():
       self.skipTest('readPixels fails: https://crbug.com/324992397')
@@ -4375,7 +4383,7 @@ Module["preRun"] = () => {
     'gl2_no_aa': (['-sMAX_WEBGL_VERSION=2', '-DTEST_WEBGL2=1', '-DTEST_ANTIALIAS=0'],),
   })
   def test_webgl_offscreen_framebuffer_state_restoration(self, args):
-    if '-DTEST_WEBGL2=1' in args and os.getenv('EMTEST_LACKS_WEBGL2'):
+    if '-DTEST_WEBGL2=1' in args and webgl2_disabled():
       self.skipTest('This test requires WebGL2 to be available')
     base_args = ['-lGL', '-sOFFSCREEN_FRAMEBUFFER', '-DEXPLICIT_SWAP=1']
     self.btest_exit('webgl_offscreen_framebuffer_swap_with_bad_state.c', cflags=base_args + args)
@@ -4449,7 +4457,7 @@ Module["preRun"] = () => {
     'disable': (0,),
   })
   def test_webgl_simple_extensions(self, webgl_version, simple_enable_extensions):
-    if webgl_version == 2 and os.getenv('EMTEST_LACKS_WEBGL2'):
+    if webgl_version == 2 and webgl2_disabled():
       self.skipTest('This test requires WebGL2 to be available')
 
     cmd = ['-DWEBGL_CONTEXT_VERSION=' + str(webgl_version),
