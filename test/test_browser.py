@@ -5251,6 +5251,7 @@ Module["preRun"] = () => {
 
   # Tests emscripten_lock_async_acquire() function.
   @also_with_minimal_runtime
+  @flaky('https://github.com/emscripten-core/emscripten/issues/25270')
   def test_wasm_worker_lock_async_acquire(self):
     if self.get_setting('MINIMAL_RUNTIME') and is_firefox(): # Firefox on Linux
       self.skipTest('fails with exception:V[a] is undefined')
