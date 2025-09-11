@@ -26,8 +26,8 @@ from common import also_with_minimal_runtime, also_with_wasm2js, also_with_asan,
 from common import HttpServerThread, requires_dev_dependency, no_windows
 from tools import shared
 from tools import ports
-from tools.shared import EMCC, MACOS, WINDOWS, FILE_PACKAGER, PIPE, DEBUG
-from tools.utils import delete_dir
+from tools.shared import EMCC, FILE_PACKAGER, PIPE, DEBUG
+from tools.utils import delete_dir, MACOS, WINDOWS
 
 
 def make_test_chunked_synchronous_xhr_server(support_byte_ranges, data, port):
