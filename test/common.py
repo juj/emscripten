@@ -2660,18 +2660,18 @@ class BrowserCore(RunnerCore):
       # bring down the whole browser, but only one browser tab. So take a delta
       # snapshot before->after spawning the browser to find which subprocesses
       # we launched.
-      if WINDOWS and is_firefox():
+      if worker_id is not None and WINDOWS and is_firefox():
         procs_before = list_processes_by_name(config.executable_name)
       cls.browser_procs = [subprocess.Popen(browser_args + [url])]
       # Give Firefox time to spawn its subprocesses. Use an increasing timeout
       # as a crude way to account for system load.
-      if WINDOWS and is_firefox():
+      if worker_id is not None and WINDOWS and is_firefox():
         time.sleep(2 + count * 0.3)
         procs_after = list_processes_by_name(config.executable_name)
       # Make sure that each browser window is visible on the desktop. Otherwise
       # browser might decide that the tab is backgrounded, and not load a test,
       # or it might not tick rAF()s forward, causing tests to hang.
-      if WINDOWS and is_firefox():
+      if worker_id is not None and WINDOWS and is_firefox():
         # On Firefox on Windows we needs to track subprocesses that got created
         # by Firefox. Other setups can use 'browser_proc' directly to terminate
         # the browser.
