@@ -23,7 +23,7 @@ from common import create_file, parameterized, ensure_dir, disabled, flaky, test
 from common import read_file, EMRUN, no_wasm64, no_2gb, no_4gb, copytree
 from common import requires_wasm2js, parameterize, find_browser_test_file, with_all_sjlj
 from common import also_with_minimal_runtime, also_with_wasm2js, also_with_asan, also_with_wasmfs
-from common import HttpServerThread, requires_dev_dependency
+from common import HttpServerThread, requires_dev_dependency, no_windows
 from tools import shared
 from tools import ports
 from tools.shared import EMCC, WINDOWS, FILE_PACKAGER, PIPE, DEBUG
@@ -1740,6 +1740,7 @@ simulateKeyUp(100, undefined, 'Numpad4');
     assert 'gl-matrix' not in read_file('test.html'), 'Should not include glMatrix when not needed'
 
   @requires_graphics_hardware
+  @no_windows('Test depends on Unix "make"')
   def test_glbook(self):
     self.cflags.append('-Wno-int-conversion')
     self.cflags.append('-Wno-pointer-sign')
