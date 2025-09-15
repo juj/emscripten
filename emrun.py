@@ -316,11 +316,6 @@ user_pref("gfx.offscreencanvas.enabled", true);
 user_pref("javascript.options.wasm_memory64", true);
 // Do not ask user consent to enable audio playback (0: Allow autoplay for all media)
 user_pref("media.autoplay.default", 0);
-// Force-enable WebGL to work around any blacklist - this is for developer testing purposes.
-// Helps e.g. Windows on ARM devices on Firefox: https://bugzilla.mozilla.org/show_bug.cgi?id=1988266
-user_pref("webgl.force-enabled", true);
-user_pref("webgl.disabled", false);
-user_pref("webgl.enable-webgl2", true);
 ''')
     if emrun_options.private_browsing:
       f.write('''
