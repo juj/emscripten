@@ -26,6 +26,7 @@ def get_native_triple():
   arch = {
       'aarch64': 'arm64',
       'arm64': 'arm64',
+      'ARM64': 'arm64', # Python on Windows-on-ARM reports uppercase ARM64
       'x86_64': 'x86_64',
       'AMD64': 'x86_64',
   }[platform.machine()]
