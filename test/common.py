@@ -235,6 +235,13 @@ def is_slow_test(func):
   return decorated
 
 
+def needs_make(note=''):
+  assert not callable(note)
+  if WINDOWS:
+    return unittest.skip('Tool not available on Windows bots (%s)' % note)
+  return lambda f: f
+
+
 def record_flaky_test(test_name, attempt_count, exception_msg):
   logging.info(f'Retrying flaky test "{test_name}" (attempt {attempt_count}/{EMTEST_RETRY_FLAKY} failed):\n{exception_msg}')
   open(flaky_tests_log_filename, 'a').write(f'{test_name}\n')
@@ -2242,10 +2249,12 @@ class RunnerCore(unittest.TestCase, metaclass=RunnerMeta):
 
     return poppler + freetype
 
-  def get_zlib_library(self, cmake):
+  def get_zlib_library(self, cmake, cflags=None):
     assert cmake or not WINDOWS, 'on windows, get_zlib_library only supports cmake'
 
     old_args = self.cflags.copy()
+    if cflags:
+      self.cflags += cflags
     # inflate.c does -1L << 16
     self.cflags.append('-Wno-shift-negative-value')
     # adler32.c uses K&R sytyle function declarations
@@ -2645,7 +2654,7 @@ class BrowserCore(RunnerCore):
       elif is_firefox():
         config = FirefoxConfig()
       else:
-        exit_with_error(f'EMTEST_BROWSER_AUTO_CONFIG only currently works with firefox or chrome. EMTEST_BROWSER="{EMTEST_BROWSER}"')
+        exit_with_error(f'EMTEST_BROWSER_AUTO_CONFIG only currently works with firefox or chrome. EMTEST_BROWSER was "{EMTEST_BROWSER}"')
       if WINDOWS:
         # Escape directory delimiter backslashes for shlex.split.
         browser_data_dir = browser_data_dir.replace('\\', '\\\\')

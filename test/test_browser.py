@@ -191,7 +191,7 @@ def skipExecIf(cond, message):
 
 
 def webgl2_disabled():
-  return os.getenv('EMTEST_LACKS_WEBGL2') or os.getenv('EMTEST_LACKS_GRAPHICS_HARDWARE') or True
+  return os.getenv('EMTEST_LACKS_WEBGL2') or os.getenv('EMTEST_LACKS_GRAPHICS_HARDWARE')
 
 
 def webgpu_disabled():
@@ -199,7 +199,7 @@ def webgpu_disabled():
 
 
 requires_graphics_hardware = skipExecIf(os.getenv('EMTEST_LACKS_GRAPHICS_HARDWARE'), 'This test requires graphics hardware')
-requires_webgl2 = unittest.skipIf(webgl2_disabled(), "This test requires WebGL2 to be available") # XXXXXX
+requires_webgl2 = unittest.skipIf(webgl2_disabled(), "This test requires WebGL2 to be available")
 requires_webgpu = unittest.skipIf(webgpu_disabled(), "This test requires WebGPU to be available")
 requires_sound_hardware = skipExecIf(os.getenv('EMTEST_LACKS_SOUND_HARDWARE'), 'This test requires sound hardware')
 requires_offscreen_canvas = skipExecIf(os.getenv('EMTEST_LACKS_OFFSCREEN_CANVAS'), 'This test requires a browser with OffscreenCanvas')
@@ -2011,14 +2011,6 @@ simulateKeyUp(100, undefined, 'Numpad4');
 
   @requires_graphics_hardware
   @no_swiftshader
-  def test_cubegeom_pre_relocatable(self):
-    # RELOCATABLE needs to be set via `set_setting` so that it will also apply when
-    # building `browser_reporting.c`
-    self.set_setting('RELOCATABLE')
-    self.reftest('third_party/cubegeom/cubegeom_pre.c', 'third_party/cubegeom/cubegeom_pre.png', cflags=['-sLEGACY_GL_EMULATION', '-lGL', '-lSDL'])
-
-  @requires_graphics_hardware
-  @no_swiftshader
   def test_cubegeom_pre2(self):
     self.reftest('third_party/cubegeom/cubegeom_pre2.c', 'third_party/cubegeom/cubegeom_pre2.png', cflags=['-sGL_DEBUG', '-sLEGACY_GL_EMULATION', '-lGL', '-lSDL']) # some coverage for GL_DEBUG not breaking the build
 
@@ -2308,8 +2300,6 @@ void *getBindBuffer() {
     self.btest_exit('openal/test_openal_buffers.c', cflags=['--preload-file', test_file('sounds/the_entertainer.wav') + '@/'])
 
   def test_runtimelink(self):
-    if self.get_setting('GLOBAL_BASE'):
-      self.skipTest('GLOBAL_BASE is not compatible with SIDE_MODULE')
     create_file('header.h', r'''
       struct point {
         int x, y;
@@ -3571,8 +3561,6 @@ Module["preRun"] = () => {
     'inworker': ([1],),
   })
   def test_dylink_dso_needed(self, inworker):
-    if self.get_setting('GLOBAL_BASE'):
-      self.skipTest('GLOBAL_BASE is not compatible with SIDE_MODULE')
     self.cflags += ['-O2']
 
     def do_run(src, expected_output, cflags):
@@ -5725,6 +5713,8 @@ class browser64_2gb(browser):
     self.set_setting('MEMORY64')
     self.set_setting('INITIAL_MEMORY', '2200mb')
     self.set_setting('GLOBAL_BASE', '2gb')
+    # Without this we get a warning about GLOBAL_BASE being ignored when used with SIDE_MODULE
+    self.cflags.append('-Wno-unused-command-line-argument')
     self.require_wasm64()
 
 
