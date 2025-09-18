@@ -6407,7 +6407,7 @@ PORT: 3979
       err = self.expect_fail([PYTHON, 'expect_fail.py'], expect_traceback=True)
       self.assertContained('UnicodeDecodeError', err)
 
-    self.cflags += ['-sMODULARIZE', '--js-library', test_file('unicode_library.js'), '--extern-post-js', test_file('modularize_post_js.js'), '--post-js', test_file('unicode_postjs.js')]
+    self.cflags += ['-sMODULARIZE', '--js-library', test_file('unicode_library.js'), '--extern-post-js', test_file('modularize_post_js.js'), '--pre-js', test_file('unicode_prejs.js')]
     self.do_run_in_out_file_test('test_unicode_js_library.c')
 
   def test_funcptr_import_type(self):
