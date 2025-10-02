@@ -626,7 +626,7 @@ def generate_js(data_target, data_files, metadata):
     if (isPthread || isWasmWorker) return;\n'''
 
   if options.support_node:
-    ret += "    var isNode = globalThis.process?.versions?.node && globalThis.process?.type != 'renderer';\n"
+    ret += "    var isNode = globalThis.process && globalThis.process.versions && globalThis.process.versions.node && globalThis.process.type != 'renderer';\n"
 
   if options.support_node and options.export_es6:
         ret += '''if (isNode) {
@@ -771,7 +771,7 @@ def generate_js(data_target, data_files, metadata):
       }
       var PACKAGE_NAME = '%s';
       var REMOTE_PACKAGE_BASE = '%s';
-      var REMOTE_PACKAGE_NAME = Module['locateFile']?.(REMOTE_PACKAGE_BASE, '') ?? REMOTE_PACKAGE_BASE;\n''' % (js_manipulation.escape_for_js_string(data_target), js_manipulation.escape_for_js_string(remote_package_name))
+      var REMOTE_PACKAGE_NAME = Module['locateFile'] ? Module['locateFile'](REMOTE_PACKAGE_BASE, '') : REMOTE_PACKAGE_BASE;\n''' % (js_manipulation.escape_for_js_string(data_target), js_manipulation.escape_for_js_string(remote_package_name))
     metadata['remote_package_size'] = remote_package_size
     ret += "      var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];\n"
 
@@ -961,7 +961,7 @@ def generate_js(data_target, data_files, metadata):
         const total = Number(headers.get('Content-Length') ?? packageSize);
         let loaded = 0;
 
-        Module['setStatus']?.('Downloading data...');
+        if (Module['setStatus']) Module['setStatus']('Downloading data...');
         const reader = response.body.getReader();
 
         while (1) {
@@ -979,7 +979,7 @@ def generate_js(data_target, data_files, metadata):
             totalSize += download.total;
           }
 
-          Module['setStatus']?.(`Downloading data... (${totalLoaded}/${totalSize})`);
+          if (Module['setStatus']) Module['setStatus'](`Downloading data... (${totalLoaded}/${totalSize})`);
         }
 
         const packageData = new Uint8Array(chunks.map((c) => c.length).reduce((a, b) => a + b, 0));
@@ -1042,7 +1042,7 @@ def generate_js(data_target, data_files, metadata):
       # is async, so we handle both orderings.
       ret += '''
       var fetchPromise;
-      var fetched = Module['getPreloadedPackage']?.(REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE);
+      var fetched = Module['getPreloadedPackage'] ? Module['getPreloadedPackage'](REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE) : undefined;
 
       if (!fetched) {
         // Note that we don't use await here because we want to execute the
@@ -1084,7 +1084,7 @@ def generate_js(data_target, data_files, metadata):
 
   async function runMetaWithFS() {
     Module['addRunDependency']('%(metadata_file)s');
-    var metadataUrl = Module['locateFile']?.('%(metadata_file)s', '') ?? '%(metadata_file)s';
+    var metadataUrl = Module['locateFile'] ? Module['locateFile']('%(metadata_file)s', '') : '%(metadata_file)s';
     %(node_support_code)s
     var response = await fetch(metadataUrl);
     if (!response.ok) {

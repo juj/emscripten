@@ -150,7 +150,7 @@ var _scriptName = import.meta.url;
 #if SINGLE_FILE && OUTPUT_FORMAT == 'HTML'
 var _scriptName = globalThis.document ? URL.createObjectURL(new Blob([document.getElementById('mainScript').textContent], { "type" : "text/javascript" })) : undefined;
 #else
-var _scriptName = globalThis.document?.currentScript?.src;
+var _scriptName = globalThis.document && globalThis.document.currentScript ? globalThis.document.currentScript.src : undefined;
 #endif
 #endif // !MODULARIZE
 #elif ENVIRONMENT_MAY_BE_NODE || ENVIRONMENT_MAY_BE_WORKER

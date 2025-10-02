@@ -148,7 +148,7 @@ var ENVIRONMENT_IS_PTHREAD = ENVIRONMENT_IS_WORKER && self.name?.startsWith('em-
 #if !MODULARIZE
 // In MODULARIZE mode _scriptName needs to be captured already at the very top of the page immediately when the page is parsed, so it is generated there
 // before the page load. In non-MODULARIZE modes generate it here.
-var _scriptName = globalThis.document?.currentScript?.src;
+var _scriptName = globalThis.document && globalThis.document.currentScript ? globalThis.document.currentScript.src : undefined;
 #endif
 
 #if ENVIRONMENT_MAY_BE_NODE

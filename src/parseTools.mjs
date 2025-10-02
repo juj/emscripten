@@ -1132,7 +1132,11 @@ function nodeDetectionCode() {
     // optimize code size.
     return 'true';
   }
-  return "globalThis.process?.versions?.node && globalThis.process?.type != 'renderer'";
+  if (MIN_FIREFOX_VERSION < 74) {
+    return "globalThis.process && globalThis.process.versions && globalThis.process.versions.node && globalThis.process.type != 'renderer'";
+  } else {
+    return "globalThis.process?.versions?.node && globalThis.process?.type != 'renderer'";
+  }
 }
 
 function nodePthreadDetection() {

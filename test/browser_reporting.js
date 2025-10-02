@@ -125,12 +125,12 @@ if (hasModule) {
     const origPrintErr = Module['printErr'];
 
     Module['print'] = (...args) => {
-      origPrint?.(...args);
+      if (origPrint) origPrint(...args);
       reportStdoutToServer(args.join(' '));
     };
 
     Module['printErr'] = (...args) => {
-      origPrintErr?.(...args);
+      if (origPrintErr) origPrintErr(...args);
       reportStderrToServer(args.join(' '));
     };
   }

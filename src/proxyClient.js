@@ -163,7 +163,7 @@ worker.onmessage = (event) => {
   //dump('\nclient got ' + JSON.stringify(event.data).slice(0, 150) + '\n');
   if (!workerResponded) {
     workerResponded = true;
-    Module.setStatus?.('');
+    if (Module.setStatus) Module.setStatus('');
   }
 
   var data = event.data;
@@ -193,7 +193,7 @@ worker.onmessage = (event) => {
         case 'resize': {
           Module['canvas'].width = data.width;
           Module['canvas'].height = data.height;
-          if (Module['ctx']?.getImageData) Module.canvasData = Module['ctx'].getImageData(0, 0, data.width, data.height);
+          if (Module['ctx'] && Module['ctx'].getImageData) Module.canvasData = Module['ctx'].getImageData(0, 0, data.width, data.height);
           worker.postMessage({ target: 'canvas', boundingClientRect: cloneObject(Module['canvas'].getBoundingClientRect()) });
           break;
         }

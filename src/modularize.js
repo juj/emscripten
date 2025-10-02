@@ -18,7 +18,7 @@ var {{{ EXPORT_NAME }}} = (() => {
   // When MODULARIZE this JS may be executed later,
   // after document.currentScript is gone, so we save it.
   // In EXPORT_ES6 mode we can just use 'import.meta.url'.
-  var _scriptName = globalThis.document?.currentScript?.src;
+  var _scriptName = globalThis.document && globalThis.document.currentScript ? globalThis.document.currentScript.src : undefined;
   return async function(moduleArg = {}) {
     var moduleRtn;
 
