@@ -106,7 +106,8 @@ def run_js(filename, engine, args=None,
         input=input,
         cwd=cwd,
         timeout=timeout,
-        text=True)
+        text=True,
+        creationflags=subprocess.CREATE_NO_WINDOW)
   except Exception:
     # the failure may be because the engine is not present. show the proper
     # error in that case

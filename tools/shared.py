@@ -109,7 +109,7 @@ def run_process(cmd, check=True, input=None, *args, **kw):
   sys.stderr.flush()
   kw.setdefault('text', True)
   kw.setdefault('encoding', 'utf-8')
-  ret = subprocess.run(cmd, check=check, input=input, *args, **kw)
+  ret = subprocess.run(cmd, check=check, input=input, creationflags=subprocess.CREATE_NO_WINDOW, *args, **kw)
   debug_text = '%sexecuted %s' % ('successfully ' if check else '', shlex.join(cmd))
   logger.debug(debug_text)
   return ret
@@ -179,7 +179,7 @@ def run_multiple_processes(commands,
       if DEBUG:
         logger.debug('Running subprocess %d/%d: %s' % (i + 1, len(commands), ' '.join(commands[i])))
       print_compiler_stage(commands[i])
-      proc = subprocess.Popen(commands[i], stdout=stdout, stderr=None, env=env, cwd=cwd)
+      proc = subprocess.Popen(commands[i], stdout=stdout, stderr=None, env=env, cwd=cwd, creationflags=subprocess.CREATE_NO_WINDOW)
       processes[i] = proc
       if route_stdout_to_temp_files_suffix:
         std_outs.append((i, stdout.name))

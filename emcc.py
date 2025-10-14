@@ -22,6 +22,7 @@ emcc can be influenced by a few environment variables:
 
 from tools.toolchain_profiler import ToolchainProfiler
 
+import ctypes
 import logging
 import os
 import shlex
@@ -594,6 +595,7 @@ def phase_compile_inputs(options, state, newargs):
 
 @ToolchainProfiler.profile()
 def main(args):
+  ctypes.windll.kernel32.SetErrorMode(0x0002) # SEM_NOGPFAULTERRORBOX
   start_time = time.time()
   ret = run(args)
   logger.debug('total time: %.2f seconds', (time.time() - start_time))
