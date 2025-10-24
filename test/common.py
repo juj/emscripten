@@ -2081,7 +2081,7 @@ class BrowserCore(RunnerCore):
       # Give the browser time to spawn its subprocesses. Use an increasing
       # timeout as a crude way to account for system load.
       if parallel_harness or is_safari():
-        time.sleep(min(2 + count * 0.3, 10))
+        time.sleep(min(4 + count * 0.3, 10))
         procs_after = list_processes_by_name(config.executable_name)
 
         # Take a snapshot again to find which processes exist after launching
