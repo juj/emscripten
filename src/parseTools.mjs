@@ -1006,6 +1006,88 @@ function to64(x) {
   return castToBigInt(x);
 }
 
+function isIntLiteral(x) {
+  return /^\d+$/.test(x);
+}
+
+// Returns the given Number (either literal or a variable) casted to a BigInt.
+function toBigInt(number) {
+  // Code size optimization: if 'number' is a literal, use the short literal syntax '42n'.
+  // Otherwise must use a longer cast to BigInt().
+  return isIntLiteral(number) ? `${number}n` : `BigInt(${number})`;
+}
+
+// Generates an expression that tests whether a pointer (either a BigInt or a signed int32 JS Number) is aligned to the given byte multiple.
+function isPtrAligned(ptr, alignment) {
+  return `(${parensGuard(ptr)} % ${idxToPtr(alignment)} == 0)`;
+}
+
+const MAX_MEMORY_2GB = 2 * 1024 * 1024 * 1024 - 65536;
+
+// If 'x' is a string that represents complex expression, e.g. "a - 12",
+// it needs parentheses for safe macro expression expansion. But if 'x' looks like
+// a simple variable or literal name, then it doesn't.
+function parensGuard(x) {
+  return (/^[a-zA-Z_$0-9]*$/.test(x)) ? x : `(${x})`;
+}
+
+// Returns a pointer (either a BigInt or a signed int32 JS Number) shifted to
+// an index (an unsigned JS Number) to one of the HEAP* variables.
+// Can be called with ptrToIdx(ptr), which converts a ptr to a byte index.
+// accessShift: one of 0, 1, 2 or 3, or a string that refers to a variable name
+//              to read the access data type shift from.
+function ptrToIdx(ptr, accessShift = 0) {
+  if (!ptr) return 0;
+
+  if (isIntLiteral(accessShift)) {
+    if (isIntLiteral(ptr)) return `${ptr >> accessShift}`;
+
+    if (accessShift == 0) {
+      if (MEMORY64) return `Number(${ptr})`;
+      if (MAXIMUM_MEMORY > MAX_MEMORY_2GB) return `(${parensGuard(ptr)} >>> 0)`; // >>> turns signed to unsigned
+      return ptr;
+    }
+
+    assert(accessShift == 1 || accessShift == 2 || accessShift == 3);
+    if (MEMORY64) return `Number(${parensGuard(ptr)} >> ${accessShift}n)`;
+    if (MAXIMUM_MEMORY > MAX_MEMORY_2GB) return `(${parensGuard(ptr)} >>> ${accessShift})`;
+    return `(${parensGuard(ptr)} >> ${accessShift})`;
+  }
+
+  if (MEMORY64) return `Number(${parensGuard(ptr)} >> BigInt(${accessShift}))`;
+  if (MAXIMUM_MEMORY > MAX_MEMORY_2GB) return `(${parensGuard(ptr)} >>> ${parensGuard(accessShift)})`;
+  return `(${parensGuard(ptr)} >> ${parensGuard(accessShift)})`;
+}
+
+// {{{ convertPtrToIdx(ptr, as) }}} is equal to 'ptr = {{{ ptrToIdx(ptr, as) }}}, i.e. it assigns
+// in-place. This can be used to avoid generating redundant "ptr = ptr;" assignments in JS code.
+function convertPtrToIdx(ptr, accessShift = 0) {
+  if (MEMORY64 || MAXIMUM_MEMORY > MAX_MEMORY_2GB) return `${ptr} = ${ptrToIdx(ptr, accessShift)}`;
+  return ''; // No conversion needed in 2GB mode.
+}
+
+// Given an index (unsigned Number) to one of the HEAP* arrays, converts it to an appropriate Wasm pointer
+// that can be used to call a Wasm function that takes in a pointer value.
+function idxToPtr(idx, accessShift = 0) {
+  if (!idx) return MEMORY64 ? '0n' : '0';
+
+  if (isIntLiteral(accessShift)) {
+    if (isIntLiteral(idx)) return `${idx << accessShift}${MEMORY64 ? 'n' : ''}`;
+
+    if (accessShift == 0) {
+      if (MEMORY64) return `BigInt(${idx})`;
+      return parensGuard(idx);
+    }
+
+    assert(accessShift == 1 || accessShift == 2 || accessShift == 3);
+    if (MEMORY64) return `(BigInt(${idx}) << ${accessShift}n)`;
+    return `(${parensGuard(idx)} << ${accessShift})`;
+  }
+
+  if (MEMORY64) return `(BigInt(${idx}) << BigInt(${accessShift})`;
+  return `(${parensGuard(ptr)} << ${parensGuard(accessShift)})`;
+}
+
 function asyncIf(condition) {
   return condition ? 'async ' : '';
 }
