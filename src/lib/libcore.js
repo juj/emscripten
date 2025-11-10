@@ -1859,6 +1859,9 @@ addToLibrary({
     // https://github.com/emscripten-core/emscripten/issues/18200
     funcPtr = Number(funcPtr);
 #endif
+#if ASSERTIONS
+    assert(funcPtr >= 0, "Function pointers must be nonnegative!");
+#endif
     var func = wasmTableMirror[funcPtr];
     if (!func) {
       /** @suppress {checkTypes} */
@@ -1885,6 +1888,9 @@ addToLibrary({
   $getWasmTableEntry__docs: '/** @suppress{checkTypes} */',
   $getWasmTableEntry__deps: ['$wasmTable'],
   $getWasmTableEntry: (funcPtr) => {
+#if ASSERTIONS
+    assert(funcPtr >= 0, "Function pointers must be nonnegative!");
+#endif
     // In -Os and -Oz builds, do not implement a JS side wasm table mirror for small
     // code size, but directly access wasmTable, which is a bit slower as uncached.
     return wasmTable.get({{{ toIndexType('funcPtr') }}});
