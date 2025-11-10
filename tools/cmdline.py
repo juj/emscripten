@@ -67,6 +67,7 @@ class EmccOptions:
   dash_c = False
   embed_files: List[str] = []
   emit_symbol_map = False
+  emit_symbol_graph_json = False
   emit_tsd = ''
   emrun = False
   exclude_files: List[str] = []
@@ -423,6 +424,9 @@ def parse_args(newargs):  # noqa: C901, PLR0912, PLR0915
     elif check_flag('--emit-symbol-map'):
       options.emit_symbol_map = True
       settings.EMIT_SYMBOL_MAP = 1
+    elif check_flag('--emit-symbol-graph-json'):
+      options.emit_symbol_graph_json = True
+      settings.EMIT_SYMBOL_GRAPH_JSON = 1
     elif check_arg('--emit-minification-map'):
       settings.MINIFICATION_MAP = consume_arg()
     elif check_arg('--embed-file'):

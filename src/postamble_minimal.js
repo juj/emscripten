@@ -147,6 +147,15 @@ function initRuntime(wasmExports) {
   <<< ATPOSTCTORS >>>
 }
 
+#if EMIT_SYMBOL_GRAPH_JSON
+// Enable code coverage if symbol graph is emitted
+
+#include "coverage.js"
+
+// Install the code coverage execution handler.
+wasmImports['log_execution'] = COV_log_execution;
+#endif
+
 // Initialize wasm (asynchronous)
 
 #if SINGLE_FILE && SINGLE_FILE_BINARY_ENCODE && !WASM2JS

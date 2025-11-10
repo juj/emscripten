@@ -260,6 +260,13 @@ Options that are modified or new in *emcc* are listed below:
    back to their original names.  The format of this file is single
    line per import/export of the form "<minname>:<origname>".
 
+"--emit-symbol-graph-json"
+   [compile+link] Save file that stores size information of functions
+   in a wasm and their depdencies. This can be used to determine file size contribution
+   of different parts of a code base to the final wasm file. The name of the file will be
+   "<name>.wasm.callgraph.json" or "<name>.o.callgraph.json".
+
+
 "-flto"
    [compile+link] Enables link-time optimizations (LTO).
 

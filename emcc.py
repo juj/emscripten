@@ -545,6 +545,9 @@ def phase_compile_inputs(options, state, newargs):
       if ext == '.pcm':
         cmd = [c for c in cmd if not c.startswith('-fprebuilt-module-path=')]
     cmd += compile_args + ['-c', input_file, '-o', output_file]
+    if options.emit_symbol_graph_json:
+      print('Asking generation of callgraph to ' + output_file + '.callgraph.json')
+      cmd += ['-mllvm', '--emit-symbol-graph-json=' + output_file + '.callgraph.json']
     if options.requested_debug == '-gsplit-dwarf':
       # When running in COMPILE_AND_LINK mode we compile objects to a temporary location
       # but we want the `.dwo` file to be generated in the current working directory,

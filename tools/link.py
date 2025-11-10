@@ -413,6 +413,9 @@ def get_binaryen_passes(options):
     # is first, as then the stack is in the low memory that should be unused.
     if settings.GLOBAL_BASE >= 1024 and not settings.STACK_FIRST:
       passes += ['--low-memory-unused']
+  if settings.EMIT_SYMBOL_GRAPH_JSON:
+    # Enable code coverage if symbol graph is emitted
+    passes += ['--log-execution']
   if options.fast_math:
     passes += ['--fast-math']
   if settings.AUTODEBUG:
@@ -1942,6 +1945,43 @@ def phase_link(linker_args, wasm_target, js_syms):
     rtn = extract_metadata.extract_metadata(wasm_target)
 
   building.link_lld(linker_args, wasm_target, external_symbols=js_syms)
+
+  # Collect all partial call graph files, and generate a single merged output call graph file
+  if settings.EMIT_SYMBOL_GRAPH_JSON:
+    def get_link_directories(args):
+      link_dirs = []
+      for f in args:
+        if f.startswith('-L'):
+          link_dirs += [f[2:]]
+      return link_dirs
+
+    link_dirs = get_link_directories(linker_arguments)
+
+    def find_lib(lib):
+      for d in link_dirs:
+        c = os.path.join(d, 'lib' + lib + '.a')
+        if os.path.isfile(c):
+          return c
+
+    cg = []
+    for arg in linker_arguments:
+      f = None
+      if arg.startswith('-l'):
+        lib = find_lib(arg[2:])
+        if lib:
+          f = lib + '.callgraph.json'
+      elif arg.startswith('-'):
+        continue
+      if not f:
+        f = arg + '.callgraph.json'
+      if os.path.isfile(f):
+        cg += [f]
+        print('Found call graph file ' + f)
+      else:
+        print('Was unable to find call graph file ' + f)
+    if len(cg) > 0:
+      building.merge_call_graph_jsons(wasm_target + '.callgraph.json', cg, wasm_target)
+
   return rtn
 
 

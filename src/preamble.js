@@ -584,6 +584,11 @@ function instantiateSync(file, info) {
 }
 #endif
 
+#if EMIT_SYMBOL_GRAPH_JSON
+// Enable code coverage if symbol graph is emitted
+#include "coverage.js"
+#endif
+
 #if WASM_ASYNC_COMPILATION
 async function instantiateArrayBuffer(binaryFile, imports) {
   try {
@@ -683,6 +688,12 @@ function getWasmImports() {
   Asyncify.instrumentWasmImports(wasmImports);
 #endif
 #endif
+
+#if EMIT_SYMBOL_GRAPH_JSON
+  // Install the code coverage execution handler.
+  wasmImports['log_execution'] = COV_log_execution;
+#endif
+
   // prepare imports
   var imports = {
 #if MINIFY_WASM_IMPORTED_MODULES

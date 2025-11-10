@@ -302,6 +302,9 @@ def link_lld(args, target, external_symbols=None):
   if settings.STRICT and '--no-fatal-warnings' not in args:
     args.append('--fatal-warnings')
 
+  if settings.EMIT_SYMBOL_GRAPH_JSON:
+    args.append('--no-demangle')
+
   if any(a in args for a in ('--strip-all', '-s')):
     # Tell wasm-ld to always generate a target_features section even if --strip-all/-s
     # is passed.
@@ -1167,6 +1170,17 @@ def is_wasm_dylib(filename):
       if module.read_string() in ('dylink', 'dylink.0'):
         return True
   return False
+
+
+def merge_call_graph_jsons(output, inputs, wasm_output_file=None):
+  cmd = [sys.executable, '-E', path_from_root('merge-callgraph-json.py'),
+         '-o',  output]
+  if wasm_output_file:
+    cmd += ['--wasm', wasm_output_file]
+  if settings.VERBOSE:
+    cmd += ['-v']
+  rsp = response_file.create_response_file(inputs, shared.TEMP_DIR)
+  check_call(cmd + ['@' + rsp])
 
 
 def emit_wasm_source_map(wasm_file, map_file, final_wasm):

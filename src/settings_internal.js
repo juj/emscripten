@@ -124,6 +124,9 @@ var EMIT_NAME_SECTION = false;
 // Whether we are emitting a symbol map.
 var EMIT_SYMBOL_MAP = false;
 
+// Wether we are emitting symbol graph json file.
+var EMIT_SYMBOL_GRAPH_JSON = false;
+
 // List of symbols explicitly exported by user on the command line.
 var USER_EXPORTS = [];
 
