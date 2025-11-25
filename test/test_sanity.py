@@ -196,7 +196,7 @@ class sanity(RunnerCore):
       print(str(command))
       # Your existing EM_CONFIG should work!
       restore_and_set_up()
-      self.check_working(command, env=env)
+      self.check_working(command)
 
   @with_env_modify({'EM_CONFIG': None})
   def test_firstrun(self):
