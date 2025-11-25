@@ -20,6 +20,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, unquote_plus, urlparse
 
 import common
+import sys
+print(f'Python: "{sys.executable}". Version: {sys.version}')
 import psutil
 from common import (
   TEST_ROOT,
