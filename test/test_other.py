@@ -5821,12 +5821,12 @@ int main(int argc, char **argv) {
     self.assertContained(f'LANG=({expected_lang}|en_US.UTF-8|C.UTF-8)', output, regex=True)
 
     # Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3
-    create_file('pre.js', 'var navigator = { language: "fr" };')
+    create_file('pre.js', 'delete global.navigator; globalThis.navigator = { language: "fr" };')
     output = self.do_runf('test_browser_language_detection.c', cflags=['--pre-js', 'pre.js'])
     self.assertContained('LANG=fr.UTF-8', output)
 
     # Accept-Language: fr-FR,fr;q=0.8,en-US;q=0.5,en;q=0.3
-    create_file('pre.js', r'var navigator = { language: "fr-FR" };')
+    create_file('pre.js', r'delete global.navigator; globalThis.navigator = { language: "fr-FR" };')
     self.cflags += ['--pre-js', 'pre.js']
     self.do_runf('test_browser_language_detection.c', 'LANG=fr_FR.UTF-8')
 
@@ -6773,11 +6773,22 @@ int main() {
 
   @also_with_wasmfs
   def test_dlopen_rpath(self):
+    create_file('hello_nested_dep.c', r'''
+    #include <stdio.h>
+
+    void hello_nested_dep() {
+      printf("Hello_nested_dep\n");
+      return;
+    }
+    ''')
     create_file('hello_dep.c', r'''
     #include <stdio.h>
 
+    void hello_nested_dep();
+
     void hello_dep() {
       printf("Hello_dep\n");
+      hello_nested_dep();
       return;
     }
     ''')
@@ -6804,7 +6815,7 @@ int main() {
       void (*f)();
       double (*f2)(double);
 
-      h = dlopen("/usr/lib/libhello.wasm", RTLD_NOW);
+      h = dlopen("/usr/lib/libhello.so", RTLD_NOW);
       assert(h);
       f = dlsym(h, "hello");
       assert(f);
@@ -6819,20 +6830,22 @@ int main() {
     os.mkdir('subdir')
 
     def _build(rpath_flag, expected, **kwds):
-      self.run_process([EMCC, '-o', 'subdir/libhello_dep.so', 'hello_dep.c', '-sSIDE_MODULE'])
-      self.run_process([EMCC, '-o', 'hello.wasm', 'hello.c', '-sSIDE_MODULE', 'subdir/libhello_dep.so'] + rpath_flag)
+      self.run_process([EMCC, '-o', 'subdir/libhello_nested_dep.so', 'hello_nested_dep.c', '-sSIDE_MODULE'])
+      self.run_process([EMCC, '-o', 'subdir/libhello_dep.so', 'hello_dep.c', '-sSIDE_MODULE', 'subdir/libhello_nested_dep.so'] + rpath_flag)
+      self.run_process([EMCC, '-o', 'hello.so', 'hello.c', '-sSIDE_MODULE', 'subdir/libhello_dep.so'] + rpath_flag)
       args = ['--profiling-funcs', '-sMAIN_MODULE=2', '-sINITIAL_MEMORY=32Mb',
-                        '--embed-file', 'hello.wasm@/usr/lib/libhello.wasm',
+                        '--embed-file', 'hello.so@/usr/lib/libhello.so',
                         '--embed-file', 'subdir/libhello_dep.so@/usr/lib/subdir/libhello_dep.so',
-                        'hello.wasm', '-sNO_AUTOLOAD_DYLIBS',
-                        '-L./subdir', '-lhello_dep']
+                        '--embed-file', 'subdir/libhello_nested_dep.so@/usr/lib/subdir/libhello_nested_dep.so',
+                        'hello.so', '-sNO_AUTOLOAD_DYLIBS',
+                        '-L./subdir', '-lhello_dep', '-lhello_nested_dep']
       self.do_runf('main.c', expected, cflags=args, **kwds)
 
     # case 1) without rpath: fail to locate the library
     _build([], r"no such file or directory, open '.*libhello_dep\.so'", regex=True, assert_returncode=NON_ZERO)
 
     # case 2) with rpath: success
-    _build(['-Wl,-rpath,$ORIGIN/subdir'], "Hello\nHello_dep\nOk\n")
+    _build(['-Wl,-rpath,$ORIGIN/subdir,-rpath,$ORIGIN'], "Hello\nHello_dep\nHello_nested_dep\nOk\n")
 
   def test_dlopen_bad_flags(self):
     create_file('main.c', r'''
@@ -11919,13 +11932,20 @@ int main () {
     self.do_other_test('test_euidaccess.c')
 
   def test_shared_flag(self):
-    self.run_process([EMCC, '-shared', test_file('hello_world.c'), '-o', 'libother.so'])
+    create_file('side.c', 'int foo;')
+    self.run_process([EMCC, '-shared', 'side.c', '-o', 'libother.so'])
 
     # Test that `-shared` flag causes object file generation but gives a warning
     err = self.run_process([EMCC, '-shared', test_file('hello_world.c'), '-o', 'out.foo', 'libother.so'], stderr=PIPE).stderr
     self.assertContained('linking a library with `-shared` will emit a static object', err)
     self.assertContained('emcc: warning: ignoring dynamic library libother.so when generating an object file, this will need to be included explicitly in the final link', err)
     self.assertIsObjectFile('out.foo')
+
+    # Test that adding `-sFAKE_DYIBS=0` build a real side module
+    err = self.run_process([EMCC, '-shared', '-fPIC', '-sFAKE_DYLIBS=0', test_file('hello_world.c'), '-o', 'out.foo', 'libother.so'], stderr=PIPE).stderr
+    self.assertNotContained('linking a library with `-shared` will emit a static object', err)
+    self.assertNotContained('emcc: warning: ignoring dynamic library libother.so when generating an object file, this will need to be included explicitly in the final link', err)
+    self.assertIsWasmDylib('out.foo')
 
     # Test that using an executable output name overrides the `-shared` flag, but produces a warning.
     err = self.run_process([EMCC, '-shared', test_file('hello_world.c'), '-o', 'out.js'],
@@ -13665,14 +13685,14 @@ int main() {
   @crossplatform
   @with_all_fs
   def test_std_filesystem(self):
-    if (WINDOWS or MACOS) and self.get_setting('NODERAWFS'):
-      self.skipTest('Rawfs directory removal works only on Linux')
+    if self.get_setting('NODERAWFS') and self.get_setting('WASMFS'):
+      self.skipTest('NODERAWFS + WASMFS is does not allow access to arbitrary paths')
     self.do_other_test('test_std_filesystem.cpp')
 
   @crossplatform
   @with_all_fs
   def test_std_filesystem_tempdir(self):
-    if (WINDOWS or MACOS) and self.get_setting('NODERAWFS') and self.get_setting('WASMFS'):
+    if self.get_setting('NODERAWFS') and self.get_setting('WASMFS'):
       self.skipTest('NODERAWFS + WASMFS is does not allow access to arbitrary paths')
     self.do_other_test('test_std_filesystem_tempdir.cpp', cflags=['-g'])
 
