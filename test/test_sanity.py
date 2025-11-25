@@ -170,6 +170,7 @@ class sanity(RunnerCore):
     return self.run_process(command, stdout=PIPE, stderr=STDOUT, check=False, env=env).stdout
 
   def check_working(self, command, expected=None, env=None):
+    print(f'check_working {command}')
     if type(command) is not list:
       command = [command]
     if command == [EMCC]:
@@ -180,6 +181,7 @@ class sanity(RunnerCore):
       else:
         expected = 'could not find the following tests: blahblah'
 
+    print(f'Running command {command} in environment {env}')
     output = self.do(command, env=env)
     self.assertContained(expected, output)
     return output
@@ -187,7 +189,9 @@ class sanity(RunnerCore):
   # this should be the very first thing that runs. if this fails, everything else is irrelevant!
   @crossplatform
   def test_aaa_normal(self):
+    print('test_aaa_normal')
     for command in commands:
+      print(str(command))
       # Your existing EM_CONFIG should work!
       restore_and_set_up()
       self.check_working(command)
