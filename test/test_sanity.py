@@ -190,11 +190,13 @@ class sanity(RunnerCore):
   @crossplatform
   def test_aaa_normal(self):
     print('test_aaa_normal')
+    env = os.environ.copy()
+    env['PATH'] = os.path.dirname(sys.executable) + os.pathsep + env['PATH']
     for command in commands:
       print(str(command))
       # Your existing EM_CONFIG should work!
       restore_and_set_up()
-      self.check_working(command)
+      self.check_working(command, env=env)
 
   @with_env_modify({'EM_CONFIG': None})
   def test_firstrun(self):
