@@ -100,12 +100,14 @@ function createWasmAudioWorkletProcessor() {
     /** @suppress {checkTypes} */
     process(inputList, outputList) {
 #endif
-
       // Detect if this AudioWorkletNode should shut down.
       if (HEAPU32[this.shutdownControlBlock >> 2]) {
         _free(this.shutdownControlBlock);
         return /*false*/;
       }
+
+      // Advertise to the main thread that process() is running. (acquire semaphore)
+      Atomics.store(HEAPU32, this.shutdownControlBlock+4 >> 2, 1);
 
 #if ALLOW_MEMORY_GROWTH
       // Recreate the output views if the heap has changed
@@ -253,6 +255,8 @@ function createWasmAudioWorkletProcessor() {
       }
 
       stackRestore(oldStackPtr);
+
+      Atomics.store(HEAPU32, this.shutdownControlBlock+4 >> 2, 0); // No longer running (release semaphore)
 
       // Return 'true' to tell the browser to continue running this processor.
       // (Returning 1 or any other truthy value won't work in Chrome)

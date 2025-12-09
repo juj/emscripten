@@ -173,6 +173,10 @@ var LibraryWebAudio = {
       _free(emAudio[objectHandle].shutdownControlBlock);
     }
 
+    // Wait for the Audio Worklet process() to finish running before we yield back.
+    while(Atomics.load(HEAPU32, this.shutdownControlBlock+4 >> 2) != 0)
+      /* no-op */;
+
     delete emAudio[objectHandle];
   },
 
@@ -347,7 +351,7 @@ var LibraryWebAudio = {
     }
 
     var optionsOutputs = options ? {{{ makeGetValue('options', C_STRUCTS.EmscriptenAudioWorkletNodeCreateOptions.numberOfOutputs, 'i32') }}} : 0;
-    var shutdownControlBlock = _malloc(4);
+    var shutdownControlBlock = _malloc(8);
     {{{ makeSetValue('shutdownControlBlock', 0, 'i32') }}};
 
     var opts = options ? {
