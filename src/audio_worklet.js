@@ -35,6 +35,7 @@ function createWasmAudioWorkletProcessor() {
 #endif
       this.callback = {{{ makeDynCall('iipipipp', 'opts.callback') }}};
       this.userData = opts.userData;
+      this.shutdownControlBlock = opts.shutdownControlBlock;
       // Then the samples per channel to process, fixed for the lifetime of the
       // context that created this processor. Even though this 'render quantum
       // size' is fixed at 128 samples in the 1.0 spec, it will be variable in
@@ -99,6 +100,12 @@ function createWasmAudioWorkletProcessor() {
     /** @suppress {checkTypes} */
     process(inputList, outputList) {
 #endif
+
+      // Detect if this AudioWorkletNode should shut down.
+      if (HEAPU32[this.shutdownControlBlock >> 2]) {
+        _free(this.shutdownControlBlock);
+        return /*false*/;
+      }
 
 #if ALLOW_MEMORY_GROWTH
       // Recreate the output views if the heap has changed
@@ -249,7 +256,14 @@ function createWasmAudioWorkletProcessor() {
 
       // Return 'true' to tell the browser to continue running this processor.
       // (Returning 1 or any other truthy value won't work in Chrome)
-      return !!didProduceAudio;
+      if (didProduceAudio) return true;
+
+      // This AudioWorkletNode has decided to shut down. Mark it down in the
+      // control block so that this control block can be freed by the main
+      // thread, or free the control block ourselves.
+      if (Atomics.exchange(HEAPU32, this.shutdownControlBlock >> 2, 1)) {
+        _free(this.shutdownControlBlock);
+      }
     }
   }
   return WasmAudioWorkletProcessor;

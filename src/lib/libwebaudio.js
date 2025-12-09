@@ -154,13 +154,25 @@ var LibraryWebAudio = {
     delete emAudio[contextHandle];
   },
 
+  emscripten_destroy_web_audio_node__deps: ['free'],
   emscripten_destroy_web_audio_node: (objectHandle) => {
 #if ASSERTIONS || WEBAUDIO_DEBUG
     emAudioExpectNode(objectHandle, 'emscripten_destroy_web_audio_node');
 #endif
+#if ASSERTIONS
+    if (emAudio[objectHandle] instanceof AudioWorkletNode) {
+      assert(emAudio[objectHandle].shutdownControlBlock, 'emscripten_destroy_web_audio_node() must be called on the same thread that called emscripten_create_wasm_audio_worklet_node()');
+    }
+#endif
     // Explicitly disconnect the node from Web Audio graph before letting it GC,
     // to work around browser bugs such as https://webkit.org/b/222098#c23
     emAudio[objectHandle].disconnect();
+    // Tell the Audio Worklet that it should shut down. Or if it already has,
+    // then free the control block ourselves.
+    if (Atomics.exchange(HEAPU32, emAudio[objectHandle].shutdownControlBlock >> 2, 1)) {
+      _free(emAudio[objectHandle].shutdownControlBlock);
+    }
+
     delete emAudio[objectHandle];
   },
 
@@ -168,6 +180,7 @@ var LibraryWebAudio = {
   // emscripten_start_wasm_audio_worklet_thread_async() doesn't use stackAlloc,
   // etc., but the created worklet does.
   emscripten_start_wasm_audio_worklet_thread_async__deps: [
+    'malloc', 'free',
     '$_wasmWorkersID',
     '$_emAudioDispatchProcessorCallback',
     '$stackAlloc', '$stackRestore', '$stackSave'],
@@ -319,7 +332,7 @@ var LibraryWebAudio = {
     });
   },
 
-  emscripten_create_wasm_audio_worklet_node__deps: ['$emscriptenGetContextQuantumSize'],
+  emscripten_create_wasm_audio_worklet_node__deps: ['$emscriptenGetContextQuantumSize', 'malloc'],
   emscripten_create_wasm_audio_worklet_node: (contextHandle, name, options, callback, userData) => {
 #if ASSERTIONS || WEBAUDIO_DEBUG
     emAudioExpectContext(contextHandle, 'emscripten_create_wasm_audio_worklet_node');
@@ -334,6 +347,9 @@ var LibraryWebAudio = {
     }
 
     var optionsOutputs = options ? {{{ makeGetValue('options', C_STRUCTS.EmscriptenAudioWorkletNodeCreateOptions.numberOfOutputs, 'i32') }}} : 0;
+    var shutdownControlBlock = _malloc(4);
+    {{{ makeSetValue('shutdownControlBlock', 0, 'i32') }}};
+
     var opts = options ? {
       numberOfInputs: {{{ makeGetValue('options', C_STRUCTS.EmscriptenAudioWorkletNodeCreateOptions.numberOfInputs, 'i32') }}},
       numberOfOutputs: optionsOutputs,
@@ -344,6 +360,7 @@ var LibraryWebAudio = {
       processorOptions: {
         callback,
         userData,
+        shutdownControlBlock,
         samplesPerChannel: emscriptenGetContextQuantumSize(contextHandle),
       }
     } : undefined;
@@ -352,7 +369,9 @@ var LibraryWebAudio = {
     dbg(`Creating AudioWorkletNode "${UTF8ToString(name)}" on context=${contextHandle} with options:`);
     console.dir(opts);
 #endif
-    return emscriptenRegisterAudioObject(new AudioWorkletNode(emAudio[contextHandle], UTF8ToString(name), opts));
+    var node = new AudioWorkletNode(emAudio[contextHandle], UTF8ToString(name), opts);
+    node.shutdownControlBlock = shutdownControlBlock;
+    return emscriptenRegisterAudioObject(node);
   },
 #endif // ~AUDIO_WORKLET
 
