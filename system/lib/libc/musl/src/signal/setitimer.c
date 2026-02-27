@@ -57,7 +57,7 @@ void _emscripten_timeout(int which, double now)
 	} else {
 		current_timeout_ms[which] = 0;
 	}
-	_setitimer_js(which, next_timeout);
+/////////////////////	_setitimer_js(which, next_timeout);
 	raise(signum);
 }
 

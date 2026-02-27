@@ -76,7 +76,7 @@ void *_sbrk64(int64_t increment) {
     // increase the WebAssembly Memory size, and abort if that fails.
     if (new_brk < 0 || new_brk64 != (int64_t)new_brk
      || (new_brk > emscripten_get_heap_size() && !emscripten_resize_heap(new_brk))) {
-      errno = ENOMEM;
+///////////      errno = ENOMEM;
       return (void*)-1;
     }
 #ifdef __EMSCRIPTEN_SHARED_MEMORY__
