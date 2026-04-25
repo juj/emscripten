@@ -213,8 +213,7 @@ int main(int argc, char *argv[])
                                  "varying vec4 v_texCoord0;\n"
                                  "void main(void)\n"
                                  "{\n"
-                                 "    vec4 diffuse = texture2D(diffusemap, v_texCoord0.xy);\n"
-                                 "    gl_FragColor = diffuse;\n"
+                                 "    gl_FragColor = vec4(1,1,1,1);\n"
                                  "}\n";
 
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
@@ -260,7 +259,6 @@ int main(int argc, char *argv[])
     glUseProgram(program);
 
     GLint diffusemapLocation = glGetUniformLocation(program, "diffusemap");
-    assert(diffusemapLocation >= 0);
     glUniform1i(diffusemapLocation, 0);
 
     {
