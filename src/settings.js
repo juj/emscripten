@@ -64,7 +64,7 @@ var ASSERTIONS = 1;
 //   stack pointer assignments. Has a small performance cost.
 //
 // [link]
-var STACK_OVERFLOW_CHECK = 0;
+var STACK_OVERFLOW_CHECK = 2;
 
 // When :ref`STACK_OVERFLOW_CHECK` is enabled we also check writes to address
 // zero. This can help detect NULL pointer usage.  If you want to skip this
