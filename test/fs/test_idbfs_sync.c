@@ -56,85 +56,89 @@ void test() {
 
   // the empty file
   res = stat("/working1/empty.txt", &st);
-  assert(res == -1 && errno == ENOENT);
+  assert(res == -1 && errno == ENOENT && "stat /working1/empty.txt succeeded, even though it should have failed");
 
   fd = open("/working1/empty.txt", O_RDWR | O_CREAT, 0666);
-  assert(fd != -1);
+  assert(fd != -1 && "Unable to open /working1/empty.txt with O_RDWR | O_CREAT");
   res = close(fd);
-  assert(res == 0);
+  assert(res == 0 && "Unable to close /working1/empty.txt with O_RDWR | O_CREAT");
 
   // a file whose contents are just 'az'
   res = stat("/working1/waka.txt", &st);
-  assert(res == -1 && errno == ENOENT);
+  assert(res == -1 && errno == ENOENT && "stat /working1/waka.txt succeeded, even though it should have failed");
   fd = open("/working1/waka.txt", O_RDWR | O_CREAT, 0666);
-  assert(fd != -1);
+  assert(fd != -1 && "Unable to open /working1/waka.txt with O_RDWR | O_CREAT");
   res = write(fd, "az", 2);
-  assert(res == 2);
+  assert(res == 2 && "Unable to write two bytes to /working1/waka.txt");
   res = close(fd);
-  assert(res == 0);
+  assert(res == 0 && "Unable to close /working1/waka.txt");
 
   // a file whose contents are random-ish string set by the test_browser.py file
   res = stat("/working1/moar.txt", &st);
-  assert(res == -1 && errno == ENOENT);
+  assert(res == -1 && errno == ENOENT && "stat /working1/moar.txt succeeded, even though it should have failed");
   fd = open("/working1/moar.txt", O_RDWR | O_CREAT, 0666);
-  assert(fd != -1);
+  assert(fd != -1 && "Unable to open /working1/moar.txt with O_RDWR | O_CREAT");
   res = write(fd, SECRET, strlen(SECRET));
-  assert(res == strlen(SECRET));
+  assert(res == strlen(SECRET) && "Unable to write several bytes to /working1/moar.txt");
   res = close(fd);
-  assert(res == 0);
+  assert(res == 0 && "Unable to close /working1/moar.txt");
 
   // a directory
   res = stat("/working1/dir", &st);
-  assert(res == -1 && errno == ENOENT);
+  assert(res == -1 && errno == ENOENT && "stat /working1/dir.txt succeeded, even though it should have failed");
   res = mkdir("/working1/dir", 0777);
-  assert(res == 0);
+  assert(res == 0 && "mkdir /working1/dir failed, even though it should have succeeded");
 
 #else
   printf("running test SECOND half ..\n");
 
   // does the empty file exist?
   fd = open("/working1/empty.txt", O_RDONLY);
-  assert(fd != -1);
+  assert(fd != -1 && "SECOND: Unable to open /working1/empty.txt");
   res = close(fd);
-  assert(res == 0);
+  assert(res == 0 && "SECOND: Unable to close /working1/empty.txt");
   res = unlink("/working1/empty.txt");
-  assert(res == 0);
+  assert(res == 0 && "SECOND: Unable to unlink /working1/empty.txt");
 
   // does the 'az' file exist, and does it contain 'az'?
   fd = open("/working1/waka.txt", O_RDONLY);
-  assert(fd != -1);
+  assert(fd != -1 && "SECOND: Unable to open /working1/waka.txt");
   {
     char bf[4];
     int bytes_read = read(fd,&bf[0],sizeof(bf));
-    assert(bytes_read == 2);
-    assert(bf[0] == 'a' && bf[1] == 'z');
+    assert(bytes_read >= 0 && "SECOND: read on /working1/waka.txt returned a negative value");
+    assert(bytes_read > 0 && "SECOND: read on /working1/waka.txt returned a zero");
+    assert(bytes_read == 2 && "SECOND: reading /working1/waka.txt did not produce exactly two bytes");
+    assert(bf[0] == 'a' && bf[1] == 'z' && "SECOND: reading /working1/waka.txt did not produce expected characters");
   }
   res = close(fd);
-  assert(res == 0);
+  assert(res == 0 && "SECOND: Unable to close /working1/waka.txt");
   res = unlink("/working1/waka.txt");
-  assert(res == 0);
+  assert(res == 0 && "SECOND: Unable to unlink /working1/waka.txt");
 
   // does the random-ish file exist and does it contain SECRET?
   fd = open("/working1/moar.txt", O_RDONLY);
-  assert(fd != -1);
+  assert(fd != -1 && "SECOND: Unable to open /working1/moar.txt");
   {
     char bf[256];
     int bytes_read = read(fd,&bf[0],sizeof(bf));
-    assert(bytes_read == strlen(SECRET));
+    assert(bytes_read >= 0 && "SECOND: read on /working1/moar.txt returned a negative value");
+    assert(bytes_read > 0 && "SECOND: read on /working1/moar.txt returned a zero");
+    assert(bytes_read == strlen(SECRET) && "SECOND: reading /working1/moar.txt did not produce expected number of bytes");
     bf[strlen(SECRET)] = 0;
-    assert(strcmp(bf, SECRET) == 0);
+    assert(strcmp(bf, SECRET) == 0 && "SECOND: reading /working1/moar.txt did not produce expected characters");
   }
   res = close(fd);
-  assert(res == 0);
+  assert(res == 0 && "SECOND: Unable to close /working1/moar.txt");
   res = unlink("/working1/moar.txt");
-  assert(res == 0);
+  assert(res == 0 && "SECOND: Unable to unlink /working1/moar.txt");
 
   // does the directory exist?
   res = stat("/working1/dir", &st);
-  assert(res == 0);
-  assert(S_ISDIR(st.st_mode));
+  assert(res == 0 && "SECOND: Unable to stat /working1/dir");
+  assert(S_ISDIR(st.st_mode) "SECOND: stat /working1/dir did not report a directory");
   res = rmdir("/working1/dir");
-  assert(res == 0);
+  assert(res == 0 && "SECOND: Unable to rmdir /working1/dir");
 
 #endif
 
@@ -144,7 +148,7 @@ void test() {
   EM_ASM(
     for (var i = 0; i < 100; i++) {
       FS.syncfs(function (err) {
-        assert(!err);
+        assert(!err && 'FS.syncfs failed in pass EXTRA_WORK && !FIRST!');
         console.log('extra work');
       });
     }
@@ -164,7 +168,7 @@ void test() {
       orig(status);
     };
     FS.syncfs((err) => {
-      assert(!err);
+      assert(!err && 'FS.syncfs failed in pass !IDBFS_AUTO_PERSIST');
       callUserCallback(_finish);
     });
     });
@@ -188,7 +192,7 @@ int main() {
     // sync from persisted state into memory and then
     // run the 'test' function
     FS.syncfs(true, function (err) {
-      assert(!err);
+      assert(!err && 'FS.syncfs failed in main');
       callUserCallback(_test);
     });
   );
