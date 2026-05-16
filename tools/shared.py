@@ -47,6 +47,9 @@ elif EMCC_LOGGING:
 logging.basicConfig(format='%(name)s:%(levelname)s: %(message)s', level=log_level)
 colored_logger.enable()
 
+sys.stdout.reconfigure(encoding='utf-8') ##     XXXXXXX
+sys.stderr.reconfigure(encoding='utf-8') ##     XXXXXXX
+
 import contextlib
 
 from . import cache, config, diagnostics, filelock, tempfiles, utils
