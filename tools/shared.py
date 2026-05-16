@@ -47,8 +47,11 @@ elif EMCC_LOGGING:
 logging.basicConfig(format='%(name)s:%(levelname)s: %(message)s', level=log_level)
 colored_logger.enable()
 
-#sys.stdout.reconfigure(encoding='utf-8') ##     XXXXXXX
-#sys.stderr.reconfigure(encoding='utf-8') ##     XXXXXXX
+# Enforce stdout and stderr streams to run with utf-8 encoding. Emscripten may
+# print Unicode output during execution, for example if an input file name
+# contains Unicode characters.
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
 
 import contextlib
 
