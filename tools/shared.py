@@ -50,6 +50,8 @@ colored_logger.enable()
 # Enforce stdout and stderr streams to run with utf-8 encoding. Emscripten may
 # print Unicode output during execution, for example if an input file name
 # contains Unicode characters.
+print("stdout encoding:", sys.stdout.encoding)
+print("stderr encoding:", sys.stderr.encoding)
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
