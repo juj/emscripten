@@ -9687,6 +9687,8 @@ int main() {
         self.run_process([EMCC, 'a.o', '-gsource-map'], cwd='build')
         self.assertIn('"../%s"' % expected_source_map_path, read_file('build/a.out.wasm.map'))
 
+    sys.stdout.reconfigure(encoding='utf-8') ##     XXXXXXX
+    sys.stderr.reconfigure(encoding='utf-8') ##     XXXXXXX
     test('A ä☃ö Z.cpp')
 
     # Explicitly test the case of spaces, UTF-8 chars, and a tricky case of a path consisting
