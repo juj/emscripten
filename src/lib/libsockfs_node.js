@@ -115,6 +115,19 @@ var NodeSockFSLibrary = {
       var proto = nodeSockHelpers.getDgram().Socket.prototype;
       return nodeSockHelpers.dgramSync ??= !!(proto.bindSync && proto.connectSync);
     },
+    // The reuse flags to bind a UDP socket with, from its cached SO_REUSEADDR
+    // and SO_REUSEPORT options. libuv implements its reusePort flag only on the
+    // platforms where SO_REUSEPORT load balances the incoming datagrams between
+    // the sockets that share a port (Linux, FreeBSD, Solaris, AIX). Everywhere
+    // else the bind fails with ENOTSUP, and it is the reuseAddr flag that lets
+    // sockets share a port: libuv turns that into SO_REUSEPORT on macOS and the
+    // other BSDs, and into SO_REUSEADDR on Windows, which has no SO_REUSEPORT.
+    // So on those platforms SO_REUSEPORT is bound with the reuseAddr flag.
+    udpReuse(o) {
+      nodeSockHelpers.udpReusePortOk ??= ['linux', 'android', 'freebsd', 'sunos', 'aix'].includes(process.platform);
+      var reusePort = !!o.reusePort && nodeSockHelpers.udpReusePortOk;
+      return { reuseAddr: !!o.reuseAddr || (!!o.reusePort && !reusePort), reusePort };
+    },
     // Queue a received datagram and signal readiness. Shared by both backends.
     udpDeliver(sock, address, port, data) {
       // A connected datagram socket (sock.daddr set) must only see datagrams
@@ -277,10 +290,11 @@ var NodeSockFSLibrary = {
         var o = sock.opts ?? {};
         var v6 = sock.family === AF_INET6;
         // The bind-time flags are constructor options here, applied by bindSync.
+        var reuse = nodeSockHelpers.udpReuse(o);
         var socket = nodeSockHelpers.getDgram().createSocket({
           type: v6 ? 'udp6' : 'udp4',
-          reuseAddr: !!o.reuseAddr,
-          reusePort: !!o.reusePort,
+          reuseAddr: reuse.reuseAddr,
+          reusePort: reuse.reusePort,
           ipv6Only: v6 && !!o.ipv6Only,
         });
         socket.on('message', (msg, rinfo) => {
@@ -624,7 +638,8 @@ var NodeSockFSLibrary = {
         } else {
           var o = sock.opts ?? {};
           var uc = nodeSockHelpers.udpWrap.constants;
-          var flags = (o.reuseAddr ? uc.UV_UDP_REUSEADDR : 0) | (o.reusePort ? uc.UV_UDP_REUSEPORT : 0);
+          var reuse = nodeSockHelpers.udpReuse(o);
+          var flags = (reuse.reuseAddr ? uc.UV_UDP_REUSEADDR : 0) | (reuse.reusePort ? uc.UV_UDP_REUSEPORT : 0);
           var ucode = addr.includes(':')
             ? udp.bind6(addr, port, flags | (o.ipv6Only ? uc.UV_UDP_IPV6ONLY : 0))
             : udp.bind(addr, port, flags);
