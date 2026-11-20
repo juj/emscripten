@@ -2686,6 +2686,29 @@ F1 -> ''
     self.emcc('browser/test_sdl2_mixer_wav.c', ['--use-port=sdl2_mixer', '-o', 'a.out.js'])
     self.emcc('browser/test_sdl2_mixer_wav.c', ['--use-port=sdl2_mixer:formats=ogg', '-o', 'a.out.js'])
 
+  @requires_network
+  def test_sdl2_dash_l(self):
+    # `-lSDL2` should select the sdl2 port the same way that `-sUSE_SDL=2` and
+    # `--use-port=sdl2` do. Currently it does not: nothing maps `-lSDL2` to the
+    # port, so the port is not fetched or built, and its include path is not
+    # added. Using `-lSDL2` only works by accident, if an earlier build has
+    # already installed the port into the cache: then <SDL2/SDL.h> is found in
+    # the sysroot and libSDL2.a is found by the linker. On a fresh cache both
+    # the compile and the link step fail.
+    #
+    # This test does not depend on the state of the cache: <SDL.h> without the
+    # SDL2/ prefix is only found via the include path that the port adds.
+    create_file('main.c', r'''
+      #include <SDL.h>
+
+      int main() {
+        SDL_Init(SDL_INIT_VIDEO);
+        SDL_Quit();
+        return 0;
+      }
+    ''')
+    self.run_process([EMCC, 'main.c', '-lSDL2'])
+
   def test_sdl2_linkable(self):
     # Ensure that SDL2 can be built with MAIN_MODULE.  This implies there are no undefined
     # symbols in the library (because MAIN_MODULE=1 includes the entire library).
