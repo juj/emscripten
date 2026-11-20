@@ -2705,19 +2705,23 @@ F1 -> ''
     ''')
     self.run_process([EMCC, 'main.c', '-lSDL2', '-lSDL2_mixer'])
 
+  @parameterized({
+    '': ([],),
+    # With pthreads the port provides libSDL2-mt.a instead of libSDL2.a
+    'pthreads': (['-pthread'],),
+  })
   @requires_network
-  def test_sdl2_dash_l(self):
-    # `-lSDL2` should select the sdl2 port the same way that `-sUSE_SDL=2` and
-    # `--use-port=sdl2` do. Currently it does not: nothing maps `-lSDL2` to the
-    # port, so the port is not fetched or built, and its include path is not
-    # added. Using `-lSDL2` only works by accident, if an earlier build has
-    # already installed the port into the cache: then <SDL2/SDL.h> is found in
-    # the sysroot and libSDL2.a is found by the linker. On a fresh cache both
-    # the compile and the link step fail.
+  def test_sdl2_dash_l(self, args):
+    # `-lSDL2` selects the sdl2 port the same way that `-sUSE_SDL=2` and
+    # `--use-port=sdl2` do. Without that, using `-lSDL2` would only work by
+    # accident, if an earlier build had already installed the port into the
+    # cache: then <SDL2/SDL.h> is found in the sysroot and libSDL2.a is found
+    # by the linker. On a fresh cache both the compile and the link step
+    # would fail.
     #
     # This test does not depend on the state of the cache: <SDL.h> without the
     # SDL2/ prefix is only found via the include path that the port adds.
-    create_file('main.c', r'''
+    create_file('main.c', r"""
       #include <SDL.h>
 
       int main() {
@@ -2725,8 +2729,31 @@ F1 -> ''
         SDL_Quit();
         return 0;
       }
-    ''')
-    self.run_process([EMCC, 'main.c', '-lSDL2'])
+    """)
+    self.run_process([EMCC, 'main.c', '-lSDL2'] + args)
+
+  def test_sdl2_dash_l_user_library(self):
+    # A libSDL2 that the user provides in a -L directory takes precedence over
+    # the sdl2 port.
+    create_file('mysdl.c', 'int my_sdl_function() { return 42; }')
+    ensure_dir('lib')
+    self.run_process([EMCC, '-c', 'mysdl.c'])
+    self.run_process([EMAR, 'rcs', 'lib/libSDL2.a', 'mysdl.o'])
+    create_file('main.c', r"""
+      #include <stdio.h>
+
+      int my_sdl_function();
+
+      int main() {
+        printf("my_sdl_function: %d\n", my_sdl_function());
+        return 0;
+      }
+    """)
+    # The port not being selected shows in the include path of the port not
+    # being added to the compiler command line.
+    err = self.run_process([EMCC, 'main.c', '-Llib', '-lSDL2', '-v'], stderr=PIPE).stderr
+    self.assertNotContained('include/SDL2', err)
+    self.assertContained('my_sdl_function: 42', self.run_js('a.out.js'))
 
   def test_sdl2_linkable(self):
     # Ensure that SDL2 can be built with MAIN_MODULE.  This implies there are no undefined

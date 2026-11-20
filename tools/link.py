@@ -2721,6 +2721,15 @@ def map_to_js_libs(library_name):
   return None
 
 
+def has_user_library(lib):
+  """Whether the user provides the given library in one of their -L directories."""
+  # The library directory of the sysroot, where the ports install their
+  # libraries, also gets added to options.lib_dirs (see calc_extra_ldflags).
+  system_libpath = str(cache.get_lib_dir(absolute=True))
+  user_lib_dirs = [d for d in options.lib_dirs if os.path.abspath(d) != system_libpath]
+  return any(find_library(f'lib{lib}{ext}', user_lib_dirs) for ext in ('.a', *DYLIB_EXTENSIONS))
+
+
 def process_libraries(flags):
   """Process `-l` and `--js-library` flags."""
   new_flags = []
@@ -2753,6 +2762,11 @@ def process_libraries(flags):
       continue
 
     if js_libs is not None:
+      continue
+
+    if lib == 'SDL2' and settings.USE_SDL == 2 and not has_user_library(lib):
+      # The library comes from the sdl2 port (see apply_library_settings). The
+      # port links in the right variant of it, e.g. libSDL2-mt.a with pthreads.
       continue
 
     if lib.endswith('.js'):
@@ -2806,8 +2820,13 @@ def apply_library_settings(linker_args, compile_time_only=False):
       'glfw': {'USE_GLFW': 2},
       'glfw3': {'USE_GLFW': 3},
       'SDL': {'USE_SDL': 1},
+      'SDL2': {'USE_SDL': 2},
       'SDL2_mixer': {'USE_SDL_MIXER': 2},
     }
+
+    if library_name == 'SDL2' and has_user_library(library_name):
+      # The user links in their own build of SDL2 instead of the port.
+      continue
 
     if library_name in settings_map:
       for key, value in settings_map[library_name].items():
