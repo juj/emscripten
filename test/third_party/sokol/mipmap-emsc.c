@@ -1,9 +1,17 @@
-// https://github.com/floooh/sokol-samples/blob/master/html5/mipmap-emsc.c
+// Based on https://github.com/floooh/sokol-samples/blob/master/html5/mipmap-emsc.c
 //------------------------------------------------------------------------------
 //  mipmap-glfw.c
 //  Test mipmapping behaviour.
 //  Top row: NEAREST_MIPMAP_NEAREST to LINEAR_MIPMAP_LINEAR
+//  Middle row: the same with the LOD clamped to 2..4
 //  Bottom row: anistropy levels 2, 4, 8 and 16
+//
+//  The original sample draws tilted checkerboard quads. How those look depends
+//  on how each renderer approximates the level of detail (LOD) and anisotropic
+//  filtering, so its output cannot be compared against one reference image.
+//  This version draws an image that is the same in every renderer: each mip
+//  level has one solid color, and each texture is drawn as pixel-aligned strips
+//  with a texel density that gives a known LOD.
 //------------------------------------------------------------------------------
 #include <GLES3/gl3.h>
 #define HANDMADE_MATH_IMPLEMENTATION
@@ -16,6 +24,7 @@
 
 typedef struct {
     hmm_mat4 mvp;
+    hmm_vec2 uv_scale;
 } vs_params_t;
 
 static struct {
@@ -45,7 +54,6 @@ static uint32_t mip_colors[9] = {
 static sg_pipeline pip;
 static sg_bindings bind;
 static sg_image img[12];
-static float r;
 
 static void draw();
 
@@ -71,20 +79,17 @@ int main() {
         .content = vertices
     });
 
-    /* initialize mipmap content, different colors and checkboard pattern */
+    /* initialize mipmap content, a different solid color for each mip level */
     sg_image_content img_content;
     uint32_t* ptr = pixels.mip0;
-    bool even_odd = false;
     for (int mip_index = 0; mip_index <= 8; mip_index++) {
         const int dim = 1<<(8-mip_index);
         img_content.subimage[0][mip_index].ptr = ptr;
         img_content.subimage[0][mip_index].size = dim * dim * 4;
         for (int y = 0; y < dim; y++) {
             for (int x = 0; x < dim; x++) {
-                *ptr++ = even_odd ? mip_colors[mip_index] : 0xFF000000;
-                even_odd = !even_odd;
+                *ptr++ = mip_colors[mip_index];
             }
-            even_odd = !even_odd;
         }
     }
     /* the first 4 images are just different min-filters, the last
@@ -130,17 +135,19 @@ int main() {
             .uniform_blocks[0] = {
                 .size = sizeof(vs_params_t),
                 .uniforms = {
-                    [0] = { .name="mvp", .type=SG_UNIFORMTYPE_MAT4 }
+                    [0] = { .name="mvp", .type=SG_UNIFORMTYPE_MAT4 },
+                    [1] = { .name="uv_scale", .type=SG_UNIFORMTYPE_FLOAT2 }
                 }
             },
             .source =
                 "uniform mat4 mvp;\n"
+                "uniform vec2 uv_scale;\n"
                 "attribute vec4 position;\n"
                 "attribute vec2 texcoord0;\n"
                 "varying vec2 uv;\n"
                 "void main() {\n"
                 "  gl_Position = mvp * position;\n"
-                "  uv = texcoord0;\n"
+                "  uv = texcoord0 * uv_scale;\n"
                 "}\n"
         },
         .fs = {
@@ -172,32 +179,54 @@ int main() {
 }
 
 void draw() {
-    for (int t = 0; t < 400; t++) {
-        /* view-projection matrix */
-        hmm_mat4 proj = HMM_Perspective(90.0f, (float)emsc_width()/(float)emsc_height(), 0.01f, 10.0f);
-        hmm_mat4 view = HMM_LookAt(HMM_Vec3(0.0f, 0.0f, 5.0f), HMM_Vec3(0.0f, 0.0f, 0.0f), HMM_Vec3(0.0f, 1.0f, 0.0f));
-        hmm_mat4 view_proj = HMM_MultiplyMat4(proj, view);
+    /* projection matrix: canvas pixels, with the origin in the top left corner */
+    hmm_mat4 proj = HMM_Orthographic(0.0f, (float)emsc_width(), (float)emsc_height(), 0.0f, -1.0f, 1.0f);
 
-        vs_params_t vs_params;
-        r += 0.1f;
-        hmm_mat4 rm = HMM_Rotate(r, HMM_Vec3(1.0f, 0.0f, 0.0f));
+    vs_params_t vs_params;
 
-        sg_begin_default_pass(&(sg_pass_action){0}, emsc_width(), emsc_height());
-        sg_apply_pipeline(pip);
-        for (int i = 0; i < 12; i++) {
-            const float x = ((float)(i & 3) - 1.5f) * 2.0f;
-            const float y = ((float)(i / 4) - 1.0f) * -2.0f;
-            hmm_mat4 model = HMM_MultiplyMat4(HMM_Translate(HMM_Vec3(x, y, 0.0f)), rm);
-            vs_params.mvp = HMM_MultiplyMat4(view_proj, model);
+    sg_begin_default_pass(&(sg_pass_action){0}, emsc_width(), emsc_height());
+    sg_apply_pipeline(pip);
+    for (int i = 0; i < 12; i++) {
+        bind.fs_images[0] = img[i];
+        sg_apply_bindings(&bind);
+        /* each image is drawn as two bands of nine strips, one strip per mip level */
+        for (int band = 0; band < 2; band++) {
+            for (int strip = 0; strip < 9; strip++) {
+                /* Texels per pixel along u and v. When both are 2^n, the LOD is n.
+                   In the first band the LOD is the strip index. */
+                float du = HMM_PowerF(2.0f, (float)strip);
+                float dv = du;
+                if (band == 1) {
+                    if (i < 8) {
+                        /* A quarter of the way from one mip level to the next:
+                           the nearest-mip filters still show a single level, and
+                           the linear-mip filters blend two levels 3:1. Not half
+                           way, where renderers round differently, and not below
+                           an LOD of 1, where they may magnify instead. */
+                        du = dv = HMM_PowerF(2.0f, (float)strip + 1.25f);
+                    }
+                    else {
+                        /* An anisotropic footprint of 1 x 2^strip texels: each
+                           doubling of the anisotropy level lowers the LOD by one. */
+                        du = 1.0f;
+                    }
+                }
+                /* a strip of 8x20 pixels */
+                const float w = 8.0f;
+                const float h = 20.0f;
+                const float x = (float)((i & 3) * 75 + 1 + strip * 8);
+                const float y = (float)((i / 4) * 50 + 3 + band * 24);
+                hmm_mat4 model = HMM_MultiplyMat4(
+                    HMM_Translate(HMM_Vec3(x + w * 0.5f, y + h * 0.5f, 0.0f)),
+                    HMM_Scale(HMM_Vec3(w * 0.5f, h * 0.5f, 1.0f)));
+                vs_params.mvp = HMM_MultiplyMat4(proj, model);
+                vs_params.uv_scale = HMM_Vec2(w * du / 256.0f, h * dv / 256.0f);
 
-            bind.fs_images[0] = img[i];
-            if (t == 399) {
-              sg_apply_bindings(&bind);
-              sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &vs_params, sizeof(vs_params));
-              sg_draw(0, 4, 1);
+                sg_apply_uniforms(SG_SHADERSTAGE_VS, 0, &vs_params, sizeof(vs_params));
+                sg_draw(0, 4, 1);
             }
         }
-        sg_end_pass();
     }
+    sg_end_pass();
     sg_commit();
 }

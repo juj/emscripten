@@ -2803,11 +2803,10 @@ Module["preRun"] = () => {
   def test_webgl2_pbo(self):
     self.btest_exit('webgl2_pbo.c', cflags=['-sMAX_WEBGL_VERSION=2', '-lGL'])
 
-  @no_firefox('fails on CI likely due to GPU drivers there')
   @no_safari('TODO: Fails with report_result?5') # Fails in Safari 17.6 (17618.3.11.11.7, 17618), Safari 26.0.1 (21622.1.22.11.15)
   @requires_graphics_hardware
   def test_webgl2_sokol_mipmap(self):
-    self.reftest('third_party/sokol/mipmap-emsc.c', cflags=['-sMAX_WEBGL_VERSION=2', '-lGL', '-O1'], reference_slack=2)
+    self.reftest('third_party/sokol/mipmap-emsc.c', cflags=['-sMAX_WEBGL_VERSION=2', '-lGL', '-O1'])
 
   @no_firefox('fails on CI likely due to GPU drivers there')
   @no_4gb('fails to render')
