@@ -472,7 +472,8 @@ addToLibrary({
     if (maxBytesToWrite < 4) return 0;
     var startPtr = outPtr;
     var endPtr = startPtr + maxBytesToWrite - 4;
-    for (var i = 0; i < str.length; ++i) {
+    // Only write a character if the null terminator still fits in after it.
+    for (var i = 0; i < str.length && outPtr + 4 <= endPtr; ++i) {
       var codePoint = str.codePointAt(i);
       // Gotcha: if codePoint is over 0xFFFF, it is represented as a surrogate pair in UTF-16.
       // We need to manually skip over the second code unit for correct iteration.
@@ -481,7 +482,6 @@ addToLibrary({
       }
       {{{ makeSetValue('outPtr', 0, 'codePoint', 'i32') }}};
       outPtr += 4;
-      if (outPtr + 4 > endPtr) break;
     }
     // Null-terminate the pointer to the HEAP.
     {{{ makeSetValue('outPtr', 0, 0, 'i32') }}};

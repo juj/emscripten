@@ -1,0 +1,14 @@
+maxBytesToWrite=0: returned 0, wrote 0 bytes
+maxBytesToWrite=1: returned 0, wrote 0 bytes
+maxBytesToWrite=2: returned 0, wrote 0 bytes
+maxBytesToWrite=3: returned 0, wrote 0 bytes
+maxBytesToWrite=4: returned 0, wrote 4 bytes
+maxBytesToWrite=5: returned 0, wrote 4 bytes
+maxBytesToWrite=6: returned 0, wrote 4 bytes
+maxBytesToWrite=7: returned 0, wrote 4 bytes
+maxBytesToWrite=8: returned 4, wrote 8 bytes
+maxBytesToWrite=9: returned 4, wrote 8 bytes
+maxBytesToWrite=10: returned 4, wrote 8 bytes
+maxBytesToWrite=11: returned 4, wrote 8 bytes
+maxBytesToWrite=12: returned 8, wrote 12 bytes
+maxBytesToWrite=13: returned 8, wrote 12 bytes

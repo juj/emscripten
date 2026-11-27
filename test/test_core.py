@@ -5853,6 +5853,9 @@ got: 10
   def test_utf32(self):
     self.do_runf('utf32.cpp', 'OK (long).\n')
 
+  def test_utf32_max_bytes(self):
+    self.do_core_test('test_utf32_max_bytes.c')
+
   @with_both_text_decoder
   @no_sanitize('requires libc to be built with -fshort-char')
   def test_utf32_short_wchar(self):
