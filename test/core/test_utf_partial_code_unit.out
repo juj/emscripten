@@ -1,0 +1,55 @@
+UTF16ToString
+  maxBytesToRead=0: 0 code units
+  maxBytesToRead=1: 0 code units
+  maxBytesToRead=2: 1 code units
+  maxBytesToRead=3: 1 code units
+  maxBytesToRead=4: 2 code units
+  maxBytesToRead=5: 2 code units
+  maxBytesToRead=32: 16 code units
+  maxBytesToRead=33: 16 code units
+  maxBytesToRead=34: 17 code units
+  maxBytesToRead=35: 17 code units
+UTF16ToString, ignoreNul
+  maxBytesToRead=0: 0 code units
+  maxBytesToRead=1: 0 code units
+  maxBytesToRead=2: 1 code units
+  maxBytesToRead=3: 1 code units
+  maxBytesToRead=4: 2 code units
+  maxBytesToRead=5: 2 code units
+  maxBytesToRead=32: 16 code units
+  maxBytesToRead=33: 16 code units
+  maxBytesToRead=34: 17 code units
+  maxBytesToRead=35: 17 code units
+UTF32ToString
+  maxBytesToRead=0: 0 code units
+  maxBytesToRead=1: 0 code units
+  maxBytesToRead=3: 0 code units
+  maxBytesToRead=4: 1 code units
+  maxBytesToRead=5: 1 code units
+  maxBytesToRead=7: 1 code units
+  maxBytesToRead=8: 2 code units
+  maxBytesToRead=9: 2 code units
+UTF32ToString, ignoreNul
+  maxBytesToRead=0: 0 code units
+  maxBytesToRead=1: 0 code units
+  maxBytesToRead=3: 0 code units
+  maxBytesToRead=4: 1 code units
+  maxBytesToRead=5: 1 code units
+  maxBytesToRead=7: 1 code units
+  maxBytesToRead=8: 2 code units
+  maxBytesToRead=9: 2 code units
+stringToUTF16
+  maxBytesToWrite=0: returned 0, wrote 0 bytes
+  maxBytesToWrite=1: returned 0, wrote 0 bytes
+  maxBytesToWrite=2: returned 0, wrote 2 bytes
+  maxBytesToWrite=3: returned 0, wrote 2 bytes
+  maxBytesToWrite=4: returned 2, wrote 4 bytes
+  maxBytesToWrite=5: returned 2, wrote 4 bytes
+  maxBytesToWrite=6: returned 4, wrote 6 bytes
+  maxBytesToWrite=7: returned 4, wrote 6 bytes
+  maxBytesToWrite=8: returned 6, wrote 8 bytes
+  maxBytesToWrite=9: returned 6, wrote 8 bytes
+  maxBytesToWrite=10: returned 8, wrote 10 bytes
+  maxBytesToWrite=11: returned 8, wrote 10 bytes
+  maxBytesToWrite=12: returned 10, wrote 12 bytes
+  maxBytesToWrite=13: returned 10, wrote 12 bytes

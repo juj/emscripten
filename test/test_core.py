@@ -5880,6 +5880,10 @@ got: 10
     self.cflags += ['--embed-file', test_file('test_utf8_bench.txt') + '@/utf8_corpus.txt']
     self.do_runf('test_utf8_bench.c', 'done\n')
 
+  @with_both_text_decoder
+  def test_utf_partial_code_unit(self):
+    self.do_core_test('test_utf_partial_code_unit.c')
+
   # Test that invalid character in UTF8 does not cause decoding to crash.
   @with_both_text_decoder
   @also_with_minimal_runtime

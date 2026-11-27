@@ -357,7 +357,10 @@ addToLibrary({
     assert(ptr % 2 == 0, 'pointer passed to UTF16ToString must be 2-byte aligned');
 #endif
     var idx = {{{ getHeapOffset('ptr', 'u16') }}};
-    var endIdx = findStringEnd(HEAPU16, idx, maxBytesToRead / 2, ignoreNul);
+    // Round down, so that a code unit that only partly fits in maxBytesToRead
+    // is not read. (If maxBytesToRead is undefined this gives NaN, which
+    // findStringEnd takes to mean that there is no limit.)
+    var endIdx = findStringEnd(HEAPU16, idx, Math.floor(maxBytesToRead / 2), ignoreNul);
 
 #if TEXTDECODER != 2
     // When using conditional TextDecoder, skip it for short strings as the overhead of the native call is not worth it.
@@ -410,7 +413,9 @@ addToLibrary({
     if (maxBytesToWrite < 2) return 0;
     maxBytesToWrite -= 2; // Null terminator.
     var startPtr = outPtr;
-    var numCharsToWrite = (maxBytesToWrite < str.length*2) ? (maxBytesToWrite / 2) : str.length;
+    // Round down, so that a code unit that only partly fits in maxBytesToWrite
+    // is not written.
+    var numCharsToWrite = (maxBytesToWrite < str.length*2) ? Math.floor(maxBytesToWrite / 2) : str.length;
     for (var i = 0; i < numCharsToWrite; ++i) {
       // charCodeAt returns a UTF-16 encoded code unit, so it can be directly written to the HEAP.
       var codeUnit = str.charCodeAt(i); // possibly a lead surrogate
@@ -432,9 +437,10 @@ addToLibrary({
 #endif
     var str = '';
     var startIdx = {{{ getHeapOffset('ptr', 'u32') }}};
+    // Stop when the next code unit does not fit in maxBytesToRead in full.
     // If maxBytesToRead is not passed explicitly, it will be undefined, and this
     // will always evaluate to true. This saves on code size.
-    for (var i = 0; !(i >= maxBytesToRead / 4); i++) {
+    for (var i = 0; !((i + 1) * 4 > maxBytesToRead); i++) {
       var utf32 = HEAPU32[startIdx + i];
       if (!utf32 && !ignoreNul) break;
       str += String.fromCodePoint(utf32);
