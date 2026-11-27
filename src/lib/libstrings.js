@@ -385,7 +385,7 @@ addToLibrary({
 
   // Copies the given Javascript String object 'str' to the emscripten HEAP at
   // address 'outPtr', null-terminated and encoded in UTF16 form. The copy will
-  // require at most str.length*4+2 bytes of space in the HEAP.  Use the
+  // require at most str.length*2+2 bytes of space in the HEAP.  Use the
   // function lengthBytesUTF16() to compute the exact number of bytes (excluding
   // null terminator) that this function will write.
   // Parameters:
@@ -406,6 +406,7 @@ addToLibrary({
 #endif
 #if ASSERTIONS
     assert(typeof maxBytesToWrite === 'number', 'stringToUTF16 requires a third parameter that specifies the length of the output buffer');
+    assert(typeof str === 'string', `stringToUTF16 expects a string (got ${typeof str})`);
 #endif
     if (maxBytesToWrite < 2) return 0;
     maxBytesToWrite -= 2; // Null terminator.
@@ -428,7 +429,7 @@ addToLibrary({
 
   $UTF32ToString: (ptr, maxBytesToRead, ignoreNul) => {
 #if ASSERTIONS
-    assert(ptr % 4 == 0, 'pointer passed to UTF32ToString must be 2-byte aligned');
+    assert(ptr % 4 == 0, 'pointer passed to UTF32ToString must be 4-byte aligned');
 #endif
     var str = '';
     var startIdx = {{{ getHeapOffset('ptr', 'u32') }}};
@@ -468,6 +469,7 @@ addToLibrary({
 #endif
 #if ASSERTIONS
     assert(typeof maxBytesToWrite === 'number', 'stringToUTF32 requires a third parameter that specifies the length of the output buffer');
+    assert(typeof str === 'string', `stringToUTF32 expects a string (got ${typeof str})`);
 #endif
     if (maxBytesToWrite < 4) return 0;
     var startPtr = outPtr;
@@ -489,7 +491,7 @@ addToLibrary({
   },
 
   // Returns the number of bytes the given Javascript string takes if encoded as
-  // a UTF16 byte array, EXCLUDING the null terminator byte.
+  // a UTF32 byte array, EXCLUDING the null terminator byte.
   $lengthBytesUTF32: (str) => {
     var len = 0;
     for (var i = 0; i < str.length; ++i) {

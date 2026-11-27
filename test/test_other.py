@@ -9556,6 +9556,22 @@ int main(int argc, char** argv) {
     self.assertContained('Aborted(CompileError', out)
     self.assertNotContained('startsWith is not a function', out)
 
+  @parameterized({
+    'utf16': ('stringToUTF16',),
+    'utf32': ('stringToUTF32',),
+  })
+  def test_string_to_utf_non_string(self, func):
+    # Like stringToUTF8, these report it when they are passed something other
+    # than a string, instead of silently writing an empty string.
+    create_file('main.c', r'''
+      #include <emscripten.h>
+      EM_JS_DEPS(deps, "$%s,$stackAlloc");
+      int main() {
+        EM_ASM({ %s(123, stackAlloc(16), 16); });
+      }
+    ''' % (func, func))
+    self.do_runf('main.c', f'Assertion failed: {func} expects a string (got number)', assert_returncode=NON_ZERO)
+
   def test_single_file_not_utf8(self):
     # A SINGLE_FILE_BINARY_ENCODE build read in an encoding other than UTF-8
     # (as a browser does from a page with no charset) gets a mangled Wasm
